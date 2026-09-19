@@ -11,6 +11,8 @@ from app.config import settings
 from app.utils.logger import logger
 from app.routes.health import router as health_router
 from app.routes.classification import router as classification_router
+from app.routes.duplicate_detection import router as duplicate_router
+from app.services.embedding_service import embedding_service
 
 
 @asynccontextmanager
@@ -20,8 +22,20 @@ async def lifespan(app: FastAPI):
     logger.info(f"Starting {settings.AI_SERVICE_NAME} v{settings.AI_SERVICE_VERSION}")
     logger.info(f"Environment: {settings.ENVIRONMENT} | Host: {settings.HOST}:{settings.PORT}")
     logger.info(f"Loaded Model: {settings.AI_MODEL_NAME}")
+    logger.info(f"Embedding Model: {settings.EMBEDDING_MODEL_NAME}")
     logger.info(f"CORS Allowed Origins: {settings.cors_origins}")
     logger.info("==================================================")
+
+    # Load the sentence embedding model at startup (done once)
+    try:
+        embedding_service.load_model()
+        logger.info("Sentence embedding model ready for duplicate detection.")
+    except Exception as e:
+        logger.error(
+            f"Failed to load embedding model: {e}. "
+            f"Duplicate detection endpoints will return 503 until resolved."
+        )
+
     yield
     logger.info(f"Shutting down {settings.AI_SERVICE_NAME} gracefully...")
 
@@ -85,6 +99,7 @@ async def generic_exception_handler(request: Request, exc: Exception):
 # Mount Routers
 app.include_router(health_router)
 app.include_router(classification_router)
+app.include_router(duplicate_router)
 
 
 @app.get("/")
@@ -96,6 +111,9 @@ def root():
         "docs": "/docs",
         "health": "/health",
         "classificationEndpoint": "/api/v1/classify-incident",
+        "duplicateCheckEndpoint": "/api/v1/incidents/duplicate-check",
+        "findDuplicatesEndpoint": "/api/v1/incidents/find-duplicates",
+        "clusterEndpoint": "/api/v1/incidents/cluster",
     }
 
 

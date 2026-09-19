@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter
 from app.config import settings
+from app.services.embedding_service import embedding_service
 from datetime import datetime, timezone
 
 router = APIRouter(tags=["Health"])
@@ -19,6 +20,11 @@ def get_health():
         "version": settings.AI_SERVICE_VERSION,
         "environment": settings.ENVIRONMENT,
         "model": settings.AI_MODEL_NAME,
+        "embeddingModel": {
+            "name": embedding_service.model_name if embedding_service.is_loaded else settings.EMBEDDING_MODEL_NAME,
+            "loaded": embedding_service.is_loaded,
+            "embeddingDim": embedding_service.embedding_dim if embedding_service.is_loaded else None,
+        },
         "uptimeSeconds": round(uptime_seconds, 2),
         "capabilities": [
             "INCIDENT_CLASSIFICATION",
@@ -27,5 +33,7 @@ def get_health():
             "SAFETY_ESCALATION",
             "CALIBRATED_CONFIDENCE",
             "EXPLAINABLE_REASONING",
+            "DUPLICATE_DETECTION",
+            "INCIDENT_CLUSTERING",
         ],
     }
