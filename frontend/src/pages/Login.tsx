@@ -19,6 +19,7 @@ import { CyberButton } from '../components/ui/CyberButton';
 import { CyberHUDCard } from '../components/ui/CyberHUDCard';
 import { EmergencyNetwork } from '../components/operations/EmergencyNetwork';
 import { CursorGrid } from '../components/ui/CursorGrid';
+import { EmergenXLogo } from '../components/ui/EmergenXLogo';
 import { TextScramble } from '../components/motion/TextScramble';
 import { soundFx } from '../utils/audio';
 import { useEmergency } from '../context/EmergencyContext';
@@ -116,12 +117,10 @@ export const Login: React.FC = () => {
           className="lg:col-span-6 space-y-6"
         >
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-[#2DD4BF]/10 border border-[#2DD4BF]/40 flex items-center justify-center text-[#2DD4BF] shadow-[0_0_20px_rgba(45,212,191,0.25)]">
-              <Radio className="w-6 h-6 animate-pulse" />
-            </div>
+            <EmergenXLogo size={46} />
             <div>
               <span className="font-display font-extrabold text-2xl tracking-wider text-slate-900 dark:text-white">
-                PS-9 INTELLIGENT OPS
+                EmergenX INTELLIGENT OPS
               </span>
               <span className="block text-xs font-mono text-teal-700 dark:text-[#2DD4BF] tracking-tight">
                 AUTONOMOUS COMMAND & RESOURCE COORDINATION

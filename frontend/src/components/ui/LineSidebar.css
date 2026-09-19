@@ -1,0 +1,163 @@
+.line-sidebar {
+  --accent-color: #2DD4BF;
+  --text-color: #64748B;
+  --marker-color: rgba(148, 163, 184, 0.25);
+  --marker-length: 16px;
+  --marker-gap: 8px;
+  --max-shift: 6px;
+  --item-gap: 4px;
+  --font-size: 0.8rem;
+  --smoothing: 100ms;
+
+  position: relative;
+  display: flex;
+  justify-content: flex-start;
+  width: 100%;
+}
+
+/* Continuous vertical telemetry rail on the left */
+.line-sidebar::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 12px;
+  width: 1px;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(148, 163, 184, 0.2) 15%,
+    rgba(148, 163, 184, 0.2) 85%,
+    transparent
+  );
+  pointer-events: none;
+}
+
+.line-sidebar--markers {
+  padding-left: 28px;
+}
+
+.line-sidebar__list {
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--item-gap);
+  width: 100%;
+}
+
+/* --effect (0..1) is driven per item by a rAF lerp in JS, so every derived
+   property below reads the same continuously-animating value and stays in
+   step, with no CSS transitions to stagger. */
+.line-sidebar__item {
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  border-radius: 10px;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.line-sidebar__item:hover {
+  background-color: rgba(148, 163, 184, 0.08);
+}
+
+.line-sidebar__item[aria-current="true"] {
+  background-color: rgba(45, 212, 191, 0.12);
+  border-color: rgba(45, 212, 191, 0.3);
+  box-shadow: 0 0 15px rgba(45, 212, 191, 0.08);
+}
+
+/* Widen the pointer target so items react a touch before the cursor arrives */
+.line-sidebar__item::before {
+  content: '';
+  position: absolute;
+  inset: -2px -8px;
+}
+
+/* Horizontal connector marker from the rail to the item */
+.line-sidebar__marker {
+  position: absolute;
+  top: 50%;
+  left: -16px;
+  height: 1.5px;
+  width: var(--marker-length);
+  background-color: color-mix(in srgb, var(--accent-color) calc(var(--effect, 0) * 100%), var(--marker-color));
+  transform-origin: left center;
+  transform: translateY(-50%) scaleX(calc(0.6 + var(--effect, 0) * 0.5));
+  transition: background-color 0.15s ease;
+}
+
+/* Glowing beacon node on the rail when active */
+.line-sidebar__item[aria-current="true"] .line-sidebar__marker::before {
+  content: '';
+  position: absolute;
+  left: -2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: var(--accent-color);
+  box-shadow: 0 0 8px var(--accent-color);
+}
+
+.line-sidebar__label {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 10px 6px 6px;
+  font-size: var(--font-size);
+  line-height: 1.2;
+  color: color-mix(in srgb, var(--accent-color) calc(var(--effect, 0) * 100%), var(--text-color));
+  transform: translateX(calc(var(--effect, 0) * var(--max-shift)));
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-weight: 500;
+}
+
+.line-sidebar__left {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.line-sidebar__index {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748B;
+  opacity: calc(0.6 + var(--effect, 0) * 0.4);
+  flex-shrink: 0;
+  width: 18px;
+}
+
+.line-sidebar__item[aria-current="true"] .line-sidebar__index {
+  color: var(--accent-color);
+}
+
+.line-sidebar__icon {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  color: color-mix(in srgb, var(--accent-color) calc(var(--effect, 0) * 100%), var(--text-color));
+  transition: transform 0.2s ease, color 0.15s ease;
+}
+
+.line-sidebar__item:hover .line-sidebar__icon {
+  transform: scale(1.08);
+}
+
+.line-sidebar__text {
+  white-space: nowrap;
+  font-size: 0.81rem;
+  letter-spacing: -0.01em;
+}
+
+.line-sidebar__item[aria-current="true"] .line-sidebar__text {
+  font-weight: 600;
+  color: var(--accent-color);
+}

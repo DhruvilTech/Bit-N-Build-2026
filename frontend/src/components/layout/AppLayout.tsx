@@ -56,7 +56,7 @@ export const AppLayout: React.FC = () => {
         {/* Main Content View Container */}
         <main
           className={`flex-1 min-h-[calc(100vh-4rem)] p-4 sm:p-6 lg:p-8 transition-all duration-300 overflow-x-hidden ${
-            isCollapsed ? 'lg:pl-24' : 'lg:pl-68'
+            isCollapsed ? 'lg:pl-24' : 'lg:pl-72'
           }`}
         >
           <AnimatePresence mode="wait">

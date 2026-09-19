@@ -1,6 +1,6 @@
-# PS-9 Emergency Command Platform — Backend (Node.js & Express.js)
+# EmergenX Emergency Command Platform — Backend (Node.js & Express.js)
 
-Production-style backend foundation and database architecture for the **PS-9 Intelligent Emergency Response & Resource Coordination Platform**.
+Production-style backend foundation and database architecture for the **EmergenX Intelligent Emergency Response & Resource Coordination Platform**.
 
 Built using **JavaScript (ES Modules)** with Node.js, Express.js, MongoDB, and Mongoose.
 

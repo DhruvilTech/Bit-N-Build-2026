@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   ShieldAlert,
@@ -19,8 +19,8 @@ import {
 } from 'lucide-react';
 import { useEmergency } from '../../context/EmergencyContext';
 import { useAuth } from '../../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import { soundFx } from '../../utils/audio';
+import { LineSidebar, LineSidebarItemObject } from '../ui/LineSidebar';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -35,9 +35,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   mobileOpen,
   setMobileOpen,
 }) => {
-  const { stats } = useEmergency();
+  const { stats, theme } = useEmergency();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = async () => {
     soundFx.playClick();
@@ -89,7 +90,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       <aside
         className={`fixed top-16 bottom-0 left-0 z-40 bg-white/95 dark:bg-[#060911]/95 border-r border-slate-200 dark:border-white/10 backdrop-blur-2xl transition-all duration-300 flex flex-col justify-between ${
-          isCollapsed ? 'w-20' : 'w-64'
+          isCollapsed ? 'w-20' : 'w-72'
         } ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
       >
         {/* Navigation items */}
@@ -107,46 +108,60 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
           </div>
 
-          {navItems.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              onClick={() => {
+          {/* Active Route Index */}
+          {!isCollapsed ? (
+            <LineSidebar
+              items={navItems}
+              activeIndex={navItems.findIndex((item) => item.path === location.pathname)}
+              accentColor="#2DD4BF"
+              textColor={theme === 'dark' ? '#9CA5B4' : '#475569'}
+              markerColor={theme === 'dark' ? 'rgba(45, 212, 191, 0.35)' : 'rgba(13, 148, 136, 0.45)'}
+              showIndex={true}
+              showMarker={true}
+              proximityRadius={65}
+              maxShift={6}
+              falloff="smooth"
+              markerLength={16}
+              markerGap={6}
+              scaleTick={false}
+              itemGap={4}
+              fontSize={0.8}
+              smoothing={80}
+              onItemClick={(_index, item) => {
                 soundFx.playClick();
+                if (typeof item === 'object' && item.path) {
+                  navigate(item.path);
+                }
                 setMobileOpen(false);
               }}
-              className={({ isActive }) =>
-                `relative flex items-center gap-3 px-3 py-2.5 rounded-xl font-mono text-xs transition-all group ${
-                  isActive
-                    ? 'bg-teal-500/15 text-teal-700 dark:text-[#2DD4BF] border border-teal-500/30 dark:border-[#2DD4BF]/30 shadow-sm font-semibold'
-                    : 'text-slate-600 hover:text-slate-950 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/5 border border-transparent'
-                }`
-              }
-            >
-              <item.icon className="w-5 h-5 flex-shrink-0 transition-transform group-hover:scale-110" />
+            />
+          ) : (
+            navItems.map((item) => (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                onClick={() => {
+                  soundFx.playClick();
+                  setMobileOpen(false);
+                }}
+                className={({ isActive }) =>
+                  `relative flex items-center justify-center p-3 rounded-xl font-mono text-xs transition-all group ${
+                    isActive
+                      ? 'bg-teal-500/15 text-teal-700 dark:text-[#2DD4BF] border border-teal-500/30 dark:border-[#2DD4BF]/30 shadow-sm font-semibold'
+                      : 'text-slate-600 hover:text-slate-950 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/5 border border-transparent'
+                  }`
+                }
+              >
+                <item.icon className="w-5 h-5 flex-shrink-0 transition-transform group-hover:scale-110" />
 
-              {!isCollapsed && (
-                <div className="flex-1 flex items-center justify-between min-w-0">
-                  <span className="truncate">{item.label}</span>
-                  {item.badge !== undefined && (
-                    <span
-                      className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded border ${item.badgeColor}`}
-                    >
-                      {item.badge}
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {/* Collapsed Tooltip */}
-              {isCollapsed && (
+                {/* Collapsed Tooltip */}
                 <div className="absolute left-full ml-3 px-2.5 py-1.5 rounded-lg bg-white dark:bg-[#0B111E] border border-slate-300 dark:border-[#2DD4BF]/30 text-slate-900 dark:text-white text-xs font-mono whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity shadow-xl z-50">
                   {item.label}
                   {item.badge !== undefined && ` (${item.badge})`}
                 </div>
-              )}
-            </NavLink>
-          ))}
+              </NavLink>
+            ))
+          )}
         </div>
 
         {/* Bottom utility links & collapse button */}

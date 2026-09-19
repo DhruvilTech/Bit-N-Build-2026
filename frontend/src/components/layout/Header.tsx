@@ -16,6 +16,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { CyberButton } from '../ui/CyberButton';
 import { GlowButton } from '../ui/GlowButton';
+import { EmergenXLogo } from '../ui/EmergenXLogo';
 import { motion } from 'framer-motion';
 
 interface HeaderProps {
@@ -61,13 +62,11 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
         )}
 
         <div className="flex items-center gap-3">
-          <div className="relative flex items-center justify-center w-8 h-8 rounded-xl bg-teal-500/10 border border-teal-500/30 text-teal-600 dark:text-[#2DD4BF] shadow-[0_0_15px_rgba(45,212,191,0.25)]">
-            <Radio className="w-4 h-4 animate-pulse" />
-          </div>
+          <EmergenXLogo size={36} />
           <div>
             <div className="flex items-center gap-2">
               <span className="font-display font-bold tracking-wider text-sm lg:text-base text-slate-900 dark:text-white">
-                PS-9 COMMAND
+                EmergenX COMMAND
               </span>
               <span className="hidden sm:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-[#34D399]">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-[#34D399] animate-ping" />

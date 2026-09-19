@@ -23,6 +23,7 @@ import { TextScramble } from '../components/motion/TextScramble';
 import { InteractiveOpsHero } from '../components/operations/InteractiveOpsHero';
 import { EmergencyNetwork } from '../components/operations/EmergencyNetwork';
 import { CursorGrid } from '../components/ui/CursorGrid';
+import { EmergenXLogo } from '../components/ui/EmergenXLogo';
 import { useEmergency } from '../context/EmergencyContext';
 
 export const Landing: React.FC = () => {
@@ -114,12 +115,10 @@ export const Landing: React.FC = () => {
       {/* Navigation Bar */}
       <nav className="relative z-30 w-full max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-600 dark:text-[#2DD4BF] shadow-[0_0_20px_rgba(45,212,191,0.25)]">
-            <Radio className="w-5 h-5 animate-pulse" />
-          </div>
+          <EmergenXLogo size={42} />
           <div>
             <span className="font-display font-bold text-lg tracking-wider text-slate-900 dark:text-white">
-              PS-9 PLATFORM
+              EmergenX
             </span>
             <span className="block text-[10px] font-mono text-teal-600 dark:text-[#2DD4BF] font-semibold tracking-tight">
               AUTONOMOUS EMERGENCY INTELLIGENCE
@@ -333,7 +332,7 @@ export const Landing: React.FC = () => {
                 Automated Apparatus Staging & Capability Matching
               </h3>
               <p className="text-sm text-slate-300 leading-relaxed mb-6">
-                From specialized heavy foam tenders to mobile intensive care ambulances, PS-9 maintains millisecond synchronization
+                From specialized heavy foam tenders to mobile intensive care ambulances, EmergenX maintains millisecond synchronization
                 with field apparatus status, fuel capacity, crew skill rosters, and radio telemetry channels.
               </p>
               <div className="grid grid-cols-2 gap-4 font-mono text-xs mb-6">
@@ -386,7 +385,7 @@ export const Landing: React.FC = () => {
               onClick={() => navigate('/command-center')}
               icon={<ArrowRight className="w-4 h-4" />}
             >
-              LAUNCH PS-9 DASHBOARD
+              LAUNCH EmergenX DASHBOARD
             </CyberButton>
           </div>
         </div>
@@ -395,7 +394,7 @@ export const Landing: React.FC = () => {
       {/* Footer */}
       <footer className="relative z-20 border-t border-slate-300 dark:border-white/10 py-8 px-6 text-center font-mono text-xs text-slate-600 dark:text-slate-400">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div>PS-9 INTELLIGENT EMERGENCY RESPONSE PLATFORM • BIT-N-BUILD 2026</div>
+          <div>EmergenX • INTELLIGENT EMERGENCY RESPONSE PLATFORM • BIT-N-BUILD 2026</div>
           <div className="flex items-center gap-4 text-[11px]">
             <span>REST API OPERATIONAL</span>
             <span>•</span>

@@ -1,6 +1,6 @@
-# PS-9 // Intelligent Emergency Response & Resource Coordination Platform
+# EmergenX // Intelligent Emergency Response & Resource Coordination Platform
 
-A next-generation emergency command and operations platform prototype built for disaster-management authorities, emergency control rooms, rescue brigades, medical coordinators, and first responders.
+**EmergenX** is a next-generation emergency command and operations platform prototype built for disaster-management authorities, emergency control rooms, rescue brigades, medical coordinators, and first responders.
 
 Built for **Bit-N-Build 2026 Hackathon**.
 

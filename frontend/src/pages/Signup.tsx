@@ -255,7 +255,7 @@ export const Signup: React.FC = () => {
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono font-bold bg-cyan-500/15 border border-cyan-500/30 text-cyan-700 dark:text-cyan-400 uppercase tracking-widest mb-3">
             <Radio className="w-3.5 h-3.5 animate-pulse" />
-            OFFICIAL CADET ENLISTMENT // PS-9 PLATFORM
+            OFFICIAL CADET ENLISTMENT // EmergenX
           </div>
           <h1 className="text-3xl sm:text-4xl font-display font-extrabold text-slate-900 dark:text-white tracking-wide">
             ROLE-BASED CLEARANCE REGISTRATION

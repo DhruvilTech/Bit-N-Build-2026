@@ -23,7 +23,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles, ch
           AUTHENTICATING BIOMETRIC CLEARANCE...
         </div>
         <div className="text-[10px] font-mono text-slate-400 dark:text-slate-500 mt-1">
-          PS-9 SECURE MESH // NODE APEX-METRO-01
+          EmergenX SECURE MESH // NODE APEX-METRO-01
         </div>
       </div>
     );
