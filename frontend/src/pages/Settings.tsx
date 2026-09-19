@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useEmergency } from '../context/EmergencyContext';
 import { useAuth } from '../context/AuthContext';
 import { auditLogsApi, authApi, AuditLogItem, UserProfile } from '../services/api';
-import { GlowButton } from '../components/ui/GlowButton';
+import { CyberButton } from '../components/ui/CyberButton';
+import { TextScramble } from '../components/motion/TextScramble';
 import {
   Settings as SettingsIcon,
   Volume2,
@@ -16,11 +17,7 @@ import {
   ScrollText,
   Users,
   RefreshCw,
-  Lock,
-  BadgeAlert,
   Check,
-  Ban,
-  Radio,
 } from 'lucide-react';
 import { soundFx } from '../utils/audio';
 
@@ -126,12 +123,12 @@ export const Settings: React.FC = () => {
       return 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border-emerald-500/30';
     }
     if (action.includes('LOGIN') || action.includes('ROLE')) {
-      return 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-400 border-cyan-500/30';
+      return 'bg-teal-500/15 text-teal-700 dark:text-[#2DD4BF] border-teal-500/30';
     }
     if (action.includes('RELEASED') || action.includes('LOGOUT')) {
       return 'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30';
     }
-    return 'bg-purple-500/15 text-purple-700 dark:text-purple-400 border-purple-500/30';
+    return 'bg-purple-500/15 text-purple-700 dark:text-[#A78BFA] border-purple-500/30';
   };
 
   return (
@@ -140,9 +137,9 @@ export const Settings: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <SettingsIcon className="w-5 h-5 text-cyan-500 dark:text-cyan-400" />
+            <SettingsIcon className="w-5 h-5 text-[#2DD4BF]" />
             <h1 className="text-xl font-display font-bold text-slate-900 dark:text-white tracking-wider">
-              SYSTEM SETTINGS & THRESHOLDS
+              <TextScramble text="SYSTEM SETTINGS & THRESHOLDS" duration={350} />
             </h1>
           </div>
           <p className="text-xs font-mono text-slate-600 dark:text-slate-400 mt-1">
@@ -151,14 +148,14 @@ export const Settings: React.FC = () => {
         </div>
 
         {savedMessage && (
-          <div className="px-3 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-700 dark:text-emerald-300 font-mono text-xs flex items-center gap-1.5 animate-pulse">
+          <div className="px-3 py-1.5 rounded-xl bg-[#34D399]/20 border border-[#34D399]/40 text-emerald-700 dark:text-[#34D399] font-mono text-xs flex items-center gap-1.5 animate-pulse">
             <CheckCircle2 className="w-4 h-4" />
             <span>Parameters Synchronized</span>
           </div>
         )}
 
         {actionSuccess && (
-          <div className="px-3 py-1.5 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-800 dark:text-cyan-300 font-mono text-xs flex items-center gap-1.5 animate-pulse">
+          <div className="px-3 py-1.5 rounded-xl bg-teal-500/20 border border-teal-500/40 text-teal-800 dark:text-[#2DD4BF] font-mono text-xs flex items-center gap-1.5 animate-pulse">
             <Check className="w-4 h-4" />
             <span>{actionSuccess}</span>
           </div>
@@ -166,10 +163,10 @@ export const Settings: React.FC = () => {
       </div>
 
       {/* Section 1: Active User Security Clearance Profile */}
-      <div className="p-6 rounded-2xl bg-white dark:bg-[#080B12]/80 border border-slate-200 dark:border-white/10 backdrop-blur-xl shadow-xl space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-white/10">
+      <div className="p-6 rounded-[18px] bg-white dark:bg-[rgba(11,14,19,0.78)] border border-slate-200 dark:border-white/10 backdrop-blur-[18px] shadow-md dark:shadow-2xl space-y-4">
+        <div className="flex items-center justify-between pb-3.5 border-b border-slate-200 dark:border-white/10">
           <div className="flex items-center gap-2">
-            <User className="w-4 h-4 text-cyan-500 dark:text-cyan-400" />
+            <User className="w-4 h-4 text-teal-600 dark:text-[#2DD4BF]" />
             <h3 className="text-sm font-display font-bold text-slate-900 dark:text-white">
               AUTHENTICATED CADET CLEARANCE
             </h3>
@@ -199,7 +196,7 @@ export const Settings: React.FC = () => {
 
           <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/5">
             <div className="text-slate-500 text-[10px]">SECURITY ROLE (RBAC)</div>
-            <div className="text-sm font-bold text-cyan-600 dark:text-cyan-400 mt-1">
+            <div className="text-sm font-bold text-teal-600 dark:text-[#2DD4BF] mt-1">
               {user?.role || 'OPERATOR'}
             </div>
             <div className="text-[11px] text-slate-500 mt-0.5">{user?.department || 'Emergency Operations'}</div>
@@ -207,7 +204,7 @@ export const Settings: React.FC = () => {
 
           <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/5">
             <div className="text-slate-500 text-[10px]">BADGE CREDENTIAL</div>
-            <div className="text-sm font-bold text-purple-600 dark:text-purple-400 mt-1">
+            <div className="text-sm font-bold text-purple-600 dark:text-[#A78BFA] mt-1">
               {user?.badgeNumber || 'BADGE-DEFAULT'}
             </div>
             <div className="text-[11px] text-slate-500 mt-0.5">Clearance Level 4</div>
@@ -225,10 +222,10 @@ export const Settings: React.FC = () => {
 
       {/* Section 2: Cryptographic Audit Log Ledger (ADMIN & OPERATOR) */}
       {(user?.role === 'ADMIN' || user?.role === 'OPERATOR') && (
-        <div className="p-6 rounded-2xl bg-white dark:bg-[#080B12]/80 border border-slate-200 dark:border-white/10 backdrop-blur-xl shadow-xl space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-white/10">
+        <div className="p-6 rounded-[18px] bg-white dark:bg-[rgba(11,14,19,0.78)] border border-slate-200 dark:border-white/10 backdrop-blur-[18px] shadow-md dark:shadow-2xl space-y-4">
+          <div className="flex items-center justify-between pb-3.5 border-b border-slate-200 dark:border-white/10">
             <div className="flex items-center gap-2">
-              <ScrollText className="w-4 h-4 text-purple-500 dark:text-purple-400" />
+              <ScrollText className="w-4 h-4 text-purple-500 dark:text-[#A78BFA]" />
               <h3 className="text-sm font-display font-bold text-slate-900 dark:text-white">
                 IMMUTABLE AUDIT TRAIL // REAL-TIME DISPATCH LEDGER
               </h3>
@@ -276,7 +273,7 @@ export const Settings: React.FC = () => {
                           {log.action}
                         </span>
                       </td>
-                      <td className="py-2.5 px-3 text-cyan-700 dark:text-cyan-300 font-semibold whitespace-nowrap">
+                      <td className="py-2.5 px-3 text-teal-700 dark:text-[#2DD4BF] font-semibold whitespace-nowrap">
                         {log.entityType} {log.entityId ? `#${log.entityId.slice(-6)}` : ''}
                       </td>
                       <td className="py-2.5 px-3 text-slate-500 text-[11px] truncate max-w-xs">
@@ -293,10 +290,10 @@ export const Settings: React.FC = () => {
 
       {/* Section 3: Admin User Clearance Management (ADMIN only) */}
       {user?.role === 'ADMIN' && (
-        <div className="p-6 rounded-2xl bg-white dark:bg-[#080B12]/80 border border-slate-200 dark:border-white/10 backdrop-blur-xl shadow-xl space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-white/10">
+        <div className="p-6 rounded-[18px] bg-white dark:bg-[rgba(11,14,19,0.78)] border border-slate-200 dark:border-white/10 backdrop-blur-[18px] shadow-md dark:shadow-2xl space-y-4">
+          <div className="flex items-center justify-between pb-3.5 border-b border-slate-200 dark:border-white/10">
             <div className="flex items-center gap-2">
-              <Users className="w-4 h-4 text-cyan-500 dark:text-cyan-400" />
+              <Users className="w-4 h-4 text-teal-600 dark:text-[#2DD4BF]" />
               <h3 className="text-sm font-display font-bold text-slate-900 dark:text-white">
                 CADET DIRECTORY & ROLE ASSIGNMENT (ADMIN OVERRIDE)
               </h3>
@@ -336,7 +333,7 @@ export const Settings: React.FC = () => {
                         disabled={cadet.id === user.id}
                         onChange={(e) => handleRoleChange(cadet.id, e.target.value)}
                         aria-label={`Role for ${cadet.name}`}
-                        className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white text-xs font-mono focus:outline-none focus:border-cyan-500"
+                        className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white text-xs font-mono focus:outline-none focus:border-teal-500 dark:focus:border-[#2DD4BF]"
                       >
                         <option value="ADMIN">ADMIN</option>
                         <option value="OPERATOR">OPERATOR</option>
@@ -378,12 +375,41 @@ export const Settings: React.FC = () => {
         </div>
       )}
 
-      {/* Section 4: Operational Form */}
+      {/* Section 4: Operational Preferences Form */}
       <form onSubmit={handleSave} className="space-y-6">
+        {/* Operator Identification */}
+        <div className="p-6 rounded-[18px] bg-white dark:bg-[rgba(11,14,19,0.78)] border border-slate-200 dark:border-white/10 backdrop-blur-[18px] shadow-md dark:shadow-2xl space-y-4">
+          <div className="flex items-center gap-2 pb-3.5 border-b border-slate-200 dark:border-white/10">
+            <User className="w-4 h-4 text-teal-600 dark:text-[#2DD4BF]" />
+            <h3 className="text-sm font-display font-bold text-slate-900 dark:text-white">OPERATOR IDENTIFICATION</h3>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 font-mono text-xs">
+            <div>
+              <label className="block text-slate-600 dark:text-slate-400 mb-1">OPERATOR NAME</label>
+              <input
+                type="text"
+                value={operatorName}
+                onChange={(e) => setOperatorName(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-white/[0.04] border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white focus:outline-none focus:border-teal-500/50 dark:focus:border-[#2DD4BF]/50"
+              />
+            </div>
+            <div>
+              <label className="block text-slate-600 dark:text-slate-400 mb-1">ASSIGNED DESK / CONSOLE</label>
+              <input
+                type="text"
+                value={deskStation}
+                onChange={(e) => setDeskStation(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-white/[0.04] border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white focus:outline-none focus:border-teal-500/50 dark:focus:border-[#2DD4BF]/50"
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Emergency Response Thresholds */}
-        <div className="p-6 rounded-2xl bg-white dark:bg-[#080B12]/80 border border-slate-200 dark:border-white/10 backdrop-blur-xl shadow-xl space-y-4">
-          <div className="flex items-center gap-2 pb-3 border-b border-slate-200 dark:border-white/10">
-            <ShieldAlert className="w-4 h-4 text-red-500 dark:text-red-400" />
+        <div className="p-6 rounded-[18px] bg-white dark:bg-[rgba(11,14,19,0.78)] border border-slate-200 dark:border-white/10 backdrop-blur-[18px] shadow-md dark:shadow-2xl space-y-4">
+          <div className="flex items-center gap-2 pb-3.5 border-b border-slate-200 dark:border-white/10">
+            <ShieldAlert className="w-4 h-4 text-[#FB4A4A]" />
             <h3 className="text-sm font-display font-bold text-slate-900 dark:text-white">EMERGENCY THRESHOLDS & SLA</h3>
           </div>
 
@@ -391,7 +417,7 @@ export const Settings: React.FC = () => {
             <div>
               <div className="flex justify-between text-slate-700 dark:text-slate-300 mb-2">
                 <span>Response Delay Cutoff Flag:</span>
-                <span className="text-amber-600 dark:text-amber-400 font-bold">{delayThreshold} Minutes</span>
+                <span className="text-amber-600 dark:text-[#F5A623] font-bold">{delayThreshold} Minutes</span>
               </div>
               <input
                 type="range"
@@ -399,9 +425,9 @@ export const Settings: React.FC = () => {
                 max="20"
                 value={delayThreshold}
                 onChange={(e) => setDelayThreshold(Number(e.target.value))}
-                className="w-full accent-amber-500 cursor-pointer"
+                className="w-full accent-[#F5A623] cursor-pointer"
               />
-              <p className="text-[10px] text-slate-500 mt-1">
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
                 Units taking longer than this benchmark automatically trigger high-priority delay escalations.
               </p>
             </div>
@@ -409,7 +435,7 @@ export const Settings: React.FC = () => {
             <div>
               <div className="flex justify-between text-slate-700 dark:text-slate-300 mb-2">
                 <span>AI Auto-Triage Confidence Gate:</span>
-                <span className="text-purple-600 dark:text-purple-400 font-bold">{aiConfidenceCutoff}%</span>
+                <span className="text-purple-700 dark:text-[#A78BFA] font-bold">{aiConfidenceCutoff}%</span>
               </div>
               <input
                 type="range"
@@ -417,19 +443,19 @@ export const Settings: React.FC = () => {
                 max="99"
                 value={aiConfidenceCutoff}
                 onChange={(e) => setAiConfidenceCutoff(Number(e.target.value))}
-                className="w-full accent-purple-500 cursor-pointer"
+                className="w-full accent-[#7C5CFC] cursor-pointer"
               />
-              <p className="text-[10px] text-slate-500 mt-1">
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
                 Confidence threshold required for autonomous resource allocation recommendations.
               </p>
             </div>
           </div>
         </div>
 
-        {/* Section 5: Interface & Tactical Preferences */}
-        <div className="p-6 rounded-2xl bg-white dark:bg-[#080B12]/80 border border-slate-200 dark:border-white/10 backdrop-blur-xl shadow-xl space-y-4">
-          <div className="flex items-center gap-2 pb-3 border-b border-slate-200 dark:border-white/10">
-            <Activity className="w-4 h-4 text-cyan-500 dark:text-cyan-400" />
+        {/* Interface & Tactical Preferences */}
+        <div className="p-6 rounded-[18px] bg-white dark:bg-[rgba(11,14,19,0.78)] border border-slate-200 dark:border-white/10 backdrop-blur-[18px] shadow-md dark:shadow-2xl space-y-4">
+          <div className="flex items-center gap-2 pb-3.5 border-b border-slate-200 dark:border-white/10">
+            <Activity className="w-4 h-4 text-teal-600 dark:text-[#2DD4BF]" />
             <h3 className="text-sm font-display font-bold text-slate-900 dark:text-white">INTERFACE & TACTICAL AUDIO</h3>
           </div>
 
@@ -437,13 +463,13 @@ export const Settings: React.FC = () => {
             {/* Audio Toggle */}
             <div
               onClick={toggleSound}
-              className="p-4 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.03] dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 hover:border-cyan-500/40 cursor-pointer transition-all flex items-center justify-between"
+              className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.03] hover:bg-slate-100 dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 hover:border-teal-500/40 dark:hover:border-[#2DD4BF]/40 cursor-pointer transition-all flex items-center justify-between"
             >
               <div>
                 <span className="text-slate-900 dark:text-white font-semibold block">Tactical Audio FX</span>
                 <span className="text-[10px] text-slate-500 dark:text-slate-400">Sonars, alert warbles</span>
               </div>
-              <div className="p-2 rounded-lg bg-cyan-500/10 text-cyan-500 dark:text-cyan-400">
+              <div className="p-2 rounded-xl bg-[#2DD4BF]/10 text-teal-700 dark:text-[#2DD4BF]">
                 {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4 text-slate-500" />}
               </div>
             </div>
@@ -451,7 +477,7 @@ export const Settings: React.FC = () => {
             {/* Theme Toggle */}
             <div
               onClick={toggleTheme}
-              className="p-4 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.03] dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 hover:border-cyan-500/40 cursor-pointer transition-all flex items-center justify-between"
+              className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.03] hover:bg-slate-100 dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 hover:border-teal-500/40 dark:hover:border-[#2DD4BF]/40 cursor-pointer transition-all flex items-center justify-between"
             >
               <div>
                 <span className="text-slate-900 dark:text-white font-semibold block">Color Theme</span>
@@ -459,7 +485,7 @@ export const Settings: React.FC = () => {
                   {theme === 'dark' ? 'Command Dark' : 'Operations Light'}
                 </span>
               </div>
-              <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500 dark:text-amber-400">
+              <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
                 {theme === 'dark' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
               </div>
             </div>
@@ -467,7 +493,7 @@ export const Settings: React.FC = () => {
             {/* Live Simulation Clock Toggle */}
             <div
               onClick={toggleSimulationTimer}
-              className="p-4 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.03] dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 hover:border-cyan-500/40 cursor-pointer transition-all flex items-center justify-between"
+              className="p-4 rounded-xl bg-slate-50 dark:bg-white/[0.03] hover:bg-slate-100 dark:hover:bg-white/10 border border-slate-200 dark:border-white/10 hover:border-teal-500/40 dark:hover:border-[#2DD4BF]/40 cursor-pointer transition-all flex items-center justify-between"
             >
               <div>
                 <span className="text-slate-900 dark:text-white font-semibold block">Live Simulation Tick</span>
@@ -477,7 +503,7 @@ export const Settings: React.FC = () => {
               </div>
               <div
                 className={`w-3 h-3 rounded-full ${
-                  isSimulating ? 'bg-emerald-500 animate-ping' : 'bg-slate-400 dark:bg-slate-600'
+                  isSimulating ? 'bg-[#34D399] animate-ping' : 'bg-slate-400 dark:bg-slate-600'
                 }`}
               />
             </div>
@@ -486,11 +512,13 @@ export const Settings: React.FC = () => {
 
         {/* Submit */}
         <div className="flex justify-end pt-2">
-          <GlowButton variant="primary" size="lg" type="submit">
+          <CyberButton variant="primary" size="lg" type="submit">
             SAVE OPERATIONAL PREFERENCES
-          </GlowButton>
+          </CyberButton>
         </div>
       </form>
     </div>
   );
 };
+
+export default Settings;

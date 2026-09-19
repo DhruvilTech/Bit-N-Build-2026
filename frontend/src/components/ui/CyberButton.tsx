@@ -2,9 +2,9 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { soundFx } from '../../utils/audio';
 
-interface GlowButtonProps {
+export interface CyberButtonProps {
   children: React.ReactNode;
-  variant?: 'primary' | 'critical' | 'secondary' | 'outline' | 'ghost' | 'ai';
+  variant?: 'primary' | 'secondary' | 'critical' | 'ai' | 'ghost';
   size?: 'sm' | 'md' | 'lg';
   icon?: React.ReactNode;
   onClick?: () => void;
@@ -14,7 +14,7 @@ interface GlowButtonProps {
   type?: 'button' | 'submit' | 'reset';
 }
 
-export const GlowButton: React.FC<GlowButtonProps> = ({
+export const CyberButton: React.FC<CyberButtonProps> = ({
   children,
   variant = 'primary',
   size = 'md',
@@ -40,13 +40,11 @@ export const GlowButton: React.FC<GlowButtonProps> = ({
       case 'critical':
         return 'bg-gradient-to-r from-[#FB4A4A] to-[#DC2626] text-white border-[rgba(251,74,74,0.5)] shadow-[0_0_20px_rgba(251,74,74,0.35)] hover:shadow-[0_0_30px_rgba(251,74,74,0.6)] hover:border-red-300';
       case 'secondary':
-        return 'bg-[rgba(18,22,29,0.85)] hover:bg-[rgba(28,34,44,0.95)] text-[#F5F7FA] border-white/10 hover:border-[#2DD4BF]/50 shadow-sm hover:shadow-[0_0_15px_rgba(45,212,191,0.15)]';
+        return 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300 hover:border-teal-500 shadow-sm dark:bg-[rgba(18,22,29,0.85)] dark:hover:bg-[rgba(28,34,44,0.95)] dark:text-[#F5F7FA] dark:border-white/10 dark:hover:border-[#2DD4BF]/50 dark:hover:shadow-[0_0_15px_rgba(45,212,191,0.15)]';
       case 'ai':
         return 'bg-gradient-to-r from-[#7C5CFC] to-[#6366F1] text-white border-purple-400/50 shadow-[0_0_20px_rgba(124,92,252,0.35)] hover:shadow-[0_0_30px_rgba(124,92,252,0.6)]';
-      case 'outline':
-        return 'bg-transparent text-slate-300 border-white/15 hover:border-[#2DD4BF]/50 hover:text-[#2DD4BF] hover:bg-[#2DD4BF]/5';
       case 'ghost':
-        return 'bg-transparent text-slate-400 hover:text-white hover:bg-white/5 border-transparent';
+        return 'bg-transparent text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 border-transparent';
       case 'primary':
       default:
         return 'bg-gradient-to-r from-[#2DD4BF] to-[#2563EB] text-[#05070A] font-bold border-[#5EEAD4]/60 shadow-[0_0_20px_rgba(45,212,191,0.35)] hover:shadow-[0_0_30px_rgba(45,212,191,0.6)] hover:border-teal-200';

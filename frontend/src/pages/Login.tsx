@@ -15,9 +15,10 @@ import {
   UserPlus,
   ShieldCheck,
 } from 'lucide-react';
-import { GlowButton } from '../components/ui/GlowButton';
-import { RadarBackground } from '../components/ui/RadarBackground';
-import { SplitCursor } from '../components/ui/SplitCursor';
+import { CyberButton } from '../components/ui/CyberButton';
+import { CyberHUDCard } from '../components/ui/CyberHUDCard';
+import { EmergencyNetwork } from '../components/operations/EmergencyNetwork';
+import { TextScramble } from '../components/motion/TextScramble';
 import { soundFx } from '../utils/audio';
 import { useEmergency } from '../context/EmergencyContext';
 import { useAuth } from '../context/AuthContext';
@@ -61,15 +62,17 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="relative min-h-screen bg-slate-50 dark:bg-[#05070D] text-slate-900 dark:text-slate-100 flex items-center justify-center p-4 sm:p-6 overflow-hidden transition-colors duration-500">
-      <SplitCursor />
-      <RadarBackground opacity={theme === 'dark' ? 0.35 : 0.2} />
+    <div className="relative min-h-screen atmospheric-bg text-slate-900 dark:text-[#F5F7FA] flex items-center justify-center p-4 sm:p-6 overflow-hidden transition-colors duration-300">
+      {/* Background Emergency Node Network */}
+      <div className="absolute inset-0 pointer-events-none z-0">
+        <EmergencyNetwork nodeCount={28} opacity={0.35} />
+      </div>
 
       {/* Top Floating Utility Bar */}
       <div className="absolute top-4 right-4 z-30 flex items-center gap-3">
         <Link
           to="/"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/80 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-xs font-mono text-slate-600 dark:text-slate-400 hover:text-cyan-600 dark:hover:text-cyan-300 backdrop-blur-md shadow-sm transition-all"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/80 dark:bg-white/5 border border-slate-300 dark:border-white/10 text-xs font-mono text-slate-700 dark:text-slate-300 hover:text-teal-700 dark:hover:text-[#2DD4BF] backdrop-blur-md shadow-sm transition-all"
         >
           <Home className="w-3.5 h-3.5" />
           <span>Home</span>
@@ -77,73 +80,73 @@ export const Login: React.FC = () => {
         <button
           onClick={toggleTheme}
           title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} mode`}
-          className="p-2 rounded-xl bg-white/80 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-amber-400 hover:scale-105 backdrop-blur-md shadow-sm transition-all"
+          className="p-2 rounded-xl bg-white/80 dark:bg-white/5 border border-slate-300 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:text-amber-500 dark:hover:text-amber-400 backdrop-blur-md shadow-sm transition-all"
         >
           {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </button>
       </div>
 
       <div className="relative z-20 w-full max-w-5xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-        {/* Left Side: Command Center Telemetry & Visual */}
+        {/* Left Side: Secure Operations Context & Telemetry */}
         <motion.div
-          initial={{ opacity: 0, x: -30 }}
+          initial={{ opacity: 0, x: -25 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6 }}
+          transition={{ duration: 0.5 }}
           className="lg:col-span-6 space-y-6"
         >
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/40 flex items-center justify-center text-cyan-500 dark:text-cyan-400 shadow-[0_0_20px_rgba(0,217,255,0.25)]">
+            <div className="w-12 h-12 rounded-xl bg-[#2DD4BF]/10 border border-[#2DD4BF]/40 flex items-center justify-center text-[#2DD4BF] shadow-[0_0_20px_rgba(45,212,191,0.25)]">
               <Radio className="w-6 h-6 animate-pulse" />
             </div>
             <div>
               <span className="font-display font-extrabold text-2xl tracking-wider text-slate-900 dark:text-white">
                 PS-9 INTELLIGENT OPS
               </span>
-              <span className="block text-xs font-mono text-cyan-600 dark:text-cyan-400 tracking-tight">
+              <span className="block text-xs font-mono text-teal-700 dark:text-[#2DD4BF] tracking-tight">
                 AUTONOMOUS COMMAND & RESOURCE COORDINATION
               </span>
             </div>
           </div>
 
-          <div className="p-6 rounded-2xl bg-white/80 dark:bg-[#080B12]/80 border border-slate-200 dark:border-white/10 backdrop-blur-xl shadow-xl space-y-4">
+          <div className="p-6 rounded-2xl bg-white/95 dark:bg-[#0B0E13]/85 border border-slate-200 dark:border-white/10 backdrop-blur-xl shadow-lg dark:shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-white/10">
-              <div className="flex items-center gap-2 text-xs font-mono text-emerald-600 dark:text-emerald-400">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+              <div className="flex items-center gap-2 text-xs font-mono text-emerald-700 dark:text-[#34D399]">
+                <span className="w-2 h-2 rounded-full bg-[#34D399] animate-ping" />
                 SYSTEM STATUS: ONLINE
               </div>
               <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400">NODE: APEX-METRO-01</div>
             </div>
 
-            <div className="relative h-36 rounded-xl overflow-hidden border border-slate-200 dark:border-white/10">
+            <div className="relative h-32 rounded-xl overflow-hidden border border-slate-200 dark:border-white/10">
               <img
                 src="/assets/command_center_hero.jpg"
                 alt="Command Center"
                 className="w-full h-full object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-black/20" />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-transparent to-black/30" />
               <div className="absolute bottom-2 left-3 text-[10px] font-mono text-white/90">
-                <span>WAR ROOM ACTIVE // AUTOMATIC ROLE & CLEARANCE RECOGNITION</span>
+                <span>WAR ROOM ACTIVE // AUTOMATIC ROLE RECOGNITION</span>
               </div>
             </div>
 
             <p className="text-xs text-slate-600 dark:text-slate-300 font-sans leading-relaxed">
-              Authorized emergency command access only. All dispatches, resource allocations, and triage actions are cryptographically verified and audited in the immutable event ledger.
+              Authorized emergency operations center access only. All actions, dispatch authorizations, and priority overrides are cryptographically logged in the real-time event ledger.
             </p>
 
             <div className="grid grid-cols-2 gap-3 pt-2 font-mono text-xs">
-              <div className="p-3 rounded-lg bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/5">
-                <div className="text-slate-500 text-[10px]">ACTIVE RESPONDERS</div>
-                <div className="text-base font-bold text-cyan-600 dark:text-cyan-300 mt-1">18 FIELD TEAMS</div>
+              <div className="p-3 rounded-lg bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/5">
+                <div className="text-slate-500 dark:text-slate-400 text-[10px]">CURRENT ACTIVE UNITS</div>
+                <div className="text-base font-bold text-teal-700 dark:text-[#2DD4BF] mt-1">18 FIELD TEAMS</div>
               </div>
-              <div className="p-3 rounded-lg bg-slate-50 dark:bg-white/[0.02] border border-slate-200 dark:border-white/5">
-                <div className="text-slate-500 text-[10px]">AI ENGINE STATUS</div>
-                <div className="text-base font-bold text-purple-600 dark:text-purple-300 mt-1">94.8% ACCURACY</div>
+              <div className="p-3 rounded-lg bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/5">
+                <div className="text-slate-500 dark:text-slate-400 text-[10px]">AI ENGINE STATUS</div>
+                <div className="text-base font-bold text-purple-700 dark:text-[#A78BFA] mt-1">94.8% ACCURACY</div>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-4 text-xs font-mono text-slate-500 dark:text-slate-400">
-            <div className="flex items-center gap-1.5 text-cyan-600 dark:text-cyan-400">
+            <div className="flex items-center gap-1.5 text-teal-700 dark:text-[#2DD4BF]">
               <Lock className="w-3.5 h-3.5" />
               <span>TLS 1.3 ENCRYPTION</span>
             </div>
@@ -152,21 +155,26 @@ export const Login: React.FC = () => {
           </div>
         </motion.div>
 
-        {/* Right Side: Signin Form Card */}
+        {/* Right Side: Cyber HUD Authentication Panel */}
         <motion.div
-          initial={{ opacity: 0, x: 30 }}
+          initial={{ opacity: 0, x: 25 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
           className="lg:col-span-6"
         >
-          <div className="rounded-2xl bg-white/90 dark:bg-[#080B12]/90 border border-slate-200 dark:border-white/15 p-6 sm:p-8 backdrop-blur-2xl shadow-xl dark:shadow-[0_20px_60px_rgba(0,0,0,0.8),0_0_30px_rgba(0,217,255,0.1)]">
+          <CyberHUDCard
+            variant="default"
+            telemetryCode="AUTH-PORTAL"
+            telemetryLabel="SECURE OPERATIONS ACCESS"
+            className="p-6 sm:p-8"
+          >
             <div className="mb-6">
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-cyan-500/15 border border-cyan-500/30 text-cyan-700 dark:text-cyan-300 uppercase tracking-wider mb-2">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-teal-500/15 border border-teal-500/30 text-teal-700 dark:text-[#2DD4BF] uppercase tracking-wider mb-2">
                 <ShieldCheck className="w-3 h-3" />
                 OFFICIAL CONSOLE LOGIN
               </div>
               <h2 className="text-xl font-display font-bold text-slate-900 dark:text-white mb-1">
-                OPERATOR AUTHENTICATION
+                <TextScramble text="OPERATOR AUTHENTICATION" duration={350} />
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">
                 ENTER REGISTERED CADET EMAIL AND SECURITY CLEARANCE KEY
@@ -195,7 +203,7 @@ export const Login: React.FC = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="e.g. admin123@gmail.com"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-white/[0.04] border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white font-mono text-sm focus:outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/40 transition-all placeholder:text-slate-400/60"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-white/[0.04] border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white font-mono text-sm focus:outline-none focus:border-teal-500/60 dark:focus:border-[#2DD4BF]/60 focus:ring-1 focus:ring-teal-500/40 transition-all placeholder:text-slate-400/60"
                   />
                 </div>
               </div>
@@ -215,19 +223,19 @@ export const Login: React.FC = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••••••"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-white/[0.04] border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white font-mono text-sm focus:outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/40 transition-all placeholder:text-slate-400/60"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-white/[0.04] border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white font-mono text-sm focus:outline-none focus:border-teal-500/60 dark:focus:border-[#2DD4BF]/60 focus:ring-1 focus:ring-teal-500/40 transition-all placeholder:text-slate-400/60"
                   />
                 </div>
               </div>
 
               <div className="p-3 rounded-xl bg-slate-100 dark:bg-white/[0.02] border border-slate-200 dark:border-white/5 font-mono text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 flex-shrink-0" />
+                <span className="w-1.5 h-1.5 rounded-full bg-teal-500 flex-shrink-0" />
                 <span>Clearance role is automatically recognized from your verified cadet account.</span>
               </div>
 
               {/* Submit CTA */}
-              <div className="pt-2">
-                <GlowButton
+              <div className="pt-3">
+                <CyberButton
                   type="submit"
                   variant="primary"
                   size="lg"
@@ -242,7 +250,7 @@ export const Login: React.FC = () => {
                   }
                 >
                   {isAuthenticating ? 'VERIFYING BIOMETRICS...' : 'ACCESS COMMAND CENTER'}
-                </GlowButton>
+                </CyberButton>
               </div>
 
               {/* Enlist / Register Navigation Link */}
@@ -252,7 +260,7 @@ export const Login: React.FC = () => {
                   <Link
                     to="/signup"
                     onClick={() => soundFx.playClick()}
-                    className="text-cyan-600 dark:text-cyan-400 font-semibold hover:underline inline-flex items-center gap-1 ml-1"
+                    className="text-teal-600 dark:text-[#2DD4BF] font-semibold hover:underline inline-flex items-center gap-1 ml-1"
                   >
                     <UserPlus className="w-3.5 h-3.5 inline" />
                     <span>Register Cadet Clearance</span>
@@ -260,7 +268,7 @@ export const Login: React.FC = () => {
                 </p>
               </div>
             </form>
-          </div>
+          </CyberHUDCard>
         </motion.div>
       </div>
     </div>

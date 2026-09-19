@@ -9,16 +9,16 @@ export const LiveIncidentFeed: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="h-full flex flex-col rounded-2xl bg-white dark:bg-[#080B12]/90 border border-slate-200 dark:border-white/10 backdrop-blur-xl overflow-hidden shadow-sm dark:shadow-2xl">
+    <div className="h-full flex flex-col rounded-[18px] bg-white dark:bg-[rgba(11,14,19,0.78)] border border-slate-300 dark:border-white/10 backdrop-blur-[18px] overflow-hidden shadow-lg dark:shadow-[0_10px_40px_rgba(0,0,0,0.4)]">
       {/* Header */}
-      <div className="p-3.5 sm:p-4 border-b border-slate-200 dark:border-white/10 flex items-center justify-between bg-slate-50/80 dark:bg-[#05070D]/80">
+      <div className="p-3.5 sm:p-4 border-b border-slate-200 dark:border-white/10 flex items-center justify-between bg-slate-50/90 dark:bg-[#05070D]/80">
         <div className="flex items-center gap-2">
-          <Radio className="w-4 h-4 text-red-500 animate-pulse" />
-          <h3 className="font-display font-bold text-sm tracking-wider text-slate-900 dark:text-white">
+          <Radio className="w-4 h-4 text-red-600 dark:text-[#FB4A4A] animate-pulse" />
+          <h3 className="font-display font-bold text-xs sm:text-sm tracking-wider text-slate-900 dark:text-white">
             LIVE INCIDENT FEED
           </h3>
         </div>
-        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-200/60 dark:bg-white/5 border border-slate-300 dark:border-white/10 text-slate-700 dark:text-slate-400 font-semibold">
+        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 font-semibold">
           {incidents.length} MONITORED
         </span>
       </div>
@@ -35,15 +35,15 @@ export const LiveIncidentFeed: React.FC = () => {
               onClick={() => setActiveIncidentId(incident.id)}
               className={`p-3 rounded-xl border transition-all cursor-pointer group ${
                 isSelected
-                  ? 'bg-cyan-50 dark:bg-cyan-950/30 border-cyan-400 dark:border-cyan-500/60 shadow-sm dark:shadow-[0_0_15px_rgba(0,212,255,0.15)]'
+                  ? 'bg-teal-500/10 border-teal-500/60 dark:bg-[#2DD4BF]/10 dark:border-[#2DD4BF]/60 shadow-md'
                   : isCritical
-                  ? 'bg-red-50 dark:bg-red-950/20 border-red-300 dark:border-red-500/30 hover:border-red-500/50'
-                  : 'bg-slate-50/70 dark:bg-white/[0.02] border-slate-200 dark:border-white/5 hover:bg-slate-100 dark:hover:bg-white/5'
+                  ? 'bg-red-50/80 border-red-200 dark:bg-[rgba(251,74,74,0.06)] dark:border-[rgba(251,74,74,0.35)] hover:border-red-400 dark:hover:border-[#FB4A4A]'
+                  : 'bg-slate-50/80 border-slate-200 hover:bg-slate-100 hover:border-slate-300 dark:bg-white/[0.02] dark:border-white/5 dark:hover:bg-white/5 dark:hover:border-white/20'
               }`}
             >
               <div className="flex items-start justify-between gap-2 mb-1.5">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] font-mono font-bold text-slate-500 dark:text-slate-400">
+                  <span className="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400">
                     {incident.createdAt}
                   </span>
                   <span className="text-xs font-mono font-semibold text-slate-900 dark:text-white truncate max-w-[140px] sm:max-w-[180px]">
@@ -54,20 +54,20 @@ export const LiveIncidentFeed: React.FC = () => {
               </div>
 
               <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 font-mono">
-                <span className="truncate max-w-[160px]">{incident.location.zone}</span>
-                <span className="text-[10px] text-cyan-600 dark:text-cyan-400 font-bold">{incident.priority}</span>
+                <span className="truncate max-w-[160px] text-slate-700 dark:text-slate-300 font-medium">{incident.location.zone}</span>
+                <span className="text-[10px] text-teal-700 dark:text-[#2DD4BF] font-bold">{incident.priority}</span>
               </div>
 
               {/* Action row on hover / selected */}
               <div className="mt-2 pt-2 border-t border-slate-200 dark:border-white/5 flex items-center justify-between text-[11px] font-mono">
-                <span className="text-slate-400 dark:text-slate-500">#{incident.id}</span>
+                <span className="text-slate-500 dark:text-slate-400">#{incident.id}</span>
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
                     setActiveIncidentId(incident.id);
                     navigate(`/incidents/${incident.id}`);
                   }}
-                  className="flex items-center gap-1 text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors font-semibold"
+                  className="flex items-center gap-1 text-teal-700 hover:text-teal-900 dark:text-[#2DD4BF] dark:hover:text-[#5EEAD4] transition-colors font-semibold"
                 >
                   Inspect Command <ArrowRight className="w-3 h-3" />
                 </button>
@@ -78,10 +78,10 @@ export const LiveIncidentFeed: React.FC = () => {
       </div>
 
       {/* Footer view all link */}
-      <div className="p-3 border-t border-slate-200 dark:border-white/10 bg-slate-50/80 dark:bg-[#05070D]/80 text-center">
+      <div className="p-3 border-t border-slate-200 dark:border-white/10 bg-slate-50/90 dark:bg-[#05070D]/80 text-center">
         <button
           onClick={() => navigate('/incidents')}
-          className="text-xs font-mono font-bold text-cyan-600 dark:text-cyan-400 hover:underline flex items-center justify-center gap-1 w-full"
+          className="text-xs font-mono font-bold text-teal-700 dark:text-[#2DD4BF] hover:underline flex items-center justify-center gap-1 w-full"
         >
           View All Triage Records &rarr;
         </button>

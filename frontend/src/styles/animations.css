@@ -1,0 +1,109 @@
+/**
+ * PS-9 Intelligent Emergency Response Platform
+ * Tactical Animations & Keyframes
+ */
+
+@keyframes radarRotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes signalPulse {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.3;
+  }
+  100% {
+    transform: scale(1.25);
+    opacity: 0;
+  }
+}
+
+@keyframes routeParticleTravel {
+  0% {
+    stroke-dashoffset: 40;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes tacticalBlink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes aiBreathingGlow {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(124, 92, 252, 0.25);
+    border-color: rgba(124, 92, 252, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 35px rgba(124, 92, 252, 0.55);
+    border-color: rgba(124, 92, 252, 0.7);
+  }
+}
+
+@keyframes criticalPulse {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(251, 74, 74, 0.3);
+    border-color: rgba(251, 74, 74, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 28px rgba(251, 74, 74, 0.7);
+    border-color: rgba(251, 74, 74, 0.9);
+  }
+}
+
+.animate-radar-rotate {
+  animation: radarRotate 8s linear infinite;
+}
+
+.animate-radar-rotate-slow {
+  animation: radarRotate 16s linear infinite;
+}
+
+.animate-signal-pulse {
+  animation: signalPulse 2s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+}
+
+.animate-route-particle {
+  stroke-dasharray: 6, 8;
+  animation: routeParticleTravel 1.2s linear infinite;
+}
+
+.animate-tactical-blink {
+  animation: tacticalBlink 1.2s ease-in-out infinite;
+}
+
+.animate-ai-breathing {
+  animation: aiBreathingGlow 3.5s ease-in-out infinite;
+}
+
+.animate-critical-pulse {
+  animation: criticalPulse 1.5s ease-in-out infinite;
+}
+
+/* Reduced Motion Override for Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

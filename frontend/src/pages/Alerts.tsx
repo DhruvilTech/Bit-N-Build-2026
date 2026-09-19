@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useEmergency } from '../context/EmergencyContext';
-import { GlowButton } from '../components/ui/GlowButton';
+import { CyberButton } from '../components/ui/CyberButton';
+import { TextScramble } from '../components/motion/TextScramble';
 import {
   AlertTriangle,
   ShieldAlert,
@@ -8,8 +9,6 @@ import {
   Database,
   CheckCircle2,
   ArrowRight,
-  Filter,
-  Flame,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -25,14 +24,14 @@ export const Alerts: React.FC = () => {
   const getAlertIcon = (severity: string) => {
     switch (severity) {
       case 'CRITICAL':
-        return <ShieldAlert className="w-5 h-5 text-red-400 animate-pulse" />;
+        return <ShieldAlert className="w-5 h-5 text-[#FB4A4A] animate-pulse" />;
       case 'RESPONSE DELAY':
-        return <ClockAlert className="w-5 h-5 text-amber-400" />;
+        return <ClockAlert className="w-5 h-5 text-[#F5A623]" />;
       case 'RESOURCE SHORTAGE':
-        return <Database className="w-5 h-5 text-purple-400" />;
+        return <Database className="w-5 h-5 text-[#A78BFA]" />;
       case 'WARNING':
       default:
-        return <AlertTriangle className="w-5 h-5 text-cyan-400" />;
+        return <AlertTriangle className="w-5 h-5 text-[#2DD4BF]" />;
     }
   };
 
@@ -42,12 +41,12 @@ export const Alerts: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <ShieldAlert className="w-5 h-5 text-red-500 animate-pulse" />
+            <ShieldAlert className="w-5 h-5 text-[#FB4A4A] animate-pulse" />
             <h1 className="text-xl font-display font-bold text-slate-900 dark:text-white tracking-wider">
-              ALERTS & ESCALATION CENTER
+              <TextScramble text="ALERTS & ESCALATION CONTROL" duration={350} />
             </h1>
           </div>
-          <p className="text-xs font-mono text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-xs font-mono text-slate-600 dark:text-slate-400 mt-1">
             CRITICAL THREATS • LATENCY DELAY DETECTION • MUTUAL AID NOTIFICATIONS
           </p>
         </div>
@@ -60,8 +59,8 @@ export const Alerts: React.FC = () => {
               onClick={() => setFilterSeverity(sev)}
               className={`px-3 py-1.5 rounded-xl border transition-all whitespace-nowrap ${
                 filterSeverity === sev
-                  ? 'bg-red-500 text-white border-red-400 font-semibold shadow-sm'
-                  : 'bg-slate-100 dark:bg-white/[0.02] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/20'
+                  ? 'bg-[#FB4A4A] text-white border-red-400 font-bold shadow-[0_0_12px_rgba(251,74,74,0.4)]'
+                  : 'bg-slate-100 dark:bg-white/[0.02] text-slate-600 dark:text-slate-400 border-slate-300 dark:border-white/5 hover:border-slate-400 dark:hover:border-white/20'
               }`}
             >
               {sev}
@@ -73,7 +72,7 @@ export const Alerts: React.FC = () => {
       {/* Alerts Stream List */}
       <div className="space-y-4">
         {filteredAlerts.length === 0 ? (
-          <div className="p-12 text-center rounded-2xl bg-white dark:bg-[#080B12]/80 border border-slate-200 dark:border-white/10 text-slate-500 dark:text-slate-400 font-mono text-xs shadow-sm">
+          <div className="p-12 text-center rounded-[18px] bg-white dark:bg-[rgba(11,14,19,0.78)] border border-slate-200 dark:border-white/10 text-slate-500 font-mono text-xs shadow-md dark:shadow-xl">
             No active alerts matching this filter.
           </div>
         ) : (
@@ -84,12 +83,12 @@ export const Alerts: React.FC = () => {
             return (
               <div
                 key={alert.id}
-                className={`p-5 rounded-2xl border transition-all shadow-sm ${
+                className={`p-5 rounded-[18px] border transition-all shadow-md dark:shadow-xl ${
                   isCritical
-                    ? 'bg-red-50/80 dark:bg-red-950/20 border-red-200 dark:border-red-500/40 shadow-sm dark:shadow-[0_0_30px_rgba(239,68,68,0.15)]'
+                    ? 'bg-red-50/70 dark:bg-red-950/20 border-red-400 dark:border-red-500/40 shadow-[0_0_30px_rgba(251,74,74,0.15)] animate-critical-pulse'
                     : isDelay
-                    ? 'bg-amber-50/80 dark:bg-amber-950/20 border-amber-200 dark:border-amber-500/40 shadow-sm dark:shadow-[0_0_20px_rgba(245,158,11,0.1)]'
-                    : 'bg-white dark:bg-[#080B12]/80 border-slate-200 dark:border-white/10'
+                    ? 'bg-amber-50/70 dark:bg-amber-950/20 border-amber-400 dark:border-amber-500/40 shadow-[0_0_20px_rgba(245,166,35,0.1)]'
+                    : 'bg-white dark:bg-[rgba(11,14,19,0.78)] border-slate-200 dark:border-white/10'
                 } ${alert.acknowledged ? 'opacity-60' : ''}`}
               >
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -100,7 +99,7 @@ export const Alerts: React.FC = () => {
                           ? 'bg-red-500/10 border-red-500/30'
                           : isDelay
                           ? 'bg-amber-500/10 border-amber-500/30'
-                          : 'bg-slate-100 dark:bg-white/5 border-slate-200 dark:border-white/10'
+                          : 'bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10'
                       }`}
                     >
                       {getAlertIcon(alert.severity)}
@@ -111,10 +110,10 @@ export const Alerts: React.FC = () => {
                         <span
                           className={`text-xs font-mono font-bold px-2 py-0.5 rounded border ${
                             isCritical
-                              ? 'bg-red-500/20 text-red-700 dark:text-red-400 border-red-500/40'
+                              ? 'bg-red-500/20 text-[#FB4A4A] border-red-500/40'
                               : isDelay
-                              ? 'bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/40'
-                              : 'bg-cyan-500/20 text-cyan-700 dark:text-cyan-400 border-cyan-500/40'
+                              ? 'bg-amber-500/20 text-amber-700 dark:text-[#F5A623] border-amber-500/40'
+                              : 'bg-cyan-500/15 text-teal-700 dark:text-[#2DD4BF] border-teal-500/30'
                           }`}
                         >
                           {alert.severity}
@@ -126,25 +125,25 @@ export const Alerts: React.FC = () => {
                               setActiveIncidentId(alert.incidentId!);
                               navigate(`/incidents/${alert.incidentId}`);
                             }}
-                            className="text-xs font-mono text-cyan-600 dark:text-cyan-400 hover:underline font-semibold"
+                            className="text-xs font-mono text-teal-700 dark:text-[#2DD4BF] hover:underline font-semibold"
                           >
                             #{alert.incidentId}
                           </button>
                         )}
 
-                        <span className="text-[11px] font-mono text-slate-400 dark:text-slate-500">
+                        <span className="text-[11px] font-mono text-slate-500">
                           {alert.timestamp}
                         </span>
 
                         {alert.acknowledged && (
-                          <span className="text-[10px] font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-300 dark:border-emerald-500/30 px-2 py-0.2 rounded font-semibold">
+                          <span className="text-[10px] font-mono text-[#34D399] bg-[#34D399]/15 border border-[#34D399]/30 px-2 py-0.5 rounded font-semibold">
                             ACKNOWLEDGED
                           </span>
                         )}
                       </div>
 
                       <h3 className="text-base font-semibold text-slate-900 dark:text-white">{alert.title}</h3>
-                      <p className="text-xs text-slate-600 dark:text-slate-300 font-sans leading-relaxed max-w-3xl">
+                      <p className="text-xs text-slate-700 dark:text-slate-300 font-sans leading-relaxed max-w-3xl">
                         {alert.message}
                       </p>
                     </div>
@@ -155,22 +154,22 @@ export const Alerts: React.FC = () => {
                     {!alert.acknowledged && (
                       <button
                         onClick={() => acknowledgeAlert(alert.id)}
-                        className="px-3 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/10 border border-white/10 text-xs font-mono text-slate-300 hover:text-white transition-colors flex items-center gap-1.5"
+                        className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/[0.04] hover:bg-slate-200 dark:hover:bg-white/10 border border-slate-300 dark:border-white/10 text-xs font-mono text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors flex items-center gap-1.5 shadow-sm"
                       >
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                        <CheckCircle2 className="w-3.5 h-3.5 text-[#34D399]" />
                         <span>Acknowledge</span>
                       </button>
                     )}
 
                     {alert.requiresEscalation && alert.incidentId && (
-                      <GlowButton
+                      <CyberButton
                         variant="critical"
                         size="sm"
                         pulse={true}
                         onClick={() => escalateIncident(alert.incidentId!)}
                       >
                         AUTHORIZE ESCALATION
-                      </GlowButton>
+                      </CyberButton>
                     )}
 
                     {alert.incidentId && (
@@ -179,7 +178,7 @@ export const Alerts: React.FC = () => {
                           setActiveIncidentId(alert.incidentId!);
                           navigate(`/incidents/${alert.incidentId}`);
                         }}
-                        className="p-2 rounded-lg bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 transition-colors"
+                        className="p-2 rounded-xl bg-[#2DD4BF]/10 hover:bg-[#2DD4BF]/20 text-[#2DD4BF] transition-colors"
                       >
                         <ArrowRight className="w-4 h-4" />
                       </button>

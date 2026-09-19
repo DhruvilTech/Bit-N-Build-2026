@@ -13,9 +13,9 @@ export const AppLayout: React.FC = () => {
   const [mobileOpen, setMobileOpen] = useState<boolean>(false);
 
   return (
-    <div className="relative min-h-screen bg-slate-50 text-slate-900 dark:bg-[#060911] dark:text-slate-100 selection:bg-cyan-500/25 selection:text-cyan-800 dark:selection:text-cyan-300 transition-colors duration-200 font-sans">
+    <div className="relative min-h-screen atmospheric-bg text-slate-900 dark:text-[#F5F7FA] selection:bg-[#2DD4BF]/25 selection:text-teal-700 dark:selection:text-[#5EEAD4] transition-colors duration-200 font-sans">
       {/* Tactical Canvas Radar Background */}
-      <RadarBackground opacity={0.35} />
+      <RadarBackground opacity={0.25} />
 
       {/* Split/Magnetic Cursor */}
       <SplitCursor />
@@ -40,10 +40,10 @@ export const AppLayout: React.FC = () => {
         >
           <AnimatePresence mode="wait">
             <motion.div
-              initial={{ opacity: 0, y: 8 }}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
               className="w-full max-w-7xl mx-auto"
             >
               <Outlet />
