@@ -20,73 +20,87 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
       case 'P1':
       case 'Escalated':
         return {
-          bg: 'bg-red-500/15',
-          border: 'border-red-500/40',
-          text: 'text-red-400',
-          dot: 'bg-red-500',
-          glow: 'shadow-[0_0_12px_rgba(239,68,68,0.4)]',
+          bg: 'bg-[rgba(251,74,74,0.12)]',
+          border: 'border-[rgba(251,74,74,0.4)]',
+          text: 'text-[#FB4A4A]',
+          dot: 'bg-[#FB4A4A]',
+          glow: 'shadow-[0_0_12px_rgba(251,74,74,0.35)]',
         };
       case 'HIGH':
       case 'P2':
-      case 'Analyzing':
       case 'EN_ROUTE':
+      case 'RESPONSE DELAY':
         return {
-          bg: 'bg-amber-500/15',
-          border: 'border-amber-500/40',
-          text: 'text-amber-400',
-          dot: 'bg-amber-500',
-          glow: 'shadow-[0_0_10px_rgba(245,158,11,0.3)]',
+          bg: 'bg-[rgba(245,166,35,0.12)]',
+          border: 'border-[rgba(245,166,35,0.4)]',
+          text: 'text-[#F5A623]',
+          dot: 'bg-[#F5A623]',
+          glow: 'shadow-[0_0_10px_rgba(245,166,35,0.3)]',
         };
       case 'MEDIUM':
       case 'P3':
       case 'Assigned':
       case 'Responding':
-      case 'BUSY':
         return {
-          bg: 'bg-cyan-500/15',
-          border: 'border-cyan-500/40',
-          text: 'text-cyan-400',
-          dot: 'bg-cyan-400',
-          glow: 'shadow-[0_0_10px_rgba(0,217,255,0.3)]',
+          bg: 'bg-[rgba(45,212,191,0.12)]',
+          border: 'border-[rgba(45,212,191,0.35)]',
+          text: 'text-[#2DD4BF]',
+          dot: 'bg-[#2DD4BF]',
+          glow: 'shadow-[0_0_10px_rgba(45,212,191,0.25)]',
         };
       case 'LOW':
       case 'P4':
       case 'AVAILABLE':
-      case 'ON_SCENE':
       case 'Resolved':
         return {
-          bg: 'bg-emerald-500/15',
-          border: 'border-emerald-500/40',
-          text: 'text-emerald-400',
-          dot: 'bg-emerald-400',
-          glow: 'shadow-[0_0_8px_rgba(34,197,94,0.3)]',
+          bg: 'bg-[rgba(52,211,153,0.12)]',
+          border: 'border-[rgba(52,211,153,0.35)]',
+          text: 'text-[#34D399]',
+          dot: 'bg-[#34D399]',
+          glow: 'shadow-[0_0_8px_rgba(52,211,153,0.25)]',
         };
       case 'New':
+      case 'Analyzing':
+      case 'RESOURCE SHORTAGE':
         return {
-          bg: 'bg-purple-500/15',
-          border: 'border-purple-500/40',
-          text: 'text-purple-400',
-          dot: 'bg-purple-400',
-          glow: 'shadow-[0_0_8px_rgba(168,85,247,0.3)]',
+          bg: 'bg-[rgba(124,92,252,0.12)]',
+          border: 'border-[rgba(124,92,252,0.35)]',
+          text: 'text-[#A78BFA]',
+          dot: 'bg-[#7C5CFC]',
+          glow: 'shadow-[0_0_8px_rgba(124,92,252,0.25)]',
+        };
+      case 'ON_SCENE':
+      case 'BUSY':
+        return {
+          bg: 'bg-[rgba(59,130,246,0.12)]',
+          border: 'border-[rgba(59,130,246,0.35)]',
+          text: 'text-[#60A5FA]',
+          dot: 'bg-[#3B82F6]',
+          glow: 'shadow-[0_0_8px_rgba(59,130,246,0.25)]',
         };
       case 'OFFLINE':
       default:
         return {
-          bg: 'bg-slate-500/15',
-          border: 'border-slate-500/30',
+          bg: 'bg-white/[0.04]',
+          border: 'border-white/10',
           text: 'text-slate-400',
-          dot: 'bg-slate-400',
+          dot: 'bg-slate-500',
           glow: '',
         };
     }
   };
 
   const style = getColors();
-  const shouldPulse = pulse || value === 'CRITICAL' || value === 'Escalated' || value === 'EN_ROUTE';
+  const shouldPulse =
+    pulse ||
+    value === 'CRITICAL' ||
+    value === 'Escalated' ||
+    value === 'EN_ROUTE' ||
+    value === 'Analyzing';
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-mono font-medium border ${style.bg} ${style.border} ${style.text} ${style.glow} ${className}`}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md text-[11px] font-mono font-semibold border tracking-wider ${style.bg} ${style.border} ${style.text} ${style.glow} ${className}`}
     >
       <span
         className={`w-1.5 h-1.5 rounded-full ${style.dot} ${

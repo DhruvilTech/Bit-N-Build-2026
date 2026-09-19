@@ -16,6 +16,7 @@ import { AIAssistant } from './pages/AIAssistant';
 import { Analytics } from './pages/Analytics';
 import { Notifications } from './pages/Notifications';
 import { Settings } from './pages/Settings';
+import { ComponentLibrary } from './pages/ComponentLibrary';
 
 export function App() {
   return (
@@ -39,6 +40,7 @@ export function App() {
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/components" element={<ComponentLibrary />} />
           </Route>
 
           {/* Fallback */}

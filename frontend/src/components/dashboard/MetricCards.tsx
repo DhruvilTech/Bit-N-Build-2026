@@ -1,5 +1,5 @@
 import React from 'react';
-import { GlassCard } from '../ui/GlassCard';
+import { CyberCard } from '../ui/CyberCard';
 import { useEmergency } from '../../context/EmergencyContext';
 import {
   Flame,
@@ -23,59 +23,58 @@ export const MetricCards: React.FC = () => {
       change: '+12% from last shift',
       trend: 'up',
       icon: Flame,
-      color: 'text-cyan-400',
-      accent: 'border-cyan-500/30',
+      color: 'text-[#2DD4BF]',
+      variant: 'default' as const,
       route: '/incidents',
     },
     {
-      title: 'CRITICAL INCIDENTS',
+      title: 'CRITICAL (P1)',
       value: String(stats.criticalIncidents).padStart(2, '0'),
-      change: 'Priority P1 active',
+      change: 'Immediate threat vector',
       trend: 'critical',
       icon: ShieldAlert,
-      color: 'text-red-400',
-      accent: 'border-red-500/40',
-      isCritical: true,
+      color: 'text-[#FB4A4A]',
+      variant: 'critical' as const,
       route: '/alerts',
     },
     {
-      title: 'RESPONSE TEAMS',
+      title: 'DEPLOYED TEAMS',
       value: String(stats.activeTeams).padStart(2, '0'),
-      change: 'Field units deployed',
+      change: 'Mobilized field units',
       trend: 'neutral',
       icon: Users,
-      color: 'text-blue-400',
-      accent: 'border-blue-500/30',
+      color: 'text-[#3B82F6]',
+      variant: 'default' as const,
       route: '/teams',
     },
     {
-      title: 'AVAILABLE VEHICLES',
+      title: 'AVAILABLE FLEET',
       value: String(stats.availableVehicles).padStart(2, '0'),
       change: 'Ready for dispatch',
       trend: 'neutral',
       icon: Truck,
-      color: 'text-emerald-400',
-      accent: 'border-emerald-500/30',
+      color: 'text-[#34D399]',
+      variant: 'default' as const,
       route: '/resources',
     },
     {
-      title: 'HOSPITALS ACTIVE',
+      title: 'TRAUMA HOSPITALS',
       value: String(stats.hospitalsAvailable).padStart(2, '0'),
-      change: 'Trauma & ICU ready',
+      change: 'ICU capacity ready',
       trend: 'neutral',
       icon: Building2,
-      color: 'text-purple-400',
-      accent: 'border-purple-500/30',
+      color: 'text-[#A78BFA]',
+      variant: 'ai' as const,
       route: '/resources',
     },
     {
-      title: 'DELAYED RESPONSES',
+      title: 'TRANSIT DELAYS',
       value: String(stats.delayedResponses).padStart(2, '0'),
-      change: 'Exceeding SLA threshold',
+      change: 'Exceeding SLA limit',
       trend: 'warning',
       icon: ClockAlert,
-      color: 'text-amber-400',
-      accent: 'border-amber-500/40',
+      color: 'text-[#F5A623]',
+      variant: 'warning' as const,
       route: '/alerts',
     },
   ];
@@ -83,14 +82,14 @@ export const MetricCards: React.FC = () => {
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-6">
       {metrics.map((item, index) => (
-        <GlassCard
+        <CyberCard
           key={index}
-          isCritical={item.isCritical}
+          variant={item.variant}
           onClick={() => navigate(item.route)}
           className="p-3.5 sm:p-4 cursor-pointer group transition-all"
         >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] sm:text-xs font-mono tracking-wider text-slate-500 dark:text-slate-400 truncate font-semibold">
+            <span className="text-[10px] sm:text-[11px] font-mono tracking-wider text-slate-600 dark:text-slate-400 truncate font-semibold">
               {item.title}
             </span>
             <div
@@ -105,23 +104,23 @@ export const MetricCards: React.FC = () => {
               {item.value}
             </span>
             {item.trend === 'up' && (
-              <span className="text-[11px] font-mono text-cyan-600 dark:text-cyan-400 flex items-center">
+              <span className="text-[10px] font-mono text-teal-600 dark:text-[#2DD4BF] flex items-center font-bold">
                 <TrendingUp className="w-3 h-3 mr-0.5" />
                 12%
               </span>
             )}
           </div>
 
-          <div className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-mono truncate flex items-center gap-1">
-            {item.isCritical && (
-              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+          <div className="text-[10px] text-slate-600 dark:text-slate-400 font-mono truncate flex items-center gap-1.5">
+            {item.variant === 'critical' && (
+              <span className="w-1.5 h-1.5 rounded-full bg-red-600 dark:bg-[#FB4A4A] animate-pulse flex-shrink-0" />
             )}
-            {item.trend === 'warning' && (
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0" />
+            {item.variant === 'warning' && (
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 dark:bg-[#F5A623] flex-shrink-0" />
             )}
-            <span className="truncate">{item.change}</span>
+            <span className="truncate font-medium">{item.change}</span>
           </div>
-        </GlassCard>
+        </CyberCard>
       ))}
     </div>
   );

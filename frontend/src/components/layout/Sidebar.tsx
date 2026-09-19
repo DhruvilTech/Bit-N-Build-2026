@@ -15,6 +15,7 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  Component,
 } from 'lucide-react';
 import { useEmergency } from '../../context/EmergencyContext';
 import { soundFx } from '../../utils/audio';
@@ -37,32 +38,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const navItems = [
     { label: 'Command Center', icon: LayoutDashboard, path: '/command-center' },
     {
-      label: 'Incidents',
+      label: 'Live Incidents',
       icon: ShieldAlert,
       path: '/incidents',
       badge: stats.totalIncidents,
-      badgeColor: 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-400 border-cyan-500/30',
+      badgeColor: 'bg-[#2DD4BF]/15 text-[#2DD4BF] border-[#2DD4BF]/30',
     },
-    { label: 'Live Map', icon: MapPin, path: '/map' },
+    { label: 'GIS Operations', icon: MapPin, path: '/map' },
     { label: 'Resources', icon: Truck, path: '/resources' },
     {
       label: 'Response Teams',
       icon: Users,
       path: '/teams',
       badge: stats.activeTeams,
-      badgeColor: 'bg-blue-500/15 text-blue-700 dark:text-blue-400 border-blue-500/30',
+      badgeColor: 'bg-[#3B82F6]/15 text-[#60A5FA] border-[#3B82F6]/30',
     },
     {
       label: 'Alerts & Escalation',
       icon: AlertTriangle,
       path: '/alerts',
       badge: stats.criticalIncidents,
-      badgeColor: 'bg-red-500/15 text-red-700 dark:text-red-400 border-red-500/30',
+      badgeColor: 'bg-[#FB4A4A]/15 text-[#FB4A4A] border-[#FB4A4A]/30',
     },
-    { label: 'Response AI', icon: Bot, path: '/assistant' },
+    { label: 'AI Response Copilot', icon: Bot, path: '/assistant' },
     { label: 'Analytics', icon: BarChart3, path: '/analytics' },
     { label: 'Notifications', icon: Bell, path: '/notifications' },
     { label: 'Settings', icon: Settings, path: '/settings' },
+    { label: 'Component Library', icon: Component, path: '/components' },
   ];
 
   return (
@@ -71,7 +73,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {mobileOpen && (
         <div
           onClick={() => setMobileOpen(false)}
-          className="fixed inset-0 z-40 bg-slate-900/60 dark:bg-black/70 backdrop-blur-sm lg:hidden transition-opacity"
+          className="fixed inset-0 z-40 bg-black/75 backdrop-blur-sm lg:hidden transition-opacity"
         />
       )}
 
@@ -82,7 +84,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       >
         {/* Navigation items */}
         <div className="flex-1 py-4 px-3 overflow-y-auto space-y-1">
-          <div className="px-3 pb-2 text-[10px] font-mono uppercase tracking-widest text-slate-400 dark:text-slate-500">
+          <div className="px-3 pb-2 text-[10px] font-mono uppercase tracking-widest text-slate-500 font-semibold">
             {!isCollapsed && 'Operations Mesh'}
           </div>
 
@@ -97,8 +99,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className={({ isActive }) =>
                 `relative flex items-center gap-3 px-3 py-2.5 rounded-xl font-mono text-xs transition-all group ${
                   isActive
-                    ? 'bg-cyan-50 dark:bg-cyan-500/15 text-cyan-800 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-500/30 shadow-sm dark:shadow-[0_0_20px_rgba(0,212,255,0.15)] font-semibold'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 border border-transparent'
+                    ? 'bg-teal-500/15 text-teal-700 dark:text-[#2DD4BF] border border-teal-500/30 dark:border-[#2DD4BF]/30 shadow-sm font-semibold'
+                    : 'text-slate-600 hover:text-slate-950 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/5 border border-transparent'
                 }`
               }
             >
@@ -119,7 +121,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
               {/* Collapsed Tooltip */}
               {isCollapsed && (
-                <div className="absolute left-full ml-3 px-2.5 py-1.5 rounded-lg bg-slate-900 dark:bg-[#0B111E] border border-slate-700 dark:border-cyan-500/30 text-white text-xs font-mono whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity shadow-xl z-50">
+                <div className="absolute left-full ml-3 px-2.5 py-1.5 rounded-lg bg-white dark:bg-[#0B111E] border border-slate-300 dark:border-[#2DD4BF]/30 text-slate-900 dark:text-white text-xs font-mono whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity shadow-xl z-50">
                   {item.label}
                   {item.badge !== undefined && ` (${item.badge})`}
                 </div>
@@ -129,22 +131,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Bottom utility links & collapse button */}
-        <div className="p-3 border-t border-slate-200 dark:border-white/10 space-y-1 bg-slate-50/80 dark:bg-[#060911]/60">
+        <div className="p-3 border-t border-slate-200 dark:border-white/10 space-y-1 bg-slate-50/60 dark:bg-[#060911]/60">
           <NavLink
             to="/"
             onClick={() => soundFx.playClick()}
-            className="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-mono text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+            className="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-mono text-slate-600 hover:text-slate-950 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/5 transition-colors"
           >
-            <Globe className="w-4 h-4 flex-shrink-0 text-cyan-600 dark:text-cyan-400" />
+            <Globe className="w-4 h-4 flex-shrink-0 text-teal-600 dark:text-[#2DD4BF]" />
             {!isCollapsed && <span>Public Landing</span>}
           </NavLink>
 
           <NavLink
             to="/login"
             onClick={() => soundFx.playClick()}
-            className="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-mono text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+            className="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-mono text-slate-600 hover:text-slate-950 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/5 transition-colors"
           >
-            <LogOut className="w-4 h-4 flex-shrink-0 text-rose-600 dark:text-rose-400" />
+            <LogOut className="w-4 h-4 flex-shrink-0 text-red-600 dark:text-[#FB4A4A]" />
             {!isCollapsed && <span>Switch Station</span>}
           </NavLink>
 
@@ -154,7 +156,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               soundFx.playClick();
               setIsCollapsed(!isCollapsed);
             }}
-            className="hidden lg:flex items-center justify-center w-full py-2 mt-2 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+            className="hidden lg:flex items-center justify-center w-full py-2 mt-2 rounded-lg text-slate-600 hover:text-slate-950 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/5 transition-colors"
             aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}

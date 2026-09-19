@@ -35,8 +35,8 @@ export const GlassCard: React.FC<GlassCardProps> = ({
     const centerX = rect.width / 2;
     const centerY = rect.height / 2;
 
-    const rotX = ((y - centerY) / centerY) * -4;
-    const rotY = ((x - centerX) / centerX) * 4;
+    const rotX = ((y - centerY) / centerY) * -3;
+    const rotY = ((x - centerX) / centerX) * 3;
 
     setRotateX(rotX);
     setRotateY(rotY);
@@ -70,32 +70,32 @@ export const GlassCard: React.FC<GlassCardProps> = ({
         rotateY,
         transformPerspective: 1000,
       }}
-      transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-      className={`relative rounded-xl overflow-hidden backdrop-blur-xl transition-all duration-200 border ${
+      transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+      className={`cyber-card relative rounded-[18px] backdrop-blur-[18px] transition-all duration-200 border ${
         isCritical
-          ? 'bg-red-50/90 dark:bg-red-950/20 border-red-300 dark:border-red-500/30 hover:border-red-500/60 shadow-[0_4px_20px_-2px_rgba(239,68,68,0.15)] dark:shadow-[0_10px_30px_-5px_rgba(239,68,68,0.2)]'
-          : 'bg-white/95 dark:bg-[#0B1018]/75 border-slate-200 dark:border-white/10 hover:border-cyan-400 dark:hover:border-cyan-500/40 shadow-[0_4px_20px_-2px_rgba(15,23,42,0.06)] dark:shadow-[0_15px_35px_-5px_rgba(0,0,0,0.5)]'
-      } ${hudCorners ? 'hud-box' : ''} ${className}`}
+          ? 'cyber-card-critical border-[rgba(251,74,74,0.35)] hover:border-[rgba(251,74,74,0.85)] shadow-[0_10px_35px_rgba(251,74,74,0.15)]'
+          : 'border-white/10 hover:border-[#2DD4BF]/40 shadow-[0_10px_40px_rgba(0,0,0,0.4)]'
+      } ${hudCorners ? 'hud-brackets' : ''} ${className}`}
     >
       {/* Dynamic Cursor-following Glow Effect */}
       {isHovered && (
         <div
-          className="pointer-events-none absolute -inset-px rounded-xl opacity-100 transition-opacity duration-300"
+          className="pointer-events-none absolute -inset-px rounded-[18px] opacity-100 transition-opacity duration-300"
           style={{
             background: `radial-gradient(400px circle at ${glowPos.x}% ${glowPos.y}%, ${
               isCritical
-                ? 'rgba(239, 68, 68, 0.12)'
-                : 'rgba(0, 212, 255, 0.1)'
+                ? 'rgba(251, 74, 74, 0.12)'
+                : 'rgba(45, 212, 191, 0.1)'
             }, transparent 80%)`,
           }}
         />
       )}
 
       {/* Top subtle highlight shimmer border */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-slate-300/40 dark:via-white/20 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/15 to-transparent" />
 
       {/* Content Container */}
-      <div className="relative z-10 w-full h-full text-slate-800 dark:text-slate-100">{children}</div>
+      <div className="relative z-10 w-full h-full text-slate-100">{children}</div>
     </motion.div>
   );
 };

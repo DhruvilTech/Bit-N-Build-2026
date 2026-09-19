@@ -1,0 +1,94 @@
+/**
+ * PS-9 Intelligent Emergency Response & Resource Coordination Platform
+ * Cyber-Sentinel Design Tokens
+ */
+
+:root {
+  /* Core Cyber-Sentinel Palette */
+  --accent-primary: #2DD4BF;       /* Teal - Live Telemetry & Connected Systems */
+  --accent-primary-glow: #5EEAD4;
+  --accent-primary-dim: rgba(45, 212, 191, 0.15);
+  
+  --accent-secondary: #7C5CFC;     /* Violet - AI Copilot & Autonomous Synthesis */
+  --accent-secondary-glow: #A78BFA;
+  --accent-secondary-dim: rgba(124, 92, 252, 0.15);
+  
+  --accent-tertiary: #3B82F6;      /* Blue - Command, Fleet & Navigation */
+  --accent-tertiary-glow: #60A5FA;
+  --accent-tertiary-dim: rgba(59, 130, 246, 0.15);
+
+  /* Semantic Emergency Alert Colors */
+  --alert-critical: #FB4A4A;       /* Red - P1 Critical Emergency / Immediate Threat */
+  --alert-critical-glow: rgba(251, 74, 74, 0.4);
+  --alert-critical-dim: rgba(251, 74, 74, 0.15);
+
+  --alert-warning: #F5A623;        /* Amber - Response Delay / Degraded Transit */
+  --alert-warning-glow: rgba(245, 166, 35, 0.4);
+  --alert-warning-dim: rgba(245, 166, 35, 0.15);
+
+  --alert-success: #34D399;        /* Green - Station Ready / Available / Resolved */
+  --alert-success-glow: rgba(52, 211, 153, 0.4);
+  --alert-success-dim: rgba(52, 211, 153, 0.15);
+
+  /* Dark Command Surfaces (Dominant Visual Foundation) */
+  --bg-canvas: #05070A;
+  --bg-surface: #0B0E13;
+  --bg-surface-glass: rgba(11, 14, 19, 0.72);
+  --bg-raised: #12161D;
+  --bg-raised-glass: rgba(18, 22, 29, 0.85);
+
+  /* Monospace & Display Typography Colors */
+  --text-primary: #F5F7FA;
+  --text-secondary: #9CA5B4;
+  --text-muted: #8E9BAE;
+  --text-dim: #64748B;
+
+  /* Borders & Reticles */
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --border-highlight: rgba(45, 212, 191, 0.35);
+  --border-critical: rgba(251, 74, 74, 0.45);
+  --border-warning: rgba(245, 166, 35, 0.45);
+  --border-ai: rgba(124, 92, 252, 0.45);
+
+  /* Elevation & Shadows */
+  --shadow-card: 0 10px 40px rgba(0, 0, 0, 0.45);
+  --shadow-hud: 0 12px 48px -8px rgba(0, 0, 0, 0.65);
+  --shadow-teal-glow: 0 0 25px rgba(45, 212, 191, 0.25);
+  --shadow-red-glow: 0 0 25px rgba(251, 74, 74, 0.35);
+  --shadow-violet-glow: 0 0 25px rgba(124, 92, 252, 0.3);
+
+  /* Radii */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  /* Transitions */
+  --transition-fast: 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-standard: 250ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-smooth: 400ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Light Operations Theme Mode */
+.light {
+  --bg-canvas: #F4F6F9;
+  --bg-surface: #FFFFFF;
+  --bg-surface-glass: rgba(255, 255, 255, 0.92);
+  --bg-raised: #EAEFF5;
+  --bg-raised-glass: rgba(244, 246, 249, 0.95);
+
+  --text-primary: #0F172A;
+  --text-secondary: #334155;
+  --text-muted: #475569;
+  --text-dim: #64748B;
+
+  --border-subtle: rgba(15, 23, 42, 0.12);
+  --border-strong: rgba(15, 23, 42, 0.22);
+  --border-highlight: rgba(13, 148, 136, 0.4);
+
+  --shadow-card: 0 10px 30px -5px rgba(15, 23, 42, 0.08);
+  --shadow-hud: 0 12px 35px -5px rgba(15, 23, 42, 0.12);
+  --shadow-teal-glow: 0 0 20px rgba(13, 148, 136, 0.15);
+}

@@ -4,17 +4,14 @@ import { useEmergency } from '../../context/EmergencyContext';
 import {
   Layers,
   Flame,
-  Ambulance,
   Shield,
   Hospital,
   Compass,
   Plus,
   Minus,
   Navigation,
-  Eye,
   Activity,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 
 interface EmergencyMapProps {
   height?: string;
@@ -34,7 +31,6 @@ export const EmergencyMap: React.FC<EmergencyMapProps> = ({
   const perimeterLayerRef = useRef<L.LayerGroup | null>(null);
 
   const { incidents, teams, hospitals, setActiveIncidentId, theme } = useEmergency();
-  const navigate = useNavigate();
 
   // Layer Visibility States
   const [showIncidents, setShowIncidents] = useState<boolean>(true);
@@ -118,22 +114,22 @@ export const EmergencyMap: React.FC<EmergencyMapProps> = ({
         const isSelected = selectedIncidentId === inc.id;
         const isCritical = inc.severity === 'CRITICAL';
 
-        // Custom pulsing HTML marker
+        // Custom pulsing HTML marker with Cyber-Sentinel colors
         const markerHtml = `
-          <div class="relative group cursor-pointer" data-cursor="${isCritical ? 'critical' : 'pointer'}">
-            <div class="absolute -inset-2 rounded-full ${
+          <div class="relative group cursor-pointer">
+            <div class="absolute -inset-2.5 rounded-full ${
               isCritical ? 'bg-red-500/30 animate-ping' : 'bg-cyan-500/20'
             }"></div>
             <div class="relative w-8 h-8 rounded-full flex items-center justify-center border-2 ${
               isCritical
-                ? 'bg-red-950 border-red-500 text-red-400 shadow-[0_0_15px_#EF4444]'
+                ? 'bg-[#180808] border-[#FB4A4A] text-[#FB4A4A] shadow-[0_0_18px_#FB4A4A]'
                 : inc.severity === 'HIGH'
-                ? 'bg-amber-950 border-amber-500 text-amber-400 shadow-[0_0_12px_#F59E0B]'
-                : 'bg-cyan-950 border-cyan-500 text-cyan-400 shadow-[0_0_10px_#00D9FF]'
+                ? 'bg-[#181105] border-[#F5A623] text-[#F5A623] shadow-[0_0_14px_#F5A623]'
+                : 'bg-[#061514] border-[#2DD4BF] text-[#2DD4BF] shadow-[0_0_12px_#2DD4BF]'
             } ${isSelected ? 'scale-125 ring-2 ring-white' : ''}">
-              <span class="text-xs font-bold font-mono">${inc.priority}</span>
+              <span class="text-[10px] font-bold font-mono">${inc.priority}</span>
             </div>
-            <div class="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap bg-black/80 px-1.5 py-0.5 rounded text-[10px] font-mono text-white border border-white/10 pointer-events-none">
+            <div class="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap bg-black/90 px-1.5 py-0.5 rounded text-[9px] font-mono text-white border border-white/10 pointer-events-none shadow-lg">
               ${inc.id}
             </div>
           </div>
@@ -153,25 +149,28 @@ export const EmergencyMap: React.FC<EmergencyMapProps> = ({
         });
 
         marker.bindPopup(`
-          <div class="p-2 bg-[#080B12] text-white rounded font-sans">
-            <div class="text-xs font-bold text-cyan-400 font-mono">${inc.id} • ${inc.priority}</div>
+          <div class="p-3 bg-[#0B0E13] text-[#F5F7FA] rounded-xl border border-white/15 font-sans shadow-2xl">
+            <div class="text-[10px] font-bold text-[#2DD4BF] font-mono">${inc.id} • ${inc.priority} [${inc.severity}]</div>
             <div class="text-sm font-semibold mt-1">${inc.title}</div>
             <div class="text-xs text-slate-400 mt-1">${inc.location.name}</div>
-            <div class="mt-2 text-[11px] text-cyan-300 font-mono">Status: ${inc.status}</div>
+            <div class="mt-2 pt-2 border-t border-white/10 text-[11px] text-[#2DD4BF] font-mono flex items-center justify-between">
+              <span>Status: ${inc.status}</span>
+              <span>Conf: ${inc.aiConfidence}%</span>
+            </div>
           </div>
         `);
 
         layerGroup.addLayer(marker);
 
-        // Hazard Heatmap / Buffer Zones
+        // Hazard Heatmap / Geofenced Buffer Zones
         if (showHeatmap && isCritical) {
           const circle = L.circle([inc.location.lat, inc.location.lng], {
-            radius: 750, // 750m perimeter
-            color: '#EF4444',
-            fillColor: '#EF4444',
-            fillOpacity: 0.15,
+            radius: 750,
+            color: '#FB4A4A',
+            fillColor: '#FB4A4A',
+            fillOpacity: 0.14,
             weight: 1.5,
-            dashArray: '4, 6',
+            dashArray: '5, 6',
           });
           perimeterLayer.addLayer(circle);
         }
@@ -181,17 +180,19 @@ export const EmergencyMap: React.FC<EmergencyMapProps> = ({
     // 2. Plot Teams
     if (showTeams) {
       teams.forEach((team) => {
+        const isEnRoute = team.status === 'EN_ROUTE';
+
         const teamIconHtml = `
           <div class="relative cursor-pointer group" title="${team.name}">
             <div class="w-7 h-7 rounded-lg flex items-center justify-center border ${
               team.status === 'AVAILABLE'
-                ? 'bg-emerald-950/80 border-emerald-500 text-emerald-400'
-                : team.status === 'EN_ROUTE'
-                ? 'bg-amber-950/90 border-amber-400 text-amber-300 animate-pulse'
-                : 'bg-blue-950/80 border-blue-400 text-blue-300'
-            } shadow-lg">
-              <span class="text-[10px] font-mono font-bold">${
-                team.type === 'Fire' ? 'FT' : team.type === 'Medical' ? 'AM' : 'PD'
+                ? 'bg-[#081812]/90 border-[#34D399] text-[#34D399]'
+                : isEnRoute
+                ? 'bg-[#181105]/95 border-[#F5A623] text-[#F5A623] animate-pulse shadow-[0_0_12px_#F5A623]'
+                : 'bg-[#091122]/90 border-[#3B82F6] text-[#60A5FA]'
+            } shadow-lg backdrop-blur-md">
+              <span class="text-[9px] font-mono font-bold">${
+                team.type === 'Fire' ? 'FT' : team.type === 'Medical' ? 'EMS' : 'PD'
               }</span>
             </div>
           </div>
@@ -207,18 +208,21 @@ export const EmergencyMap: React.FC<EmergencyMapProps> = ({
         const marker = L.marker([team.location.lat, team.location.lng], { icon });
 
         marker.bindPopup(`
-          <div class="p-2 bg-[#080B12] text-white rounded font-sans">
-            <div class="text-xs font-bold text-amber-400 font-mono">${team.id} • ${team.status}</div>
+          <div class="p-3 bg-[#0B0E13] text-[#F5F7FA] rounded-xl border border-white/15 font-sans shadow-2xl">
+            <div class="text-[10px] font-bold text-[#F5A623] font-mono">${team.id} • ${team.status}</div>
             <div class="text-sm font-semibold mt-1">${team.name}</div>
             <div class="text-xs text-slate-400 mt-1">Vehicle: ${team.vehicleName}</div>
-            <div class="text-xs text-cyan-400 mt-1">ETA: ${team.responseTimeEta}m | Fuel: ${team.batteryOrFuelLevel}%</div>
+            <div class="text-xs text-[#2DD4BF] font-mono mt-2 pt-2 border-t border-white/10 flex justify-between">
+              <span>ETA: ${team.responseTimeEta}m</span>
+              <span>Fuel: ${team.batteryOrFuelLevel}%</span>
+            </div>
           </div>
         `);
 
         layerGroup.addLayer(marker);
 
         // Animated Transit Route connecting team to assigned incident
-        if (showRoutes && team.assignedIncidentId && team.status === 'EN_ROUTE') {
+        if (showRoutes && team.assignedIncidentId && isEnRoute) {
           const targetInc = incidents.find((i) => i.id === team.assignedIncidentId);
           if (targetInc) {
             const polyline = L.polyline(
@@ -227,9 +231,9 @@ export const EmergencyMap: React.FC<EmergencyMapProps> = ({
                 [targetInc.location.lat, targetInc.location.lng],
               ],
               {
-                color: '#00D9FF',
+                color: '#2DD4BF',
                 weight: 2.5,
-                opacity: 0.85,
+                opacity: 0.9,
                 dashArray: '6, 8',
               }
             );
@@ -244,8 +248,8 @@ export const EmergencyMap: React.FC<EmergencyMapProps> = ({
       hospitals.forEach((hosp) => {
         const hospHtml = `
           <div class="relative cursor-pointer" title="${hosp.name}">
-            <div class="w-6 h-6 rounded-md bg-purple-950/80 border border-purple-400 flex items-center justify-center text-purple-300 shadow-[0_0_10px_rgba(168,85,247,0.3)]">
-              <span class="text-[10px] font-bold">H</span>
+            <div class="w-6 h-6 rounded-md bg-[#120D22]/90 border border-[#7C5CFC] flex items-center justify-center text-[#A78BFA] shadow-[0_0_10px_rgba(124,92,252,0.4)]">
+              <span class="text-[10px] font-bold font-mono">H</span>
             </div>
           </div>
         `;
@@ -260,11 +264,13 @@ export const EmergencyMap: React.FC<EmergencyMapProps> = ({
         const marker = L.marker([hosp.lat, hosp.lng], { icon });
 
         marker.bindPopup(`
-          <div class="p-2 bg-[#080B12] text-white rounded font-sans">
-            <div class="text-xs font-bold text-purple-400 font-mono">MEDICAL FACILITY</div>
+          <div class="p-3 bg-[#0B0E13] text-[#F5F7FA] rounded-xl border border-white/15 font-sans shadow-2xl">
+            <div class="text-[10px] font-bold text-[#A78BFA] font-mono">TRAUMA MEDICAL FACILITY</div>
             <div class="text-sm font-semibold mt-1">${hosp.name}</div>
             <div class="text-xs text-slate-300 mt-1">Available ICU Beds: ${hosp.availableIcuBeds} / ${hosp.totalBeds}</div>
-            <div class="text-xs ${hosp.divertStatus ? 'text-red-400 font-bold' : 'text-emerald-400'} mt-1">
+            <div class="text-xs font-mono mt-2 pt-2 border-t border-white/10 ${
+              hosp.divertStatus ? 'text-[#FB4A4A] font-bold' : 'text-[#34D399]'
+            }">
               ${hosp.divertStatus ? 'STATUS: DIVERTING PATIENTS' : 'STATUS: ACCEPTING TRAUMA'}
             </div>
           </div>
@@ -299,7 +305,7 @@ export const EmergencyMap: React.FC<EmergencyMapProps> = ({
 
   return (
     <div
-      className="relative w-full rounded-2xl overflow-hidden border border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-[#080B12] shadow-sm dark:shadow-2xl"
+      className="relative w-full rounded-[20px] overflow-hidden border border-slate-300 dark:border-white/10 bg-[#F4F6F9] dark:bg-[#05070A] shadow-[0_15px_50px_rgba(0,0,0,0.1)] dark:shadow-[0_15px_50px_rgba(0,0,0,0.5)] hud-brackets transition-colors duration-200"
       style={{ height }}
     >
       {/* Actual Leaflet Container */}
@@ -307,22 +313,22 @@ export const EmergencyMap: React.FC<EmergencyMapProps> = ({
 
       {/* Top Floating Telemetry Overlay */}
       <div className="absolute top-3 left-3 z-10 flex items-center gap-2">
-        <div className="px-3 py-1.5 rounded-xl bg-white/90 dark:bg-[#05070D]/85 border border-slate-200 dark:border-white/10 backdrop-blur-md flex items-center gap-2 font-mono text-xs shadow-sm">
-          <Activity className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400 animate-pulse" />
-          <span className="text-slate-500 dark:text-slate-400">GEO-GRID:</span>
-          <span className="text-slate-900 dark:text-white font-semibold">DELHI-METRO-01</span>
+        <div className="px-3 py-1.5 rounded-xl bg-white/95 dark:bg-[#0B0E13]/90 border border-slate-300 dark:border-white/10 backdrop-blur-md flex items-center gap-2 font-mono text-xs shadow-xl">
+          <Activity className="w-3.5 h-3.5 text-teal-600 dark:text-[#2DD4BF] animate-pulse" />
+          <span className="text-slate-500 dark:text-slate-400">GRID:</span>
+          <span className="text-slate-900 dark:text-white font-bold">DELHI-METRO-01</span>
         </div>
       </div>
 
       {/* Floating Tactical Layer Toggles */}
       {showAllControls && (
-        <div className="absolute top-3 right-3 z-10 flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-white/95 dark:bg-[#05070D]/90 border border-slate-200 dark:border-white/10 backdrop-blur-md shadow-sm">
+        <div className="absolute top-3 right-3 z-10 flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-white/95 dark:bg-[#0B0E13]/90 border border-slate-300 dark:border-white/10 backdrop-blur-md shadow-xl">
           <button
             onClick={() => setShowIncidents(!showIncidents)}
             className={`px-2.5 py-1 rounded-lg text-xs font-mono flex items-center gap-1.5 transition-all ${
               showIncidents
-                ? 'bg-red-500/15 text-red-700 dark:text-red-300 border border-red-500/40 font-semibold'
-                : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-300'
+                ? 'bg-red-500/20 text-red-600 dark:text-[#FB4A4A] border border-red-500/40 font-bold'
+                : 'text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white'
             }`}
           >
             <Flame className="w-3.5 h-3.5" />
@@ -333,8 +339,8 @@ export const EmergencyMap: React.FC<EmergencyMapProps> = ({
             onClick={() => setShowTeams(!showTeams)}
             className={`px-2.5 py-1 rounded-lg text-xs font-mono flex items-center gap-1.5 transition-all ${
               showTeams
-                ? 'bg-cyan-500/15 text-cyan-800 dark:text-cyan-300 border border-cyan-500/40 font-semibold'
-                : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-300'
+                ? 'bg-teal-500/20 text-teal-700 dark:text-[#2DD4BF] border border-teal-500/40 font-bold'
+                : 'text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white'
             }`}
           >
             <Shield className="w-3.5 h-3.5" />
@@ -345,8 +351,8 @@ export const EmergencyMap: React.FC<EmergencyMapProps> = ({
             onClick={() => setShowHospitals(!showHospitals)}
             className={`px-2.5 py-1 rounded-lg text-xs font-mono flex items-center gap-1.5 transition-all ${
               showHospitals
-                ? 'bg-purple-500/15 text-purple-800 dark:text-purple-300 border border-purple-500/40 font-semibold'
-                : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-300'
+                ? 'bg-purple-500/20 text-purple-700 dark:text-[#A78BFA] border border-purple-500/40 font-bold'
+                : 'text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white'
             }`}
           >
             <Hospital className="w-3.5 h-3.5" />
@@ -357,8 +363,8 @@ export const EmergencyMap: React.FC<EmergencyMapProps> = ({
             onClick={() => setShowHeatmap(!showHeatmap)}
             className={`px-2.5 py-1 rounded-lg text-xs font-mono flex items-center gap-1.5 transition-all ${
               showHeatmap
-                ? 'bg-amber-500/15 text-amber-800 dark:text-amber-300 border border-amber-500/40 font-semibold'
-                : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-300'
+                ? 'bg-amber-500/20 text-amber-700 dark:text-[#F5A623] border border-amber-500/40 font-bold'
+                : 'text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white'
             }`}
           >
             <Layers className="w-3.5 h-3.5" />
@@ -369,8 +375,8 @@ export const EmergencyMap: React.FC<EmergencyMapProps> = ({
             onClick={() => setShowRoutes(!showRoutes)}
             className={`px-2.5 py-1 rounded-lg text-xs font-mono flex items-center gap-1.5 transition-all ${
               showRoutes
-                ? 'bg-blue-500/15 text-blue-800 dark:text-blue-300 border border-blue-500/40 font-semibold'
-                : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-300'
+                ? 'bg-blue-500/20 text-blue-700 dark:text-[#60A5FA] border border-blue-500/40 font-bold'
+                : 'text-slate-600 hover:text-slate-950 dark:text-slate-400 dark:hover:text-white'
             }`}
           >
             <Navigation className="w-3.5 h-3.5" />
@@ -383,14 +389,14 @@ export const EmergencyMap: React.FC<EmergencyMapProps> = ({
       <div className="absolute bottom-4 right-4 z-10 flex flex-col gap-1.5">
         <button
           onClick={() => mapInstanceRef.current?.zoomIn()}
-          className="p-2 rounded-lg bg-white/95 dark:bg-[#05070D]/90 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:border-cyan-500/50 backdrop-blur-md transition-all shadow-md"
+          className="p-2 rounded-xl bg-white/95 dark:bg-[#0B0E13]/90 border border-slate-300 dark:border-white/10 text-slate-700 hover:text-slate-950 hover:border-teal-600/50 dark:text-slate-300 dark:hover:text-white dark:hover:border-[#2DD4BF]/50 backdrop-blur-md transition-all shadow-xl"
           aria-label="Zoom in"
         >
           <Plus className="w-4 h-4" />
         </button>
         <button
           onClick={() => mapInstanceRef.current?.zoomOut()}
-          className="p-2 rounded-lg bg-white/95 dark:bg-[#05070D]/90 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:border-cyan-500/50 backdrop-blur-md transition-all shadow-md"
+          className="p-2 rounded-xl bg-white/95 dark:bg-[#0B0E13]/90 border border-slate-300 dark:border-white/10 text-slate-700 hover:text-slate-950 hover:border-teal-600/50 dark:text-slate-300 dark:hover:text-white dark:hover:border-[#2DD4BF]/50 backdrop-blur-md transition-all shadow-xl"
           aria-label="Zoom out"
         >
           <Minus className="w-4 h-4" />
@@ -398,7 +404,7 @@ export const EmergencyMap: React.FC<EmergencyMapProps> = ({
         <button
           onClick={() => mapInstanceRef.current?.setView([28.625, 77.21], 12)}
           title="Recenter Map"
-          className="p-2 rounded-lg bg-white/95 dark:bg-[#05070D]/90 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:text-cyan-600 dark:hover:text-cyan-400 hover:border-cyan-500/50 backdrop-blur-md transition-all shadow-md"
+          className="p-2 rounded-xl bg-white/95 dark:bg-[#0B0E13]/90 border border-slate-300 dark:border-white/10 text-slate-700 hover:text-teal-700 hover:border-teal-600/50 dark:text-slate-300 dark:hover:text-[#2DD4BF] dark:hover:border-[#2DD4BF]/50 backdrop-blur-md transition-all shadow-xl"
           aria-label="Recenter map"
         >
           <Compass className="w-4 h-4" />
@@ -406,18 +412,18 @@ export const EmergencyMap: React.FC<EmergencyMapProps> = ({
       </div>
 
       {/* Bottom Left Legend */}
-      <div className="absolute bottom-4 left-4 z-10 hidden sm:flex items-center gap-3 px-3.5 py-1.5 rounded-xl bg-white/90 dark:bg-[#05070D]/85 border border-slate-200 dark:border-white/10 backdrop-blur-md text-[11px] font-mono text-slate-600 dark:text-slate-400 shadow-sm">
+      <div className="absolute bottom-4 left-4 z-10 hidden sm:flex items-center gap-3 px-3.5 py-1.5 rounded-xl bg-white/95 dark:bg-[#0B0E13]/90 border border-slate-300 dark:border-white/10 backdrop-blur-md text-[11px] font-mono text-slate-700 dark:text-slate-400 shadow-xl">
         <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" /> Critical
+          <span className="w-2 h-2 rounded-full bg-red-600 dark:bg-[#FB4A4A] animate-pulse" /> Critical P1
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-amber-500" /> High
+          <span className="w-2 h-2 rounded-full bg-amber-500 dark:bg-[#F5A623]" /> Warning/Delay
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-cyan-500" /> Responding Team
+          <span className="w-2 h-2 rounded-full bg-teal-600 dark:bg-[#2DD4BF]" /> Responding Unit
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-purple-500" /> Hospital
+          <span className="w-2 h-2 rounded-full bg-purple-600 dark:bg-[#7C5CFC]" /> Trauma Hospital
         </span>
       </div>
     </div>
