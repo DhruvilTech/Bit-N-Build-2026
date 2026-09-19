@@ -22,6 +22,7 @@ import { CyberHUDCard } from '../components/ui/CyberHUDCard';
 import { TextScramble } from '../components/motion/TextScramble';
 import { InteractiveOpsHero } from '../components/operations/InteractiveOpsHero';
 import { EmergencyNetwork } from '../components/operations/EmergencyNetwork';
+import { CursorGrid } from '../components/ui/CursorGrid';
 import { useEmergency } from '../context/EmergencyContext';
 
 export const Landing: React.FC = () => {
@@ -85,9 +86,29 @@ export const Landing: React.FC = () => {
 
   return (
     <div className="relative min-h-screen atmospheric-bg text-slate-900 dark:text-[#F5F7FA] selection:bg-[#2DD4BF]/25 selection:text-teal-700 dark:selection:text-[#5EEAD4] overflow-x-hidden transition-colors duration-200">
+      {/* Interactive Cursor Grid Background */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <CursorGrid
+          cellSize={64}
+          color="#2DD4BF"
+          radius={160}
+          falloff="smooth"
+          holdTime={400}
+          fadeDuration={800}
+          lineWidth={1.2}
+          maxOpacity={0.65}
+          fillOpacity={0.08}
+          gridOpacity={0.03}
+          cellRadius={4}
+          clickPulse={true}
+          pulseSpeed={650}
+          globalPointer={true}
+        />
+      </div>
+
       {/* Background Ambient Node Network */}
       <div className="fixed inset-0 pointer-events-none z-0">
-        <EmergencyNetwork nodeCount={24} opacity={0.35} />
+        <EmergencyNetwork nodeCount={24} opacity={0.3} />
       </div>
 
       {/* Navigation Bar */}

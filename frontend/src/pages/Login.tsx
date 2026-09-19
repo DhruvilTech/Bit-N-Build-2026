@@ -18,6 +18,7 @@ import {
 import { CyberButton } from '../components/ui/CyberButton';
 import { CyberHUDCard } from '../components/ui/CyberHUDCard';
 import { EmergencyNetwork } from '../components/operations/EmergencyNetwork';
+import { CursorGrid } from '../components/ui/CursorGrid';
 import { TextScramble } from '../components/motion/TextScramble';
 import { soundFx } from '../utils/audio';
 import { useEmergency } from '../context/EmergencyContext';
@@ -63,9 +64,29 @@ export const Login: React.FC = () => {
 
   return (
     <div className="relative min-h-screen atmospheric-bg text-slate-900 dark:text-[#F5F7FA] flex items-center justify-center p-4 sm:p-6 overflow-hidden transition-colors duration-300">
+      {/* Interactive Cursor Grid Background */}
+      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+        <CursorGrid
+          cellSize={64}
+          color="#2DD4BF"
+          radius={160}
+          falloff="smooth"
+          holdTime={400}
+          fadeDuration={800}
+          lineWidth={1.2}
+          maxOpacity={0.65}
+          fillOpacity={0.08}
+          gridOpacity={0.03}
+          cellRadius={4}
+          clickPulse={true}
+          pulseSpeed={650}
+          globalPointer={true}
+        />
+      </div>
+
       {/* Background Emergency Node Network */}
       <div className="absolute inset-0 pointer-events-none z-0">
-        <EmergencyNetwork nodeCount={28} opacity={0.35} />
+        <EmergencyNetwork nodeCount={28} opacity={0.3} />
       </div>
 
       {/* Top Floating Utility Bar */}
