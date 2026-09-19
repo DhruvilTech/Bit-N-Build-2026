@@ -4,7 +4,7 @@ export type IncidentStatus = 'New' | 'Analyzing' | 'Assigned' | 'Responding' | '
 
 export interface ReportItem {
   id: string;
-  source: 'Citizen Report' | 'Emergency Call (911)' | 'IoT Thermal Sensor' | 'Field Team Radio' | 'Hospital Emergency' | 'Surveillance Drone';
+  source: string;
   text: string;
   timestamp: string;
   reliability: number;
@@ -16,15 +16,29 @@ export interface TimelineEvent {
   title: string;
   description: string;
   completed: boolean;
+  event?: string;
+  reason?: string;
 }
 
 export interface Incident {
   id: string;
   title: string;
-  type: 'Industrial Fire' | 'Major Road Accident' | 'Flood Alert' | 'Chemical Leak' | 'Explosion' | 'Medical Crisis' | 'Structural Collapse';
+  type: string;
   severity: IncidentSeverity;
   priority: IncidentPriority;
   status: IncidentStatus;
+  rawStatus?: string;
+  rawType?: string;
+  source?: string;
+  reportedBy?: {
+    userId?: string;
+    name?: string;
+    email?: string;
+    role?: string;
+    badgeNumber?: string;
+  };
+  metadata?: Record<string, any>;
+  resolvedAt?: string | null;
   location: {
     name: string;
     zone: string;

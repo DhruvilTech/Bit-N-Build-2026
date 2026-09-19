@@ -11,14 +11,17 @@ import {
 } from '../types';
 
 // Map backend incident status to frontend status
+// Map backend incident status to frontend status
 export function mapBackendIncidentStatus(backendStatus?: string): IncidentStatus {
   if (!backendStatus) return 'New';
   const s = backendStatus.toUpperCase();
-  if (s === 'REPORTED') return 'New';
+  if (s === 'NEW' || s === 'REPORTED') return 'New';
+  if (s === 'ACKNOWLEDGED' || s === 'ANALYZING') return 'Analyzing';
   if (s === 'ASSIGNED') return 'Assigned';
-  if (s === 'IN_PROGRESS') return 'Responding';
-  if (s === 'RESOLVED') return 'Resolved';
-  if (s === 'CLOSED') return 'Resolved';
+  if (s === 'RESPONDING' || s === 'ON_SCENE') return 'Responding';
+  if (s === 'RESOLVED' || s === 'CLOSED') return 'Resolved';
+  if (s === 'CANCELLED') return 'Resolved';
+  if (s === 'ESCALATED' || s === 'PRIORITIZED') return 'Escalated';
   return 'New';
 }
 
@@ -31,7 +34,9 @@ export function mapBackendIncidentType(backendType?: string): Incident['type'] {
   if (t === 'FLOOD') return 'Flood Alert';
   if (t === 'INDUSTRIAL_ACCIDENT') return 'Chemical Leak';
   if (t === 'MEDICAL_EMERGENCY') return 'Medical Crisis';
-  return 'Industrial Fire';
+  if (t === 'EARTHQUAKE') return 'Earthquake Alert';
+  if (t === 'OTHER') return 'General Emergency';
+  return backendType;
 }
 
 // Map backend team status to frontend status
@@ -64,30 +69,36 @@ export function adaptBackendIncidents(backendList: any[]): Incident[] {
 
   return backendList.map((item, idx) => {
     const id = item.incidentId || item._id || `INC-${idx + 1}`;
-    const lat = item.location?.latitude ?? item.location?.coordinates?.[1] ?? (40.7128 + (idx * 0.005));
-    const lng = item.location?.longitude ?? item.location?.coordinates?.[0] ?? (-74.006 + (idx * 0.005));
+    const lat = item.location?.latitude ?? item.location?.geometry?.coordinates?.[1] ?? (28.6289 + (idx * 0.005));
+    const lng = item.location?.longitude ?? item.location?.geometry?.coordinates?.[0] ?? (77.2065 + (idx * 0.005));
 
     return {
       id,
-      title: item.title || `Incident ${id}`,
+      title: item.title || `Incident #${id}`,
       type: mapBackendIncidentType(item.type),
+      rawType: item.type,
       severity: (item.severity?.toUpperCase() || 'MEDIUM') as IncidentSeverity,
       priority: (item.priority?.toUpperCase() || 'P2') as IncidentPriority,
       status: mapBackendIncidentStatus(item.status),
+      rawStatus: item.status,
+      source: item.source || 'EMERGENCY_CALL',
+      reportedBy: item.reportedBy,
+      metadata: item.metadata || {},
+      resolvedAt: item.resolvedAt,
       location: {
-        name: item.location?.address || item.location?.name || 'Metropolitan Sector',
-        zone: item.location?.zone || item.location?.address || 'Metro Sector Alpha',
+        name: item.location?.address || item.location?.name || 'Metropolitan Emergency Zone',
+        zone: item.location?.zone || item.location?.address || 'Metro Alpha Sector',
         lat,
         lng,
       },
       createdAt: item.createdAt ? new Date(item.createdAt).toLocaleTimeString().slice(0, 8) : '12:00:00',
-      aiConfidence: item.aiConfidence || 92,
+      aiConfidence: item.confidence || item.aiConfidence || 92,
       aiSummary: item.description || 'Emergency incident recorded and routed through dispatch mesh.',
       duplicateReportsCount: item.reports?.length || 1,
       reports: Array.isArray(item.reports) && item.reports.length > 0
         ? item.reports.map((r: any, rIdx: number) => ({
             id: r.reportId || `REP-${rIdx + 1}`,
-            source: 'Emergency Call (911)',
+            source: r.source ? `${r.source} Intake` : 'Emergency Call (911)',
             text: r.text || 'Dispatch ticket telemetry received.',
             timestamp: r.reportedAt ? new Date(r.reportedAt).toLocaleTimeString().slice(0, 5) : '12:00',
             reliability: r.reliability || 90,
@@ -95,7 +106,7 @@ export function adaptBackendIncidents(backendList: any[]): Incident[] {
         : [
             {
               id: `REP-${id}-1`,
-              source: 'Emergency Call (911)',
+              source: item.source ? `${item.source} Intake` : 'Emergency Call (911)',
               text: item.description || 'Emergency reported via central dispatch.',
               timestamp: '12:00',
               reliability: 95,
@@ -106,11 +117,13 @@ export function adaptBackendIncidents(backendList: any[]): Incident[] {
         : [],
       timeline: Array.isArray(item.timeline) && item.timeline.length > 0
         ? item.timeline.map((tl: any, tlIdx: number) => ({
-            id: `TL-${tlIdx + 1}`,
+            id: tl.timelineId || `TL-${tlIdx + 1}`,
             time: tl.timestamp ? new Date(tl.timestamp).toLocaleTimeString().slice(0, 8) : '12:00:00',
-            title: tl.status || 'Status Updated',
-            description: tl.note || 'Event recorded in system ledger.',
+            title: tl.event?.replace(/_/g, ' ') || tl.newStatus || 'Status Milestone',
+            description: tl.description || tl.reason || 'Event logged in cryptographic ledger.',
             completed: true,
+            event: tl.event,
+            reason: tl.reason,
           }))
         : [
             {

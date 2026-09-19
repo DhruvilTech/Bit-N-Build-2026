@@ -1,6 +1,8 @@
+import http from 'http';
 import app from './app.js';
 import { env } from './config/env.js';
 import { connectDatabase } from './config/database.js';
+import { initSocketServer } from './utils/socket.js';
 
 const startServer = async () => {
   try {
@@ -8,14 +10,19 @@ const startServer = async () => {
     console.log('[Bootstrap] Initializing database connection...');
     await connectDatabase();
 
-    // 2. Start HTTP Server
-    const server = app.listen(env.PORT, () => {
+    // 2. Create HTTP Server & initialize Socket.IO
+    const httpServer = http.createServer(app);
+    initSocketServer(httpServer, env.CLIENT_URL || '*');
+
+    // 3. Start Listening
+    const server = httpServer.listen(env.PORT, () => {
       console.log('====================================================');
       console.log(`🚀 PS-9 EMERGENCY BACKEND IS RUNNING`);
       console.log(`📡 Port: ${env.PORT}`);
       console.log(`🌐 Environment: ${env.NODE_ENV}`);
       console.log(`🩺 Health check: http://localhost:${env.PORT}/api/health`);
       console.log(`📊 System status: http://localhost:${env.PORT}/api/system/status`);
+      console.log(`⚡ WebSocket Mesh: ws://localhost:${env.PORT}`);
       console.log('====================================================');
     });
 
