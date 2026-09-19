@@ -3,7 +3,7 @@
  * Cyber-Sentinel Design Tokens
  */
 
-:root {
+:root, .dark {
   /* Core Cyber-Sentinel Palette */
   --accent-primary: #2DD4BF;       /* Teal - Live Telemetry & Connected Systems */
   --accent-primary-glow: #5EEAD4;

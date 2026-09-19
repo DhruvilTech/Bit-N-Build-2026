@@ -52,9 +52,9 @@ export const EmergencyMap: React.FC<EmergencyMapProps> = ({
       attributionControl: false,
     });
 
-    const isLight = document.documentElement.classList.contains('light');
+    const isLight = theme === 'light' || document.documentElement.classList.contains('light');
     const tileUrl = isLight
-      ? 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+      ? 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
       : 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
 
     const tile = L.tileLayer(tileUrl, {
@@ -72,6 +72,10 @@ export const EmergencyMap: React.FC<EmergencyMapProps> = ({
     perimeterLayerRef.current = perimeterLayer;
     mapInstanceRef.current = map;
 
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 150);
+
     return () => {
       map.remove();
       mapInstanceRef.current = null;
@@ -86,13 +90,14 @@ export const EmergencyMap: React.FC<EmergencyMapProps> = ({
     }
     const tileUrl = theme === 'dark'
       ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-      : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+      : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
 
     const newTile = L.tileLayer(tileUrl, {
       maxZoom: 19,
       subdomains: 'abcd',
     }).addTo(mapInstanceRef.current);
     tileLayerRef.current = newTile;
+    mapInstanceRef.current.invalidateSize();
   }, [theme]);
 
   // Update Layers & Markers
