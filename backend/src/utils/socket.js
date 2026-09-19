@@ -60,3 +60,41 @@ export const emitIncidentStatusChanged = (incident) => {
     ioInstance.emit('incident:statusChanged', incident);
   }
 };
+
+/**
+ * Broadcast when an incident enters AI classification / processing
+ */
+export const emitIncidentAiProcessing = (incident) => {
+  if (ioInstance) {
+    ioInstance.emit('incident:aiProcessing', {
+      incidentId: incident._id?.toString() || incident.id,
+      aiAnalysis: incident.aiAnalysis,
+    });
+  }
+};
+
+/**
+ * Broadcast when an incident completes AI classification
+ */
+export const emitIncidentAiAnalyzed = (incident) => {
+  if (ioInstance) {
+    ioInstance.emit('incident:aiAnalyzed', {
+      incidentId: incident._id?.toString() || incident.id,
+      incident,
+      aiAnalysis: incident.aiAnalysis,
+    });
+  }
+};
+
+/**
+ * Broadcast when an incident's AI classification fails
+ */
+export const emitIncidentAiFailed = (incident, error) => {
+  if (ioInstance) {
+    ioInstance.emit('incident:aiFailed', {
+      incidentId: incident._id?.toString() || incident.id,
+      aiAnalysis: incident.aiAnalysis,
+      error: error || incident.aiAnalysis?.error,
+    });
+  }
+};

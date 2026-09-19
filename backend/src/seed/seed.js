@@ -13,16 +13,25 @@ const seedDatabase = async () => {
     await mongoose.connect(env.MONGODB_URI);
     console.log('[Seed] Connected to database.');
 
-    // 1. Clear existing collections
+    // 1. Clear existing collections (preserving custom registered accounts)
     console.log('[Seed] Clearing existing collections...');
+    const seedEmails = [
+      'admin123@gmail.com',
+      'admin@emergency.ps9.gov',
+      'operator@emergency.ps9.gov',
+      'field@emergency.ps9.gov',
+      'medical@emergency.ps9.gov',
+      'police@emergency.ps9.gov',
+      'maya.patel@emergency.ps9.gov',
+    ];
     await Promise.all([
-      UserModel.deleteMany({}),
+      UserModel.deleteMany({ email: { $in: seedEmails } }),
       IncidentModel.deleteMany({}),
       ResourceModel.deleteMany({}),
       ResponseTeamModel.deleteMany({}),
       FacilityModel.deleteMany({}),
     ]);
-    console.log('[Seed] Collections cleared.');
+    console.log('[Seed] Collections cleared (custom accounts preserved).');
 
     // 2. Seed Users (6 Users across all roles)
     console.log('[Seed] Seeding Users...');

@@ -134,6 +134,24 @@ export function adaptBackendIncidents(backendList: any[]): Incident[] {
               completed: true,
             },
           ],
+      aiAnalysis: item.aiAnalysis
+        ? {
+            incidentType: item.aiAnalysis.incidentType,
+            severity: item.aiAnalysis.severity,
+            priority: item.aiAnalysis.priority,
+            confidence: item.aiAnalysis.confidence,
+            signals: item.aiAnalysis.signals || [],
+            reasoning: item.aiAnalysis.reasoning || {},
+            suggestedCorrection: item.aiAnalysis.suggestedCorrection,
+            originalType: item.aiAnalysis.originalType,
+            isLowConfidence: item.aiAnalysis.isLowConfidence,
+            model: item.aiAnalysis.model,
+            version: item.aiAnalysis.version,
+            status: item.aiAnalysis.status || 'PENDING',
+            error: item.aiAnalysis.error,
+            analyzedAt: item.aiAnalysis.analyzedAt,
+          }
+        : undefined,
       delayDetected: false,
       delayMinutes: 0,
     };

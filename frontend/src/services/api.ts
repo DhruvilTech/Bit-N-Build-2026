@@ -250,6 +250,57 @@ export const incidentsApi = {
     const res = await apiRequest(`/incidents/${id}/reports`);
     return res.data?.reports || res.data || [];
   },
+
+  analyze: async (id: string) => {
+    const res = await apiRequest<{ status: string; data: { incident: any; aiAnalysis: any } }>(
+      `/incidents/${id}/analyze`,
+      { method: 'POST' }
+    );
+    return res.data?.incident || res.data;
+  },
+
+  getAiAnalysis: async (id: string) => {
+    const res = await apiRequest<{ status: string; data: { aiAnalysis: any } }>(
+      `/incidents/${id}/ai-analysis`
+    );
+    return res.data?.aiAnalysis;
+  },
+
+  classifyPreview: async (data: {
+    title?: string;
+    description: string;
+    source?: string;
+    metadata?: Record<string, any>;
+    location?: any;
+  }) => {
+    const res = await apiRequest<{
+      status: string;
+      data: {
+        incidentType: string;
+        severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+        priority: 'P1' | 'P2' | 'P3' | 'P4';
+        confidence: number;
+        signals: string[];
+        reasoning: Record<string, any>;
+        detectedLocation?: {
+          found: boolean;
+          address?: string;
+          latitude?: number;
+          longitude?: number;
+          rawMention?: string;
+          confidence?: number;
+        };
+        suggestedCorrection?: boolean;
+        originalType?: string;
+        isLowConfidence?: boolean;
+        model: string;
+      };
+    }>('/incidents/classify-preview', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return res.data;
+  },
 };
 
 // Resources API

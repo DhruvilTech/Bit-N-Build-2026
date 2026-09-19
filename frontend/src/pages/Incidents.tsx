@@ -18,6 +18,7 @@ import {
   User,
   PhoneCall,
   Flame,
+  RefreshCw,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -212,6 +213,7 @@ export const Incidents: React.FC = () => {
                   <th className="p-4">Incident ID</th>
                   <th className="p-4">Source</th>
                   <th className="p-4">Type & Details</th>
+                  <th className="p-4">AI Triage</th>
                   <th className="p-4">Location</th>
                   <th className="p-4">Severity</th>
                   <th className="p-4">Priority</th>
@@ -251,6 +253,43 @@ export const Incidents: React.FC = () => {
                         <div className="text-slate-600 dark:text-slate-400 text-[11px] truncate max-w-xs">
                           {incident.title}
                         </div>
+                      </td>
+                      <td className="p-4 whitespace-nowrap">
+                        {incident.aiAnalysis?.status === 'PROCESSING' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-400 border border-cyan-300 dark:border-cyan-800/60">
+                            <RefreshCw className="w-2.5 h-2.5 animate-spin text-cyan-500" />
+                            <span>ANALYZING</span>
+                          </span>
+                        ) : incident.aiAnalysis?.status === 'FAILED' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-300 dark:border-rose-800/60" title={incident.aiAnalysis.error || 'Failed'}>
+                            <span>FAILED</span>
+                          </span>
+                        ) : incident.aiAnalysis?.incidentType ? (
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-1">
+                              <span className="font-bold text-slate-800 dark:text-slate-200 text-[11px]">
+                                {incident.aiAnalysis.incidentType}
+                              </span>
+                              {incident.aiAnalysis.suggestedCorrection && (
+                                <span className="text-[9px] px-1 rounded bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-bold" title="AI corrected reporting source">
+                                  CORR
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[10px]">
+                              <span className="font-bold text-purple-600 dark:text-[#A78BFA]">
+                                {Math.round((incident.aiAnalysis.confidence ?? (incident.aiConfidence / 100)) * 100)}%
+                              </span>
+                              {incident.aiAnalysis.isLowConfidence && (
+                                <span className="text-amber-500 font-bold text-[9px]">⚠️ LOW</span>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] font-mono text-purple-600 dark:text-[#A78BFA] font-bold">
+                            {incident.aiConfidence ? `${incident.aiConfidence}%` : '—'}
+                          </span>
+                        )}
                       </td>
                       <td className="p-4">
                         <div className="text-slate-800 dark:text-slate-300 font-medium truncate max-w-[180px]">
@@ -349,8 +388,8 @@ export const Incidents: React.FC = () => {
                 </div>
 
                 <div className="flex items-center justify-between text-xs font-mono">
-                  <span className="text-purple-700 dark:text-[#A78BFA] font-semibold">
-                    AI Confidence: {incident.aiConfidence}%
+                  <span className="text-purple-700 dark:text-[#A78BFA] font-semibold flex items-center gap-1">
+                    AI: {incident.aiAnalysis?.incidentType || incident.type} ({incident.aiAnalysis?.confidence !== undefined ? Math.round(incident.aiAnalysis.confidence * 100) : incident.aiConfidence}%)
                   </span>
                   <span className="text-teal-700 dark:text-[#2DD4BF] hover:underline flex items-center gap-1 font-semibold">
                     Command Console &rarr;

@@ -2,6 +2,31 @@ export type IncidentSeverity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
 export type IncidentPriority = 'P1' | 'P2' | 'P3' | 'P4';
 export type IncidentStatus = 'New' | 'Analyzing' | 'Assigned' | 'Responding' | 'Resolved' | 'Escalated';
 
+export type IncidentAiStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+
+export interface IncidentAiReasoning {
+  incidentType?: string;
+  severity?: string;
+  priority?: string;
+}
+
+export interface IncidentAiAnalysis {
+  incidentType?: string;
+  severity?: IncidentSeverity;
+  priority?: IncidentPriority;
+  confidence?: number;
+  signals?: string[];
+  reasoning?: IncidentAiReasoning;
+  suggestedCorrection?: boolean;
+  originalType?: string | null;
+  isLowConfidence?: boolean;
+  model?: string;
+  version?: string;
+  status: IncidentAiStatus;
+  error?: string | null;
+  analyzedAt?: string | null;
+}
+
 export interface ReportItem {
   id: string;
   source: string;
@@ -30,6 +55,7 @@ export interface Incident {
   rawStatus?: string;
   rawType?: string;
   source?: string;
+  aiAnalysis?: IncidentAiAnalysis;
   reportedBy?: {
     userId?: string;
     name?: string;

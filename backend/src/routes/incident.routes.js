@@ -9,6 +9,9 @@ import {
   updateLocation,
   getTimeline,
   getReports,
+  triggerAiAnalysis,
+  fetchIncidentAiAnalysis,
+  classifyIncidentDraft,
 } from '../controllers/incident.controller.js';
 import { validate } from '../middleware/validate.middleware.js';
 import { authenticate, authorize } from '../middleware/auth.middleware.js';
@@ -20,6 +23,14 @@ import {
 } from '../validators/incident.validator.js';
 
 const router = Router();
+
+// 0. AI Live Classification Preview / Auto-Triage for drafts
+router.post(
+  '/classify-preview',
+  authenticate,
+  authorize('ADMIN', 'OPERATOR', 'FIELD_COORDINATOR'),
+  classifyIncidentDraft
+);
 
 // 1. Ingestion / Collection API
 router.post(
@@ -95,6 +106,22 @@ router.get(
   authenticate,
   authorize('ADMIN', 'OPERATOR', 'FIELD_COORDINATOR', 'MEDICAL_COORDINATOR'),
   getReports
+);
+
+// 10. Trigger / Re-run AI Incident Classification (On-demand)
+router.post(
+  '/:id/analyze',
+  authenticate,
+  authorize('ADMIN', 'OPERATOR', 'FIELD_COORDINATOR'),
+  triggerAiAnalysis
+);
+
+// 11. Fetch Incident AI Analysis Detail
+router.get(
+  '/:id/ai-analysis',
+  authenticate,
+  authorize('ADMIN', 'OPERATOR', 'FIELD_COORDINATOR', 'MEDICAL_COORDINATOR'),
+  fetchIncidentAiAnalysis
 );
 
 export default router;

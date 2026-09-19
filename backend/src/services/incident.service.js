@@ -6,7 +6,11 @@ import {
   emitIncidentNew,
   emitIncidentUpdated,
   emitIncidentStatusChanged,
+  emitIncidentAiProcessing,
+  emitIncidentAiAnalyzed,
+  emitIncidentAiFailed,
 } from '../utils/socket.js';
+import { classifyIncidentWithAi } from './ai.service.js';
 
 // Safe Status Lifecycle Transition Rules
 export const VALID_STATUS_TRANSITIONS = {
@@ -162,6 +166,12 @@ export const createIncident = async (data, user = null) => {
     metadata: data.metadata || {},
     reports: initialReports,
     timeline: initialTimeline,
+    aiAnalysis: {
+      status: 'PENDING',
+      model: 'emergency-classifier-v1',
+      version: '1.0',
+      analyzedAt: null,
+    },
   });
 
   await recordAuditLog({
@@ -180,6 +190,11 @@ export const createIncident = async (data, user = null) => {
 
   // Broadcast real-time WebSocket event
   emitIncidentNew(incident);
+
+  // Asynchronously trigger AI incident classification without blocking response
+  runAiAnalysisOnIncident(incident, user).catch((err) => {
+    console.error(`[AI Trigger Error] Background classification failed for #${incident.incidentId}:`, err);
+  });
 
   return incident;
 };
@@ -364,3 +379,115 @@ export const getIncidentReports = async (id) => {
   const incident = await getIncidentById(id);
   return incident.reports || [];
 };
+
+/**
+ * Runs AI incident classification on an incident document.
+ * Fail-safe: Handles network errors, timeouts, and updates MongoDB & WebSockets gracefully.
+ */
+export const runAiAnalysisOnIncident = async (incidentDoc, user = null) => {
+  try {
+    // 1. Mark status as PROCESSING
+    incidentDoc.aiAnalysis = {
+      ...(incidentDoc.aiAnalysis?.toObject ? incidentDoc.aiAnalysis.toObject() : incidentDoc.aiAnalysis),
+      status: 'PROCESSING',
+      error: null,
+    };
+    await incidentDoc.save();
+    emitIncidentAiProcessing(incidentDoc);
+
+    // 2. Call AI Microservice
+    const result = await classifyIncidentWithAi(incidentDoc);
+
+    if (result.success && result.data) {
+      const aiData = result.data;
+      incidentDoc.aiAnalysis = {
+        incidentType: aiData.incidentType,
+        severity: aiData.severity,
+        priority: aiData.priority,
+        confidence: aiData.confidence,
+        signals: aiData.signals || [],
+        reasoning: aiData.reasoning || {},
+        suggestedCorrection: Boolean(aiData.suggestedCorrection),
+        originalType: aiData.originalType || incidentDoc.type,
+        isLowConfidence: Boolean(aiData.isLowConfidence),
+        detectedLocation: aiData.detectedLocation || null,
+        model: aiData.model || 'emergency-classifier-v1',
+        version: aiData.version || '1.0',
+        status: 'COMPLETED',
+        error: null,
+        analyzedAt: new Date(),
+      };
+
+      // Add timeline entry for AI classification
+      incidentDoc.timeline.push({
+        timelineId: `TL-${Date.now()}-AI`,
+        event: 'FIELD_UPDATE',
+        previousStatus: incidentDoc.status,
+        newStatus: incidentDoc.status,
+        changedBy: { userId: 'AI-SYSTEM', name: 'PS-9 AI Engine', role: 'SYSTEM' },
+        timestamp: new Date(),
+        reason: 'AI classification analysis completed',
+        description: `AI classified incident as ${aiData.incidentType} (${aiData.severity}, ${aiData.priority}) with ${Math.round(aiData.confidence * 100)}% confidence`,
+      });
+
+      await incidentDoc.save();
+
+      emitIncidentAiAnalyzed(incidentDoc);
+      emitIncidentUpdated(incidentDoc);
+      return incidentDoc;
+    } else {
+      // AI Service call returned error or timed out
+      const errorMsg = result.error || 'AI classification failed';
+      incidentDoc.aiAnalysis = {
+        ...(incidentDoc.aiAnalysis?.toObject ? incidentDoc.aiAnalysis.toObject() : incidentDoc.aiAnalysis),
+        status: 'FAILED',
+        error: errorMsg,
+      };
+      await incidentDoc.save();
+
+      emitIncidentAiFailed(incidentDoc, errorMsg);
+      emitIncidentUpdated(incidentDoc);
+      return incidentDoc;
+    }
+  } catch (err) {
+    console.error(`[AI Execution] Unexpected error analyzing incident #${incidentDoc.incidentId}:`, err);
+    incidentDoc.aiAnalysis = {
+      ...(incidentDoc.aiAnalysis?.toObject ? incidentDoc.aiAnalysis.toObject() : incidentDoc.aiAnalysis),
+      status: 'FAILED',
+      error: err.message,
+    };
+    await incidentDoc.save().catch(() => {});
+    emitIncidentAiFailed(incidentDoc, err.message);
+    return incidentDoc;
+  }
+};
+
+/**
+ * On-demand AI analysis trigger for an incident (e.g. manual operator re-analysis).
+ */
+export const analyzeIncident = async (id, user = null) => {
+  const incident = await getIncidentById(id);
+  const updatedIncident = await runAiAnalysisOnIncident(incident, user);
+
+  await recordAuditLog({
+    user,
+    action: 'AI_ANALYSIS_TRIGGERED',
+    entityType: 'INCIDENT',
+    entityId: incident.incidentId,
+    metadata: {
+      status: updatedIncident.aiAnalysis?.status,
+      confidence: updatedIncident.aiAnalysis?.confidence,
+    },
+  });
+
+  return updatedIncident;
+};
+
+/**
+ * Retrieves AI analysis results for an incident.
+ */
+export const getIncidentAiAnalysis = async (id) => {
+  const incident = await getIncidentById(id);
+  return incident.aiAnalysis || { status: 'PENDING' };
+};
+

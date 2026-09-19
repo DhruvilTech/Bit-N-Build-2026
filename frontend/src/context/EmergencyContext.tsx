@@ -66,6 +66,7 @@ interface EmergencyContextType {
   resolveIncident: (incidentId: string) => void;
   updateIncidentStatus: (incidentId: string, status: string, reason?: string) => Promise<void>;
   createIncident: (data: any) => Promise<any>;
+  triggerAiAnalysis: (incidentId: string) => Promise<void>;
   markNotificationAsRead: (id: string) => void;
   markAllNotificationsAsRead: () => void;
   isLiveBackend: boolean;
@@ -156,6 +157,68 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           const adapted = adaptedList[0];
           setIncidents((prev) => prev.map((i) => (i.id === adapted.id ? adapted : i)));
         }
+      });
+
+      socket.on('incident:aiProcessing', (payload: any) => {
+        const incId = payload.incidentId;
+        setIncidents((prev) =>
+          prev.map((i) => {
+            if (i.id === incId) {
+              return {
+                ...i,
+                aiAnalysis: {
+                  ...(i.aiAnalysis || { status: 'PENDING' }),
+                  status: 'PROCESSING',
+                  error: null,
+                },
+              };
+            }
+            return i;
+          })
+        );
+      });
+
+      socket.on('incident:aiAnalyzed', (payload: any) => {
+        soundFx.playClick();
+        const raw = payload.incident || payload;
+        const adaptedList = adaptBackendIncidents([raw]);
+        if (adaptedList.length > 0) {
+          const adapted = adaptedList[0];
+          setIncidents((prev) => prev.map((i) => (i.id === adapted.id ? adapted : i)));
+
+          const conf = adapted.aiAnalysis?.confidence ? Math.round(adapted.aiAnalysis.confidence * 100) : null;
+          setNotifications((prev) => [
+            {
+              id: `NOTIF-AI-${Date.now()}`,
+              category: 'Critical',
+              title: `🤖 AI Triage: ${adapted.aiAnalysis?.incidentType || adapted.type}`,
+              message: `Severity: ${adapted.aiAnalysis?.severity || adapted.severity} • Priority: ${adapted.aiAnalysis?.priority || adapted.priority}${conf ? ` • ${conf}% Confidence` : ''}`,
+              timestamp: new Date().toTimeString().slice(0, 5),
+              read: false,
+              incidentId: adapted.id,
+            },
+            ...prev,
+          ]);
+        }
+      });
+
+      socket.on('incident:aiFailed', (payload: any) => {
+        const incId = payload.incidentId;
+        setIncidents((prev) =>
+          prev.map((i) => {
+            if (i.id === incId) {
+              return {
+                ...i,
+                aiAnalysis: {
+                  ...(i.aiAnalysis || { status: 'PENDING' }),
+                  status: 'FAILED',
+                  error: payload.error || 'AI classification failed',
+                },
+              };
+            }
+            return i;
+          })
+        );
       });
     } catch (err: any) {
       console.warn('Socket connection deferred:', err.message);
@@ -510,6 +573,55 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return created;
   }, [syncWithBackend]);
 
+  const triggerAiAnalysis = useCallback(async (incidentId: string) => {
+    soundFx.playClick();
+    setIncidents((prev) =>
+      prev.map((inc) => {
+        if (inc.id === incidentId) {
+          return {
+            ...inc,
+            aiAnalysis: {
+              ...(inc.aiAnalysis || { status: 'PENDING' }),
+              status: 'PROCESSING',
+              error: null,
+            },
+          };
+        }
+        return inc;
+      })
+    );
+
+    try {
+      const updated = await incidentsApi.analyze(incidentId);
+      if (updated) {
+        const adaptedList = adaptBackendIncidents([updated]);
+        if (adaptedList.length > 0) {
+          const adapted = adaptedList[0];
+          setIncidents((prev) => prev.map((i) => (i.id === adapted.id ? adapted : i)));
+        }
+      }
+    } catch (err: any) {
+      console.warn('AI analysis error:', err.message);
+      setIncidents((prev) =>
+        prev.map((inc) => {
+          if (inc.id === incidentId) {
+            return {
+              ...inc,
+              aiAnalysis: {
+                ...(inc.aiAnalysis || { status: 'PENDING' }),
+                status: 'FAILED',
+                error: err.message || 'AI analysis request failed',
+              },
+            };
+          }
+          return inc;
+        })
+      );
+      throw err;
+    }
+  }, []);
+
+
   const updateIncidentStatus = useCallback(async (incidentId: string, status: string, reason?: string) => {
     soundFx.playClick();
     setIncidents((prev) =>
@@ -720,6 +832,7 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     resolveIncident,
     updateIncidentStatus,
     createIncident,
+    triggerAiAnalysis,
     markNotificationAsRead,
     markAllNotificationsAsRead,
     isLiveBackend,
