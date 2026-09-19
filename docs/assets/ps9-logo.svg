@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="emergenx-green" x1="120" y1="90" x2="390" y2="410" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2DD4BF" />
+      <stop offset="50%" stop-color="#2dd48f" />
+      <stop offset="100%" stop-color="#10B981" />
+    </linearGradient>
+    <linearGradient id="bg-glow" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0B132B" />
+      <stop offset="100%" stop-color="#070B12" />
+    </linearGradient>
+    <filter id="emergenx-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6" result="b" />
+      <feMerge>
+        <feMergeNode in="b" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    <filter id="ambient-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#2DD4BF" flood-opacity="0.25" />
+    </filter>
+  </defs>
+
+  <!-- Background rounded squircle for standalone icon usage -->
+  <rect x="16" y="16" width="480" height="480" rx="96" fill="url(#bg-glow)" stroke="#1E293B" stroke-width="4" filter="url(#ambient-shadow)" />
+
+  <!-- Tactical Grid overlay inside icon -->
+  <path d="M16 128 H496 M16 256 H496 M16 384 H496 M128 16 V496 M256 16 V496 M384 16 V496" stroke="#2DD4BF" stroke-width="1" stroke-opacity="0.08" />
+
+  <!-- Rear motion bars -->
+  <g fill="none" stroke="#2DD4BF" stroke-linecap="round">
+    <path d="M72 185 H126" stroke-width="12" opacity=".22">
+      <animate attributeName="x1" values="72;48;72" dur="1.2s" repeatCount="indefinite" />
+      <animate attributeName="x2" values="126;102;126" dur="1.2s" repeatCount="indefinite" />
+      <animate attributeName="opacity" values=".12;.5;.12" dur="1.2s" repeatCount="indefinite" />
+    </path>
+    <path d="M82 218 H132" stroke-width="7" opacity=".18">
+      <animate attributeName="x1" values="82;55;82" dur="1.0s" repeatCount="indefinite" />
+      <animate attributeName="x2" values="132;105;132" dur="1.0s" repeatCount="indefinite" />
+    </path>
+  </g>
+
+  <!-- Single continuous E glyph -->
+  <path
+    d="M128 120 C128 103 141 92 158 92 H300 L329 121 H163 V174 H277 L299 197 L277 220 H163 V273 H329 L300 302 H158 C141 302 128 291 128 274 Z"
+    fill="url(#emergenx-green)"
+    filter="url(#emergenx-glow)"
+  />
+
+  <!-- Forward-leaning X glyph -->
+  <path
+    d="M276 120 L335 179 L394 120 H431 L353 197 L431 274 H394 L335 215 L276 274 H239 L317 197 L239 120 Z"
+    fill="url(#emergenx-green)"
+    filter="url(#emergenx-glow)"
+  />
+
+  <!-- Central emergency ECG pulse cutout -->
+  <path
+    d="M166 197 H199 L210 197 L222 181 L235 215 L250 164 L266 207 L278 197"
+    fill="none"
+    stroke="#FFFFFF"
+    stroke-width="8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-dasharray="150"
+    stroke-dashoffset="150"
+  >
+    <animate
+      attributeName="stroke-dashoffset"
+      values="150;0;-150"
+      dur="1.8s"
+      repeatCount="indefinite"
+    />
+  </path>
+
+  <!-- Live Pulse Core at E & X intersection -->
+  <circle cx="335" cy="197" r="5" fill="#FFFFFF" filter="url(#emergenx-glow)">
+    <animate attributeName="r" values="4;8;4" dur="1.2s" repeatCount="indefinite" />
+    <animate attributeName="opacity" values=".9;.25;.9" dur="1.2s" repeatCount="indefinite" />
+  </circle>
+
+  <!-- Forward action telemetry arrow -->
+  <path
+    d="M402 326 H444 L430 312 M444 326 L430 340"
+    fill="none"
+    stroke="#2DD4BF"
+    stroke-width="7"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    stroke-dasharray="80"
+    stroke-dashoffset="80"
+  >
+    <animate
+      attributeName="stroke-dashoffset"
+      values="80;0;80"
+      dur="1.5s"
+      repeatCount="indefinite"
+    />
+  </path>
+</svg>

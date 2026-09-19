@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 160" width="100%" height="100%">
+  <defs>
+    <linearGradient id="footer-bg" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#03060C" />
+      <stop offset="50%" stop-color="#080F1E" />
+      <stop offset="100%" stop-color="#03060C" />
+    </linearGradient>
+
+    <linearGradient id="footer-teal" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#2DD4BF" />
+      <stop offset="100%" stop-color="#38BDF8" />
+    </linearGradient>
+
+    <linearGradient id="emergenx-foot-brand" x1="120" y1="90" x2="390" y2="410" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2DD4BF" />
+      <stop offset="50%" stop-color="#2dd48f" />
+      <stop offset="100%" stop-color="#10B981" />
+    </linearGradient>
+
+    <filter id="foot-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="b" />
+      <feMerge>
+        <feMergeNode in="b" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <pattern id="foot-grid" width="30" height="30" patternUnits="userSpaceOnUse">
+      <path d="M 30 0 L 0 0 0 30" fill="none" stroke="#1E293B" stroke-width="0.75" stroke-opacity="0.35" />
+    </pattern>
+  </defs>
+
+  <!-- Base Plate -->
+  <rect width="1200" height="160" fill="url(#footer-bg)" rx="14" stroke="#1E293B" stroke-width="1.5" />
+  <rect width="1200" height="160" fill="url(#foot-grid)" rx="14" />
+
+  <!-- Top Border Pulse Line -->
+  <line x1="20" y1="2" x2="1180" y2="2" stroke="#1E293B" stroke-width="1" />
+  <line x1="20" y1="2" x2="260" y2="2" stroke="#2DD4BF" stroke-width="2" filter="url(#foot-glow)">
+    <animate attributeName="x1" values="20;940;20" dur="4s" repeatCount="indefinite" />
+    <animate attributeName="x2" values="260;1180;260" dur="4s" repeatCount="indefinite" />
+  </line>
+
+  <!-- Left Side: EmergenX Mini Logo & Name -->
+  <g transform="translate(48, 32)">
+    <!-- Mini Emblem -->
+    <g transform="scale(0.2)">
+      <!-- E glyph -->
+      <path
+        d="M128 120 C128 103 141 92 158 92 H300 L329 121 H163 V174 H277 L299 197 L277 220 H163 V273 H329 L300 302 H158 C141 302 128 291 128 274 Z"
+        fill="url(#emergenx-foot-brand)"
+      />
+      <!-- X glyph -->
+      <path
+        d="M276 120 L335 179 L394 120 H431 L353 197 L431 274 H394 L335 215 L276 274 H239 L317 197 L239 120 Z"
+        fill="url(#emergenx-foot-brand)"
+      />
+      <!-- ECG Cutout -->
+      <path
+        d="M166 197 H199 L210 197 L222 181 L235 215 L250 164 L266 207 L278 197"
+        fill="none"
+        stroke="#FFFFFF"
+        stroke-width="10"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+      <!-- Pulse point -->
+      <circle cx="335" cy="197" r="6" fill="#FFFFFF" filter="url(#foot-glow)">
+        <animate attributeName="r" values="5;9;5" dur="1.2s" repeatCount="indefinite" />
+      </circle>
+    </g>
+
+    <text x="105" y="40" fill="#FFFFFF" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="900" letter-spacing="-0.3">
+      EMERGEN<tspan fill="url(#footer-teal)">X</tspan>
+      <tspan fill="#64748B" font-size="16" font-weight="400"> // PS-9</tspan>
+    </text>
+    <text x="105" y="62" fill="#94A3B8" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="500">
+      From Fragmented Reports to Coordinated Response.
+    </text>
+  </g>
+
+  <!-- Center Telemetry Nodes Network Graphic -->
+  <g transform="translate(620, 80)">
+    <!-- Connecting network lines -->
+    <line x1="-120" y1="0" x2="-40" y2="-20" stroke="#2DD4BF" stroke-width="1" stroke-opacity="0.4" />
+    <line x1="-40" y1="-20" x2="40" y2="15" stroke="#2DD4BF" stroke-width="1" stroke-opacity="0.4" />
+    <line x1="40" y1="15" x2="120" y2="-10" stroke="#2DD4BF" stroke-width="1" stroke-opacity="0.4" />
+    <line x1="-40" y1="-20" x2="120" y2="-10" stroke="#38BDF8" stroke-width="0.8" stroke-dasharray="2 2" stroke-opacity="0.3" />
+
+    <!-- Nodes -->
+    <circle cx="-120" cy="0" r="4" fill="#2DD4BF">
+      <animate attributeName="opacity" values="0.4;1;0.4" dur="2s" repeatCount="indefinite" />
+    </circle>
+    <circle cx="-40" cy="-20" r="5" fill="#38BDF8" filter="url(#foot-glow)">
+      <animate attributeName="r" values="4;6;4" dur="1.5s" repeatCount="indefinite" />
+    </circle>
+    <circle cx="40" cy="15" r="4" fill="#A78BFA" />
+    <circle cx="120" cy="-10" r="5" fill="#FB4A4A">
+      <animate attributeName="opacity" values="0.5;1;0.5" dur="1.8s" repeatCount="indefinite" />
+    </circle>
+  </g>
+
+  <!-- Right Side: Hackathon & Operational Clearances -->
+  <g transform="translate(1150, 48)" text-anchor="end">
+    <text x="0" y="20" fill="#2DD4BF" font-family="ui-monospace, monospace" font-size="11" font-weight="700" letter-spacing="1">
+      BIT-N-BUILD 2026 HACKATHON
+    </text>
+    <text x="0" y="42" fill="#E2E8F0" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600">
+      Problem Statement 9: Emergency Intelligence Platform
+    </text>
+    <text x="0" y="64" fill="#64748B" font-family="ui-monospace, monospace" font-size="10" letter-spacing="0.5">
+      MISSION CONTROL // 24/7 COMMAND MESH // SYSTEM VERIFIED
+    </text>
+  </g>
+</svg>
