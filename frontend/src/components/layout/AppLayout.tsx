@@ -6,6 +6,7 @@ import { NotificationsDrawer } from './NotificationsDrawer';
 import { EmergencySimulatorModal } from '../ui/EmergencySimulatorModal';
 import { SplitCursor } from '../ui/SplitCursor';
 import { RadarBackground } from '../ui/RadarBackground';
+import { CursorGrid } from '../ui/CursorGrid';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const AppLayout: React.FC = () => {
@@ -14,8 +15,28 @@ export const AppLayout: React.FC = () => {
 
   return (
     <div className="relative min-h-screen atmospheric-bg text-slate-900 dark:text-[#F5F7FA] selection:bg-[#2DD4BF]/25 selection:text-teal-700 dark:selection:text-[#5EEAD4] transition-colors duration-200 font-sans">
+      {/* Interactive Cursor Grid Background */}
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+        <CursorGrid
+          cellSize={64}
+          color="#2DD4BF"
+          radius={160}
+          falloff="smooth"
+          holdTime={400}
+          fadeDuration={800}
+          lineWidth={1.2}
+          maxOpacity={0.65}
+          fillOpacity={0.08}
+          gridOpacity={0.03}
+          cellRadius={4}
+          clickPulse={true}
+          pulseSpeed={650}
+          globalPointer={true}
+        />
+      </div>
+
       {/* Tactical Canvas Radar Background */}
-      <RadarBackground opacity={0.25} />
+      <RadarBackground opacity={0.2} />
 
       {/* Split/Magnetic Cursor */}
       <SplitCursor />
