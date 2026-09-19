@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEmergency } from '../context/EmergencyContext';
 import { StatusBadge } from '../components/ui/StatusBadge';
@@ -15,7 +15,13 @@ import {
   Radio,
   AlertTriangle,
   Crosshair,
+  Thermometer,
+  User,
+  PhoneCall,
+  Shield,
+  Send,
 } from 'lucide-react';
+import { soundFx } from '../utils/audio';
 
 export const IncidentDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -26,12 +32,50 @@ export const IncidentDetails: React.FC = () => {
     escalateIncident,
     resolveIncident,
     dispatchTeamToIncident,
+    updateIncidentStatus,
   } = useEmergency();
 
   const incident = incidents.find((inc) => inc.id === id) || incidents[0];
 
   const assignedTeams = teams.filter((t) => incident.assignedTeamIds.includes(t.id));
   const availableTeams = teams.filter((t) => t.status === 'AVAILABLE');
+
+  const [selectedStatus, setSelectedStatus] = useState<string>(incident.rawStatus || incident.status || 'NEW');
+  const [statusReason, setStatusReason] = useState<string>('');
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState<boolean>(false);
+  const [statusFeedback, setStatusFeedback] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (incident) {
+      setSelectedStatus(incident.rawStatus || incident.status || 'NEW');
+    }
+  }, [incident]);
+
+  const handleStatusTransition = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedStatus) return;
+
+    setIsUpdatingStatus(true);
+    setStatusFeedback(null);
+    try {
+      await updateIncidentStatus(incident.id, selectedStatus, statusReason.trim() || undefined);
+      setStatusFeedback(`Status successfully updated to ${selectedStatus}`);
+      setStatusReason('');
+      setTimeout(() => setStatusFeedback(null), 3000);
+    } catch (err: any) {
+      setStatusFeedback(err.message || 'Transition rejected');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  };
+
+  const getSourceIcon = (src?: string) => {
+    const s = src?.toUpperCase() || '';
+    if (s === 'SENSOR') return <Thermometer className="w-3.5 h-3.5 text-[#A78BFA]" />;
+    if (s === 'CITIZEN') return <User className="w-3.5 h-3.5 text-[#60A5FA]" />;
+    if (s === 'FIELD_TEAM') return <Radio className="w-3.5 h-3.5 text-[#F5A623]" />;
+    return <PhoneCall className="w-3.5 h-3.5 text-[#2DD4BF]" />;
+  };
 
   return (
     <div className="space-y-6">
@@ -49,6 +93,10 @@ export const IncidentDetails: React.FC = () => {
             <div className="flex items-center gap-2">
               <span className="font-mono text-xs font-bold text-teal-700 dark:text-[#2DD4BF]">
                 INCIDENT #{incident.id}
+              </span>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-100 dark:bg-white/10 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-white/10">
+                {getSourceIcon(incident.source)}
+                <span>{incident.source || 'EMERGENCY_CALL'}</span>
               </span>
               <StatusBadge type="severity" value={incident.severity} />
               <StatusBadge type="priority" value={incident.priority} />
@@ -89,6 +137,71 @@ export const IncidentDetails: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left 8 Columns */}
         <div className="lg:col-span-8 space-y-6">
+          {/* Status Lifecycle Transition Control */}
+          <div className="p-5 rounded-[18px] bg-white dark:bg-[rgba(11,14,19,0.78)] border border-teal-500/30 dark:border-teal-500/30 backdrop-blur-[18px] shadow-md dark:shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-white/10 mb-3 font-mono text-xs">
+              <div className="flex items-center gap-2 font-bold text-teal-700 dark:text-[#2DD4BF]">
+                <Shield className="w-4 h-4" />
+                <span>OPERATIONAL STATUS LIFECYCLE</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-slate-500">CURRENT STATE:</span>
+                <StatusBadge type="status" value={incident.status} />
+              </div>
+            </div>
+
+            <form onSubmit={handleStatusTransition} className="space-y-3 font-mono text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+                <div className="sm:col-span-4">
+                  <label className="text-[10px] text-slate-500 block mb-1">TRANSITION TARGET:</label>
+                  <select
+                    value={selectedStatus}
+                    onChange={(e) => setSelectedStatus(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-white/[0.04] border border-slate-300 dark:border-white/10 text-xs focus:outline-none focus:border-teal-500"
+                  >
+                    <option value="NEW">NEW (Unacknowledged)</option>
+                    <option value="ACKNOWLEDGED">ACKNOWLEDGED (Verified)</option>
+                    <option value="ASSIGNED">ASSIGNED (Units Allocated)</option>
+                    <option value="RESPONDING">RESPONDING (En Route)</option>
+                    <option value="ON_SCENE">ON_SCENE (Tactical Action)</option>
+                    <option value="RESOLVED">RESOLVED (Threat Contained)</option>
+                    <option value="CANCELLED">CANCELLED (Standdown)</option>
+                  </select>
+                </div>
+
+                <div className="sm:col-span-6">
+                  <label className="text-[10px] text-slate-500 block mb-1">REASON / OPERATOR LOG ENTRY:</label>
+                  <input
+                    type="text"
+                    value={statusReason}
+                    onChange={(e) => setStatusReason(e.target.value)}
+                    placeholder="e.g. Fire extinguished; overhaul underway"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-white/[0.04] border border-slate-300 dark:border-white/10 text-xs focus:outline-none focus:border-teal-500"
+                  />
+                </div>
+
+                <div className="sm:col-span-2 flex sm:items-end pt-5 sm:pt-0">
+                  <CyberButton
+                    type="submit"
+                    variant="primary"
+                    size="sm"
+                    disabled={isUpdatingStatus}
+                    className="w-full justify-center"
+                    icon={<Send className="w-3.5 h-3.5" />}
+                  >
+                    {isUpdatingStatus ? 'UPDATING...' : 'TRANSITION'}
+                  </CyberButton>
+                </div>
+              </div>
+
+              {statusFeedback && (
+                <div className="text-[11px] text-teal-700 dark:text-[#2DD4BF] font-mono mt-1">
+                  ✓ {statusFeedback}
+                </div>
+              )}
+            </form>
+          </div>
+
           {/* AI Classification & Risk Matrix Panel */}
           <div className="p-6 rounded-[18px] bg-white dark:bg-[rgba(11,14,19,0.78)] border border-[rgba(124,92,252,0.35)] backdrop-blur-[18px] relative overflow-hidden shadow-md dark:shadow-[0_10px_40px_rgba(0,0,0,0.4)]">
             <div className="pointer-events-none absolute -top-16 -right-16 w-48 h-48 rounded-full bg-[rgba(124,92,252,0.1)] blur-3xl" />
@@ -138,6 +251,23 @@ export const IncidentDetails: React.FC = () => {
                 <span className="text-amber-600 dark:text-[#F5A623] font-semibold">750 METERS</span>
               </div>
             </div>
+
+            {/* Ingestion Telemetry Metadata if present */}
+            {incident.metadata && Object.keys(incident.metadata).length > 0 && (
+              <div className="mt-4 pt-3 border-t border-slate-200 dark:border-white/10 font-mono text-xs">
+                <span className="text-[10px] text-slate-500 block mb-1.5 font-bold">SOURCE INTAKE METADATA:</span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
+                  {Object.entries(incident.metadata).map(([key, val]) => (
+                    <div key={key} className="p-2 rounded-lg bg-slate-100 dark:bg-white/[0.02] border border-slate-200 dark:border-white/5">
+                      <span className="text-slate-500 block text-[9px] uppercase">{key}</span>
+                      <span className="font-semibold text-slate-800 dark:text-slate-200 truncate block">
+                        {typeof val === 'object' ? JSON.stringify(val) : String(val)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Aerial Drone Thermal FLIR Telemetry Box */}
@@ -150,7 +280,6 @@ export const IncidentDetails: React.FC = () => {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-transparent to-slate-950/40 pointer-events-none" />
 
-              {/* HUD Header Bar */}
               <div className="absolute top-3 left-3 right-3 flex items-center justify-between px-3.5 py-1.5 rounded-xl bg-slate-950/85 backdrop-blur-md border border-[#2DD4BF]/40 text-white font-mono text-xs">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#FB4A4A] animate-ping" />
@@ -164,7 +293,6 @@ export const IncidentDetails: React.FC = () => {
                 </div>
               </div>
 
-              {/* Bottom Telemetry Metrics */}
               <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between px-3.5 py-2 rounded-xl bg-slate-950/85 backdrop-blur-md border border-white/10 text-white font-mono text-xs">
                 <div className="flex items-center gap-4">
                   <span>CORE TEMP: <strong className="text-[#FB4A4A]">+485°C</strong></span>
@@ -290,18 +418,18 @@ export const IncidentDetails: React.FC = () => {
             )}
           </div>
 
-          {/* Response Timeline */}
+          {/* Response Timeline Ledger */}
           <div className="p-6 rounded-[18px] bg-white dark:bg-[rgba(11,14,19,0.78)] border border-slate-200 dark:border-white/10 backdrop-blur-[18px] shadow-md dark:shadow-[0_10px_40px_rgba(0,0,0,0.4)]">
             <div className="flex items-center gap-2 pb-3.5 border-b border-slate-200 dark:border-white/10 mb-4">
               <Clock className="w-4 h-4 text-teal-600 dark:text-[#2DD4BF]" />
               <h3 className="text-sm font-display font-bold text-slate-900 dark:text-white">
-                RESPONSE TIMELINE
+                PROGRESSIVE RESPONSE TIMELINE
               </h3>
             </div>
 
             <div className="relative pl-6 space-y-4 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-px before:bg-slate-300 dark:before:bg-white/10 font-mono text-xs">
-              {incident.timeline.map((event) => (
-                <div key={event.id} className="relative group">
+              {incident.timeline.map((event, idx) => (
+                <div key={event.id || idx} className="relative group">
                   <div
                     className={`absolute -left-6 top-1 w-3 h-3 rounded-full border-2 ${
                       event.completed
@@ -316,6 +444,11 @@ export const IncidentDetails: React.FC = () => {
                   <p className="text-[11px] text-slate-700 dark:text-slate-300 font-sans leading-relaxed">
                     {event.description}
                   </p>
+                  {event.reason && (
+                    <span className="text-[10px] text-slate-500 italic block mt-0.5">
+                      Log: {event.reason}
+                    </span>
+                  )}
                 </div>
               ))}
             </div>
@@ -325,3 +458,5 @@ export const IncidentDetails: React.FC = () => {
     </div>
   );
 };
+
+export default IncidentDetails;

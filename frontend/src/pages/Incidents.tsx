@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useEmergency } from '../context/EmergencyContext';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { CyberHUDCard } from '../components/ui/CyberHUDCard';
+import { CyberButton } from '../components/ui/CyberButton';
 import { TextScramble } from '../components/motion/TextScramble';
 import {
   Search,
@@ -11,16 +12,30 @@ import {
   List,
   AlertTriangle,
   CheckCircle2,
+  Plus,
+  Radio,
+  Thermometer,
+  User,
+  PhoneCall,
+  Flame,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const Incidents: React.FC = () => {
-  const { incidents, setActiveIncidentId, escalateIncident, resolveIncident } = useEmergency();
+  const {
+    incidents,
+    setActiveIncidentId,
+    escalateIncident,
+    resolveIncident,
+    updateIncidentStatus,
+    setIsCreateIncidentModalOpen,
+  } = useEmergency();
   const navigate = useNavigate();
 
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [severityFilter, setSeverityFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [sourceFilter, setSourceFilter] = useState<string>('ALL');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
 
   const filteredIncidents = incidents.filter((inc) => {
@@ -30,14 +45,46 @@ export const Incidents: React.FC = () => {
       inc.location.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       inc.type.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesSeverity =
-      severityFilter === 'ALL' || inc.severity === severityFilter;
+    const matchesSeverity = severityFilter === 'ALL' || inc.severity === severityFilter;
 
-    const matchesStatus =
-      statusFilter === 'ALL' || inc.status === statusFilter;
+    const matchesStatus = statusFilter === 'ALL' || inc.status === statusFilter;
 
-    return matchesSearch && matchesSeverity && matchesStatus;
+    const matchesSource =
+      sourceFilter === 'ALL' ||
+      (inc.source && inc.source.toUpperCase() === sourceFilter.toUpperCase());
+
+    return matchesSearch && matchesSeverity && matchesStatus && matchesSource;
   });
+
+  const getSourceBadge = (source?: string) => {
+    const s = source?.toUpperCase() || 'EMERGENCY_CALL';
+    if (s === 'SENSOR') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-500/15 border border-purple-500/30 text-purple-700 dark:text-[#A78BFA]">
+          <Thermometer className="w-3 h-3" /> SENSOR
+        </span>
+      );
+    }
+    if (s === 'CITIZEN') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-500/15 border border-blue-500/30 text-blue-700 dark:text-[#60A5FA]">
+          <User className="w-3 h-3" /> CITIZEN
+        </span>
+      );
+    }
+    if (s === 'FIELD_TEAM') {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-[#F5A623]">
+          <Radio className="w-3 h-3" /> FIELD
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-teal-500/15 border border-teal-500/30 text-teal-700 dark:text-[#2DD4BF]">
+        <PhoneCall className="w-3 h-3" /> 911 CALL
+      </span>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -47,15 +94,24 @@ export const Incidents: React.FC = () => {
           <div className="flex items-center gap-2">
             <ShieldAlert className="w-5 h-5 text-teal-600 dark:text-[#2DD4BF]" />
             <h1 className="text-xl font-display font-bold text-slate-900 dark:text-white tracking-wider">
-              <TextScramble text="LIVE INCIDENT MONITORING" duration={350} />
+              <TextScramble text="LIVE INCIDENT OPERATIONS" duration={350} />
             </h1>
           </div>
           <p className="text-xs font-mono text-slate-600 dark:text-slate-400 mt-1 font-medium">
-            INGESTION, AI TRIAGE, PRIORITY ASSIGNMENT & ESCALATION CONTROL
+            MULTI-SOURCE INGESTION • GEOSPATIAL RADAR • PROGRESSIVE TIMELINE & ESCALATION CONTROL
           </p>
         </div>
 
         <div className="flex items-center gap-3">
+          <CyberButton
+            variant="primary"
+            size="sm"
+            onClick={() => setIsCreateIncidentModalOpen(true)}
+            icon={<Plus className="w-4 h-4" />}
+          >
+            REPORT INCIDENT
+          </CyberButton>
+
           <div className="flex items-center bg-slate-100 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 rounded-xl p-1">
             <button
               onClick={() => setViewMode('table')}
@@ -86,7 +142,7 @@ export const Incidents: React.FC = () => {
       {/* Filter and Search Controls Bar */}
       <div className="p-4 rounded-[18px] bg-white dark:bg-[rgba(11,14,19,0.78)] border border-slate-300 dark:border-white/10 backdrop-blur-[18px] flex flex-col md:flex-row items-center gap-3 justify-between shadow-lg dark:shadow-[0_10px_40px_rgba(0,0,0,0.4)]">
         {/* Search */}
-        <div className="relative w-full md:w-80">
+        <div className="relative w-full md:w-72">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 dark:text-slate-400" />
           <input
             type="text"
@@ -116,19 +172,33 @@ export const Incidents: React.FC = () => {
           ))}
         </div>
 
+        {/* Source Dropdown Filter */}
+        <select
+          value={sourceFilter}
+          onChange={(e) => setSourceFilter(e.target.value)}
+          className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-white/[0.04] border border-slate-300 dark:border-white/10 text-xs font-mono text-slate-800 dark:text-slate-300 focus:outline-none focus:border-teal-500 dark:focus:border-[#2DD4BF]/50 w-full md:w-auto font-medium"
+        >
+          <option value="ALL">All Sources</option>
+          <option value="CITIZEN">Citizen Report</option>
+          <option value="SENSOR">IoT Sensor Grid</option>
+          <option value="FIELD_TEAM">Field Team</option>
+          <option value="OPERATOR">Operator Desk</option>
+          <option value="EMERGENCY_CALL">Emergency 911 Call</option>
+        </select>
+
         {/* Status Dropdown Filter */}
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
           className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-white/[0.04] border border-slate-300 dark:border-white/10 text-xs font-mono text-slate-800 dark:text-slate-300 focus:outline-none focus:border-teal-500 dark:focus:border-[#2DD4BF]/50 w-full md:w-auto font-medium"
         >
-          <option value="ALL" className="bg-white text-slate-900 dark:bg-[#0B0E13] dark:text-white">All Statuses</option>
-          <option value="New" className="bg-white text-slate-900 dark:bg-[#0B0E13] dark:text-white">New</option>
-          <option value="Analyzing" className="bg-white text-slate-900 dark:bg-[#0B0E13] dark:text-white">Analyzing</option>
-          <option value="Assigned" className="bg-white text-slate-900 dark:bg-[#0B0E13] dark:text-white">Assigned</option>
-          <option value="Responding" className="bg-white text-slate-900 dark:bg-[#0B0E13] dark:text-white">Responding</option>
-          <option value="Resolved" className="bg-white text-slate-900 dark:bg-[#0B0E13] dark:text-white">Resolved</option>
-          <option value="Escalated" className="bg-white text-slate-900 dark:bg-[#0B0E13] dark:text-white">Escalated</option>
+          <option value="ALL">All Statuses</option>
+          <option value="New">New</option>
+          <option value="Analyzing">Analyzing</option>
+          <option value="Assigned">Assigned</option>
+          <option value="Responding">Responding</option>
+          <option value="Resolved">Resolved</option>
+          <option value="Escalated">Escalated</option>
         </select>
       </div>
 
@@ -140,11 +210,11 @@ export const Incidents: React.FC = () => {
               <thead>
                 <tr className="border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.02] text-slate-600 dark:text-slate-400 text-[10px] uppercase tracking-widest font-semibold">
                   <th className="p-4">Incident ID</th>
+                  <th className="p-4">Source</th>
                   <th className="p-4">Type & Details</th>
                   <th className="p-4">Location</th>
                   <th className="p-4">Severity</th>
                   <th className="p-4">Priority</th>
-                  <th className="p-4">AI Score</th>
                   <th className="p-4">Status</th>
                   <th className="p-4 text-right">Actions</th>
                 </tr>
@@ -169,9 +239,12 @@ export const Incidents: React.FC = () => {
                           : 'border-l-2 border-l-transparent'
                       }`}
                     >
-                      <td className="p-4">
+                      <td className="p-4 whitespace-nowrap">
                         <span className="font-bold text-teal-700 dark:text-[#2DD4BF]">#{incident.id}</span>
                         <div className="text-[10px] text-slate-500">{incident.createdAt}</div>
+                      </td>
+                      <td className="p-4 whitespace-nowrap">
+                        {getSourceBadge(incident.source)}
                       </td>
                       <td className="p-4">
                         <div className="text-slate-900 dark:text-white font-semibold">{incident.type}</div>
@@ -180,7 +253,9 @@ export const Incidents: React.FC = () => {
                         </div>
                       </td>
                       <td className="p-4">
-                        <div className="text-slate-800 dark:text-slate-300 font-medium">{incident.location.zone}</div>
+                        <div className="text-slate-800 dark:text-slate-300 font-medium truncate max-w-[180px]">
+                          {incident.location.zone}
+                        </div>
                         <div className="text-[10px] text-slate-500 truncate max-w-xs">
                           {incident.location.name}
                         </div>
@@ -191,13 +266,10 @@ export const Incidents: React.FC = () => {
                       <td className="p-4">
                         <span className="font-bold text-slate-900 dark:text-white">{incident.priority}</span>
                       </td>
-                      <td className="p-4">
-                        <span className="text-purple-700 dark:text-[#A78BFA] font-semibold">{incident.aiConfidence}%</span>
-                      </td>
-                      <td className="p-4">
+                      <td className="p-4 whitespace-nowrap">
                         <StatusBadge type="status" value={incident.status} />
                       </td>
-                      <td className="p-4 text-right">
+                      <td className="p-4 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                           {incident.status !== 'Resolved' && (
                             <button
@@ -257,8 +329,12 @@ export const Incidents: React.FC = () => {
             >
               <div>
                 <div className="flex items-start justify-between gap-2 mb-2">
-                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white">{incident.title}</h3>
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-white line-clamp-1">{incident.title}</h3>
                   <StatusBadge type="severity" value={incident.severity} />
+                </div>
+
+                <div className="mb-2">
+                  {getSourceBadge(incident.source)}
                 </div>
 
                 <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed mb-4 font-sans font-medium">
@@ -288,3 +364,5 @@ export const Incidents: React.FC = () => {
     </div>
   );
 };
+
+export default Incidents;

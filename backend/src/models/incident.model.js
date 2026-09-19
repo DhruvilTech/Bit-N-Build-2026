@@ -5,12 +5,55 @@ const incidentReportSchema = new mongoose.Schema(
     reportId: { type: String, required: true },
     source: {
       type: String,
-      enum: ['CITIZEN', 'SENSOR', 'EMERGENCY_CALL', 'FIELD_TEAM', 'GOVERNMENT', 'SYSTEM'],
+      enum: ['CITIZEN', 'SENSOR', 'EMERGENCY_CALL', 'FIELD_TEAM', 'OPERATOR', 'GOVERNMENT', 'OTHER', 'SYSTEM'],
       required: true,
     },
     text: { type: String, required: true },
     reliability: { type: Number, min: 0, max: 100, default: 85 },
     reportedAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
+const timelineEventSchema = new mongoose.Schema(
+  {
+    timelineId: { type: String, required: true },
+    event: {
+      type: String,
+      enum: [
+        'INCIDENT_CREATED',
+        'STATUS_CHANGED',
+        'LOCATION_UPDATED',
+        'RESOURCE_ASSIGNED',
+        'TEAM_ASSIGNED',
+        'FIELD_UPDATE',
+        'INCIDENT_RESOLVED',
+        'INCIDENT_UPDATED',
+        'INCIDENT_CANCELLED',
+      ],
+      required: true,
+    },
+    previousStatus: { type: String },
+    newStatus: { type: String },
+    changedBy: {
+      userId: { type: String },
+      name: { type: String },
+      role: { type: String },
+    },
+    timestamp: { type: Date, default: Date.now },
+    reason: { type: String, default: null },
+    description: { type: String, required: true },
+  },
+  { _id: false }
+);
+
+const reportedBySchema = new mongoose.Schema(
+  {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    name: { type: String },
+    email: { type: String },
+    role: { type: String },
+    badgeNumber: { type: String },
   },
   { _id: false }
 );
@@ -48,8 +91,8 @@ const incidentSchema = new mongoose.Schema(
       required: true,
     },
     location: {
-      latitude: { type: Number, required: true },
-      longitude: { type: Number, required: true },
+      latitude: { type: Number, required: true, min: -90, max: 90 },
+      longitude: { type: Number, required: true, min: -180, max: 180 },
       address: { type: String, required: true },
       geometry: {
         type: {
@@ -85,12 +128,14 @@ const incidentSchema = new mongoose.Schema(
       type: String,
       enum: [
         'NEW',
-        'ANALYZING',
-        'PRIORITIZED',
+        'ACKNOWLEDGED',
         'ASSIGNED',
         'RESPONDING',
         'ON_SCENE',
         'RESOLVED',
+        'CANCELLED',
+        'ANALYZING',
+        'PRIORITIZED',
         'ESCALATED',
       ],
       default: 'NEW',
@@ -98,21 +143,37 @@ const incidentSchema = new mongoose.Schema(
     },
     source: {
       type: String,
-      enum: ['CITIZEN', 'SENSOR', 'EMERGENCY_CALL', 'FIELD_TEAM', 'GOVERNMENT', 'SYSTEM'],
+      enum: ['CITIZEN', 'EMERGENCY_CALL', 'SENSOR', 'FIELD_TEAM', 'OPERATOR', 'GOVERNMENT', 'OTHER', 'SYSTEM'],
       default: 'EMERGENCY_CALL',
       index: true,
     },
-    reports: [incidentReportSchema],
-    duplicateOf: {
-      type: mongoose.Schema.Types.Mixed,
-      default: null,
-    },
+    reportedBy: reportedBySchema,
+    assignedTeams: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
     assignedResources: [
       {
         type: String,
         trim: true,
       },
     ],
+    reports: [incidentReportSchema],
+    duplicateOf: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    metadata: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+    timeline: [timelineEventSchema],
+    resolvedAt: {
+      type: Date,
+      default: null,
+    },
     aiAnalysis: {
       confidenceScore: { type: Number, min: 0, max: 100 },
       primaryHazard: { type: String },
@@ -135,7 +196,7 @@ const incidentSchema = new mongoose.Schema(
 
 // Indexes for high-speed queries & geospatial lookups
 incidentSchema.index({ 'location.geometry': '2dsphere' });
-incidentSchema.index({ severity: 1, priority: 1, status: 1 });
+incidentSchema.index({ severity: 1, priority: 1, status: 1, type: 1, source: 1 });
 incidentSchema.index({ createdAt: -1 });
 
 export const IncidentModel = mongoose.model('Incident', incidentSchema);

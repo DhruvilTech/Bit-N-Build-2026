@@ -212,18 +212,43 @@ export const incidentsApi = {
 
   update: async (id: string, data: any) => {
     const res = await apiRequest(`/incidents/${id}`, {
-      method: 'PUT',
+      method: 'PATCH',
       body: JSON.stringify(data),
     });
     return res.data?.incident || res.data;
   },
 
-  updateStatus: async (id: string, status: string) => {
-    const res = await apiRequest(`/incidents/${id}/status`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status }),
+  delete: async (id: string) => {
+    const res = await apiRequest(`/incidents/${id}`, {
+      method: 'DELETE',
     });
     return res.data?.incident || res.data;
+  },
+
+  updateStatus: async (id: string, status: string, reason?: string) => {
+    const res = await apiRequest(`/incidents/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, reason }),
+    });
+    return res.data?.incident || res.data;
+  },
+
+  updateLocation: async (id: string, location: { latitude: number; longitude: number; address: string }) => {
+    const res = await apiRequest(`/incidents/${id}/location`, {
+      method: 'PATCH',
+      body: JSON.stringify(location),
+    });
+    return res.data?.incident || res.data;
+  },
+
+  getTimeline: async (id: string) => {
+    const res = await apiRequest(`/incidents/${id}/timeline`);
+    return res.data?.timeline || res.data || [];
+  },
+
+  getReports: async (id: string) => {
+    const res = await apiRequest(`/incidents/${id}/reports`);
+    return res.data?.reports || res.data || [];
   },
 };
 

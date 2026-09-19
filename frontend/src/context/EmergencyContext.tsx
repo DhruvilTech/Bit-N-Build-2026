@@ -30,7 +30,10 @@ import {
   adaptBackendTeams,
   adaptBackendFacilities,
   adaptBackendResources,
+  mapBackendIncidentStatus,
 } from '../utils/adapters';
+import { io } from 'socket.io-client';
+import { CreateIncidentModal } from '../components/operations/CreateIncidentModal';
 
 interface EmergencyContextType {
   incidents: Incident[];
@@ -52,6 +55,8 @@ interface EmergencyContextType {
   toggleSimulationTimer: () => void;
   isSimulatorModalOpen: boolean;
   setIsSimulatorModalOpen: (open: boolean) => void;
+  isCreateIncidentModalOpen: boolean;
+  setIsCreateIncidentModalOpen: (open: boolean) => void;
   isNotificationsDrawerOpen: boolean;
   setIsNotificationsDrawerOpen: (open: boolean) => void;
   simulateEmergency: (scenarioId: string) => void;
@@ -59,7 +64,8 @@ interface EmergencyContextType {
   acknowledgeAlert: (alertId: string) => void;
   escalateIncident: (incidentId: string) => void;
   resolveIncident: (incidentId: string) => void;
-  updateIncidentStatus: (incidentId: string, status: IncidentStatus) => void;
+  updateIncidentStatus: (incidentId: string, status: string, reason?: string) => Promise<void>;
+  createIncident: (data: any) => Promise<any>;
   markNotificationAsRead: (id: string) => void;
   markAllNotificationsAsRead: () => void;
   isLiveBackend: boolean;
@@ -98,8 +104,67 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [isSimulating, setIsSimulating] = useState<boolean>(true);
   const [isSimulatorModalOpen, setIsSimulatorModalOpen] = useState<boolean>(false);
+  const [isCreateIncidentModalOpen, setIsCreateIncidentModalOpen] = useState<boolean>(false);
   const [isNotificationsDrawerOpen, setIsNotificationsDrawerOpen] = useState<boolean>(false);
   const [isLiveBackend, setIsLiveBackend] = useState<boolean>(false);
+
+  // Socket.IO Real-Time Mesh Integration
+  useEffect(() => {
+    let socket: any = null;
+    try {
+      socket = io('http://localhost:5000', {
+        transports: ['websocket', 'polling'],
+      });
+
+      socket.on('incident:new', (rawIncident: any) => {
+        soundFx.playDispatch();
+        const adaptedList = adaptBackendIncidents([rawIncident]);
+        if (adaptedList.length > 0) {
+          const adapted = adaptedList[0];
+          setIncidents((prev) => {
+            if (prev.some((i) => i.id === adapted.id)) return prev;
+            return [adapted, ...prev];
+          });
+          setActiveIncidentId(adapted.id);
+          setNotifications((prev) => [
+            {
+              id: `NOTIF-${Date.now()}`,
+              category: 'Critical',
+              title: `🚨 ${adapted.type} Ingested`,
+              message: `${adapted.title} - ${adapted.location.name}`,
+              timestamp: new Date().toTimeString().slice(0, 5),
+              read: false,
+              incidentId: adapted.id,
+            },
+            ...prev,
+          ]);
+        }
+      });
+
+      socket.on('incident:updated', (rawIncident: any) => {
+        const adaptedList = adaptBackendIncidents([rawIncident]);
+        if (adaptedList.length > 0) {
+          const adapted = adaptedList[0];
+          setIncidents((prev) => prev.map((i) => (i.id === adapted.id ? adapted : i)));
+        }
+      });
+
+      socket.on('incident:statusChanged', (rawIncident: any) => {
+        soundFx.playClick();
+        const adaptedList = adaptBackendIncidents([rawIncident]);
+        if (adaptedList.length > 0) {
+          const adapted = adaptedList[0];
+          setIncidents((prev) => prev.map((i) => (i.id === adapted.id ? adapted : i)));
+        }
+      });
+    } catch (err: any) {
+      console.warn('Socket connection deferred:', err.message);
+    }
+
+    return () => {
+      if (socket) socket.disconnect();
+    };
+  }, []);
 
   // Sync state with live backend APIs
   const syncWithBackend = useCallback(async () => {
@@ -429,16 +494,38 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     );
   }, []);
 
-  const updateIncidentStatus = useCallback((incidentId: string, status: IncidentStatus) => {
+  const createIncident = useCallback(async (data: any) => {
+    soundFx.playDispatch();
+    const created = await incidentsApi.create(data);
+    const adaptedList = adaptBackendIncidents([created]);
+    if (adaptedList.length > 0) {
+      const adapted = adaptedList[0];
+      setIncidents((prev) => {
+        if (prev.some((i) => i.id === adapted.id)) return prev;
+        return [adapted, ...prev];
+      });
+      setActiveIncidentId(adapted.id);
+    }
+    await syncWithBackend();
+    return created;
+  }, [syncWithBackend]);
+
+  const updateIncidentStatus = useCallback(async (incidentId: string, status: string, reason?: string) => {
     soundFx.playClick();
     setIncidents((prev) =>
-      prev.map((inc) => (inc.id === incidentId ? { ...inc, status } : inc))
+      prev.map((inc) =>
+        inc.id === incidentId
+          ? { ...inc, status: mapBackendIncidentStatus(status), rawStatus: status }
+          : inc
+      )
     );
-    // Sync with backend
-    incidentsApi.updateStatus(incidentId, status.toUpperCase()).catch((err) => {
+    try {
+      await incidentsApi.updateStatus(incidentId, status.toUpperCase(), reason);
+      await syncWithBackend();
+    } catch (err: any) {
       console.warn('Backend status sync note:', err.message);
-    });
-  }, []);
+    }
+  }, [syncWithBackend]);
 
   const markNotificationAsRead = useCallback((id: string) => {
     setNotifications((prev) =>
@@ -622,6 +709,8 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     toggleSimulationTimer,
     isSimulatorModalOpen,
     setIsSimulatorModalOpen,
+    isCreateIncidentModalOpen,
+    setIsCreateIncidentModalOpen,
     isNotificationsDrawerOpen,
     setIsNotificationsDrawerOpen,
     simulateEmergency,
@@ -630,6 +719,7 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     escalateIncident,
     resolveIncident,
     updateIncidentStatus,
+    createIncident,
     markNotificationAsRead,
     markAllNotificationsAsRead,
     isLiveBackend,
@@ -637,7 +727,15 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     stats,
   };
 
-  return <EmergencyContext.Provider value={value}>{children}</EmergencyContext.Provider>;
+  return (
+    <EmergencyContext.Provider value={value}>
+      {children}
+      <CreateIncidentModal
+        isOpen={isCreateIncidentModalOpen}
+        onClose={() => setIsCreateIncidentModalOpen(false)}
+      />
+    </EmergencyContext.Provider>
+  );
 };
 
 export const useEmergency = () => {

@@ -1110,8 +1110,62 @@ const seedDatabase = async () => {
       },
     ];
 
-    await IncidentModel.insertMany(incidents);
-    console.log(`[Seed] Seeded ${incidents.length} Incidents.`);
+    const enrichedIncidents = incidents.map((inc, i) => {
+      const isResolved = inc.status === 'RESOLVED';
+      const defaultTimeline = [
+        {
+          timelineId: `TL-${inc.incidentId}-01`,
+          event: 'INCIDENT_CREATED',
+          previousStatus: null,
+          newStatus: 'NEW',
+          changedBy: { userId: 'CADET-INTAKE-01', name: 'Dispatcher System', role: 'OPERATOR' },
+          timestamp: new Date(Date.now() - (45 - i) * 60000),
+          reason: 'Initial emergency call and sensor cross-check',
+          description: `Emergency reported via ${inc.source}: ${inc.title}`,
+        },
+      ];
+
+      if (inc.status !== 'NEW') {
+        defaultTimeline.push({
+          timelineId: `TL-${inc.incidentId}-02`,
+          event: isResolved ? 'INCIDENT_RESOLVED' : 'STATUS_CHANGED',
+          previousStatus: 'NEW',
+          newStatus: inc.status,
+          changedBy: { userId: 'CADET-INTAKE-01', name: 'Commander Alex Vance', role: 'OPERATOR' },
+          timestamp: new Date(Date.now() - (30 - i) * 60000),
+          reason: isResolved ? 'Hazard neutralized and scene cleared' : 'Operational response in progress',
+          description: `Incident transitioned to ${inc.status}`,
+        });
+      }
+
+      const defaultReports = Array.isArray(inc.reports) && inc.reports.length > 0
+        ? inc.reports
+        : [
+            {
+              reportId: `REP-${inc.incidentId}-01`,
+              source: inc.source || 'EMERGENCY_CALL',
+              text: inc.description,
+              reliability: inc.source === 'SENSOR' ? 98 : inc.source === 'FIELD_TEAM' ? 99 : 91,
+              reportedAt: new Date(Date.now() - (45 - i) * 60000),
+            },
+          ];
+
+      return {
+        ...inc,
+        timeline: defaultTimeline,
+        reports: defaultReports,
+        reportedBy: {
+          name: inc.source === 'SENSOR' ? 'Automated IoT Sensor Grid' : 'Cadet Dispatch Intake',
+          email: 'operator@emergency.ps9.gov',
+          role: 'OPERATOR',
+          badgeNumber: 'BADGE-OP-004',
+        },
+        resolvedAt: isResolved ? new Date(Date.now() - 10 * 60000) : null,
+      };
+    });
+
+    await IncidentModel.insertMany(enrichedIncidents);
+    console.log(`[Seed] Seeded ${enrichedIncidents.length} Incidents.`);
 
     console.log('====================================================');
     console.log('✓ DATABASE SEED COMPLETED SUCCESSFULLY');
