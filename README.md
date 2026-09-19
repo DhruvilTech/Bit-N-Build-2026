@@ -9,6 +9,7 @@
 [![Bit-N-Build 2026](https://img.shields.io/badge/Bit--N--Build_2026-Problem_Statement_9-2DD4BF?style=for-the-badge&logo=target&logoColor=white)](https://github.com)
 [![React 19](https://img.shields.io/badge/Frontend-React_19_+_TypeScript-38BDF8?style=for-the-badge&logo=react&logoColor=white)](https://react.dev/)
 [![Node.js & Express](https://img.shields.io/badge/Backend-Node.js_ESM_+_Express-34D399?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://expressjs.com/)
+[![FastAPI & Python](https://img.shields.io/badge/AI_Engine-Python_3.10+_FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![MongoDB Atlas](https://img.shields.io/badge/Database-MongoDB_2dsphere_GIS-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
 [![Socket.IO](https://img.shields.io/badge/Real--Time-Socket.IO_WebSocket_Mesh-010101?style=for-the-badge&logo=socketdotio&logoColor=white)](https://socket.io/)
 [![Leaflet GIS](https://img.shields.io/badge/Geospatial-Leaflet_+_CartoDB-199900?style=for-the-badge&logo=leaflet&logoColor=white)](https://leafletjs.com/)
@@ -34,8 +35,8 @@
 | **Geospatial Intelligence** | Interactive Leaflet GIS with CartoDB Dark Matter telemetry overlays, `2dsphere` indexed coordinate querying, dynamic hazard radius perimeters, hospital bed saturation heatmaps, and field apparatus location tracking. |
 | **Real-Time Architecture** | Low-latency Socket.IO event mesh (`incident:new`, `incident:updated`, `incident:statusChanged`) synchronizing command center displays, tactical maps, and field unit statuses with sub-second propagation. |
 | **Resource Optimization** | Nearest-apparatus capability scoring matching incident requirements (e.g., industrial foam tender, burn trauma ICU, water rescue) against live unit availability, transit distance, and operational workload. |
-| **Current Work (Mid-Eval)** | **Complete React 19 / Vite / Tailwind v4 Command Frontend** (13+ mission screens, dual simulation & live backend sync mode, Web Audio API tactical sound synthesis), **Production-style Node.js / Express REST API** with MongoDB schemas & `2dsphere` indexes, realistic 22-incident seed dataset, and 46 automated Postman assertions. |
-| **Next Phase** | Dedicated Python/FastAPI microservice for continuous vector embedding duplicate clustering, live speech-to-text 911 transcript ingestion, and automated multi-agency mutual aid webhooks. |
+| **Current Work (Mid-Eval)** | **Complete React 19 / Vite / Tailwind v4 Command Frontend** (13+ mission screens, dual simulation & live backend sync mode, Web Audio API tactical sound synthesis), **Production-style Node.js / Express REST API** with MongoDB schemas & `2dsphere` indexes, **Dedicated Python/FastAPI AI Microservice** (port 8000) for explainable incident classification and deterministic life-safety overrides (P1 mandatory escalation), realistic 22-incident seed dataset, and 46 automated Postman assertions. |
+| **Next Phase** | Continuous vector embedding duplicate clustering, live speech-to-text 911 audio transcript ingestion, external live traffic navigation API routing (OSRM/Mapbox), and automated multi-agency mutual aid webhooks. |
 
 ---
 
@@ -168,7 +169,7 @@ To provide complete transparency for mid-evaluation, the table below reflects th
 | **Real-Time WebSocket Mesh** | ✅ Implemented | Socket.IO server (`backend/src/utils/socket.js`) broadcasting `incident:new`, `incident:updated`, and `incident:statusChanged`; integrated with frontend `EmergencyContext.tsx`. |
 | **Database Seeder & Test Suite** | ✅ Implemented | `npm run seed` populating 6 users, 22 incidents, 12 resources, 8 response teams, and 8 facilities. Automated Postman suite (`test.json`) with **24 requests and 46 assertions**. |
 | **Frontend-to-Backend Full Sync** | 🟡 In Progress | Centralized API client (`frontend/src/services/api.ts`) and `EmergencyContext.tsx` support dual-mode (live backend sync + client-side reactive simulation fallback). |
-| **Dedicated Python AI Microservice** | 🔵 Planned | Dedicated FastAPI service (`AI_SERVICE_URL=http://localhost:8000`) for continuous vector embedding duplicate clustering and live audio 911 speech-to-text. |
+| **Dedicated Python AI Microservice** | ✅ Implemented | High-performance FastAPI microservice (`AI/app/` on port 8000) providing explainable NLP triage across 7 disaster types, dynamic severity scoring, and mandatory P1 life-safety overrides (trapped occupants, hazardous explosions). |
 | **Live External Traffic/Routing API** | 🔵 Planned | Integration with live navigation corridors (Mapbox / OSRM) for real-time traffic-adjusted ETA calculations. |
 
 ---
@@ -272,6 +273,16 @@ A critical distinction for technical evaluators is that **PS-9 is not a conversa
 - **AI Recommends, Operator Commands**: The AI suggests severity, clusters duplicate reports, and recommends apparatus. The human operator maintains authority to approve dispatches and initiate mutual aid escalations.
 - **Explainable Confidence**: Every AI recommendation includes an explainability score (e.g., `94% AI Confidence — Corroborated across 7 reports and 2 sensor feeds`).
 - **Bounded Conversational HUD**: The tactical AI assistant (`/assistant`) uses predefined situational emergency prompts (containment SOPs, hazmat evacuation radii, casualty triage protocols) to deliver operational answers in seconds.
+
+### Implemented AI Microservice Architecture (`/AI`)
+
+The dedicated **FastAPI AI Microservice** (`http://localhost:8000`) handles asynchronous incident classification with strict life-safety guarantees:
+
+* **Endpoint**: `POST /api/v1/classify-incident`
+* **7 Disaster Categories**: `FIRE`, `FLOOD`, `ROAD_ACCIDENT`, `INDUSTRIAL_ACCIDENT`, `MEDICAL_EMERGENCY`, `EARTHQUAKE`, and `OTHER`.
+* **Deterministic Life-Safety Overrides**: Hard-coded safety escalation rules ensure that any incident containing `people_trapped`, `fatalities`, or `hazardous_materials` + `explosion` triggers immediate **`CRITICAL`** severity and **`P1`** dispatch priority regardless of baseline model score.
+* **Explainability Pipeline**: Generates structured machine-readable reasoning (`reasoning` object), tactical signal tags, and calibrated confidence scores (`0.00` – `1.00`), automatically flagging incidents with confidence < 0.70 for human review (`isLowConfidence: true`).
+* **Non-Blocking Execution**: Invoked asynchronously by the Node.js backend to ensure incident creation always succeeds even during AI service downtime.
 
 ---
 
@@ -544,8 +555,9 @@ Follow this step-by-step scenario during mid-evaluation:
 | **Backend Runtime** | Node.js (ES Modules), Express.js 4.21 |
 | **Database** | MongoDB Atlas, Mongoose 8.9 with `2dsphere` geospatial indexing |
 | **Real-Time Mesh** | Socket.IO 4.8 (WebSocket + polling fallback) |
+| **AI Microservice Engine** | Python 3.10+, FastAPI, Uvicorn, Pydantic v2, Pytest |
 | **Security & Validation** | JWT (`jsonwebtoken`), `bcryptjs`, `helmet`, `cors`, `zod` |
-| **Automated Testing** | Postman Collection v2.1 (`test.json`), Newman CLI |
+| **Automated Testing** | Postman Collection v2.1 (`test.json`), Newman CLI, Pytest |
 
 ---
 
@@ -562,6 +574,20 @@ Bit-N-Build-2026/
 │       ├── tactical_gis_map.jpg      # Geospatial GIS tactical preview
 │       ├── drone_thermal_feed.jpg    # Aerial sensor fusion preview
 │       └── emergency_fleet_ops.jpg   # Resource & fleet coordination preview
+│
+├── AI/                               # Python 3.10+ & FastAPI AI Microservice (Port 8000)
+│   ├── app/
+│   │   ├── config.py                 # Configuration & environment variables
+│   │   ├── main.py                   # FastAPI application & lifecycle
+│   │   ├── routes/                   # /api/v1/classify-incident & /health
+│   │   ├── schemas/                  # Pydantic request & response models
+│   │   ├── services/                 # classifier.py, severity.py, priority.py, explainability.py
+│   │   └── utils/                    # Text preprocessing & entity extraction
+│   ├── datasets/                     # Disaster situation statistics datasets
+│   ├── scripts/                      # Data analysis scripts
+│   ├── tests/                        # Pytest classification & safety override test suite
+│   ├── requirements.txt
+│   └── README.md
 │
 ├── frontend/                         # React 19 + TypeScript + Vite 8
 │   ├── src/
@@ -615,12 +641,39 @@ Bit-N-Build-2026/
 
 ### Prerequisites
 - **Node.js** v18+ or v20+
+- **Python** 3.10+ (for AI Microservice)
 - **npm** v9+
 - **MongoDB** (Local instance or free MongoDB Atlas URI)
 
 ---
 
-### 1. Backend Setup
+### 1. AI Microservice Setup (Port 8000)
+
+```bash
+# Navigate to AI directory
+cd AI
+
+# (Optional) Create and activate virtual environment
+python -m venv venv
+# On Windows:
+.\venv\Scripts\activate
+# On Linux/macOS:
+# source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Start FastAPI server
+uvicorn app.main:app --port 8000 --reload
+```
+
+The AI microservice will start at `http://localhost:8000`:
+- Interactive Swagger UI: [http://localhost:8000/docs](http://localhost:8000/docs)
+- Health Check: [http://localhost:8000/health](http://localhost:8000/health)
+
+---
+
+### 2. Backend Setup
 
 ```bash
 # Navigate to backend directory
@@ -653,7 +706,7 @@ npm run test:postman
 
 ---
 
-### 2. Frontend Setup
+### 3. Frontend Setup
 
 ```bash
 # Open a new terminal and navigate to frontend directory
