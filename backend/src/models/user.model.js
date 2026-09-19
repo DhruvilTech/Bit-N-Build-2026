@@ -33,9 +33,23 @@ const userSchema = new mongoose.Schema(
       default: 'General Emergency Services',
       trim: true,
     },
+    badgeNumber: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    phone: {
+      type: String,
+      trim: true,
+      default: null,
+    },
     isActive: {
       type: Boolean,
       default: true,
+    },
+    lastLoginAt: {
+      type: Date,
+      default: null,
     },
   },
   {

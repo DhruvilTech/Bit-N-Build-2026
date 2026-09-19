@@ -9,8 +9,11 @@ import {
   ShieldAlert,
   Flame,
   Menu,
+  LogOut,
 } from 'lucide-react';
 import { useEmergency } from '../../context/EmergencyContext';
+import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { GlowButton } from '../ui/GlowButton';
 import { motion } from 'framer-motion';
 
@@ -31,6 +34,14 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
     notifications,
     stats,
   } = useEmergency();
+
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -142,15 +153,27 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
           )}
         </button>
 
-        {/* Operator Profile */}
-        <div className="hidden lg:flex items-center gap-2.5 pl-2 border-l border-slate-200 dark:border-white/10">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-cyan-600 to-blue-600 border border-cyan-400/50 flex items-center justify-center text-white font-bold text-xs font-mono shadow-sm">
-            OP
+        {/* Operator Profile & Logout */}
+        <div className="flex items-center gap-2.5 pl-2 border-l border-slate-200 dark:border-white/10">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-600 to-blue-600 border border-cyan-400/50 flex items-center justify-center text-white font-bold text-xs font-mono shadow-sm">
+            {user?.name ? user.name.slice(0, 2).toUpperCase() : 'OP'}
           </div>
-          <div className="text-left font-mono">
-            <div className="text-xs font-semibold text-slate-900 dark:text-white leading-none">COMMANDER</div>
-            <div className="text-[10px] text-cyan-600 dark:text-cyan-400 leading-none mt-1">SEC-LEVEL 4</div>
+          <div className="text-left font-mono hidden md:block">
+            <div className="text-xs font-semibold text-slate-900 dark:text-white leading-none truncate max-w-[120px]">
+              {user?.name || 'COMMANDER'}
+            </div>
+            <div className="text-[10px] text-cyan-600 dark:text-cyan-400 leading-none mt-1 font-bold">
+              {user?.role || 'OPERATOR'}
+            </div>
           </div>
+          <button
+            onClick={handleLogout}
+            title="Terminate Session / Logout"
+            className="p-2 rounded-lg text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 border border-slate-200 dark:border-white/10 transition-colors"
+            aria-label="Logout"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </header>

@@ -113,6 +113,13 @@ export const Landing: React.FC = () => {
             Operator Sign In
           </button>
 
+          <button
+            onClick={() => navigate('/signup')}
+            className="text-xs font-mono font-semibold text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300 px-3 py-2 transition-colors hidden sm:block"
+          >
+            Enlist Clearance
+          </button>
+
           <GlowButton
             variant="primary"
             size="sm"

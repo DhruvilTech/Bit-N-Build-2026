@@ -1,5 +1,45 @@
 import mongoose from 'mongoose';
 
+const responseHistorySchema = new mongoose.Schema(
+  {
+    assignmentId: {
+      type: String,
+      default: () => `RESP-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    },
+    incidentId: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    assignedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    enRouteAt: {
+      type: Date,
+      default: null,
+    },
+    onSceneAt: {
+      type: Date,
+      default: null,
+    },
+    resolvedAt: {
+      type: Date,
+      default: null,
+    },
+    status: {
+      type: String,
+      default: 'ASSIGNED',
+    },
+    notes: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+  },
+  { _id: false }
+);
+
 const teamSchema = new mongoose.Schema(
   {
     teamId: {
@@ -16,7 +56,7 @@ const teamSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['FIRE', 'MEDICAL', 'POLICE', 'RESCUE'],
+      enum: ['FIRE', 'MEDICAL', 'POLICE', 'RESCUE', 'DISASTER_RESPONSE', 'HAZMAT'],
       required: true,
       index: true,
     },
@@ -28,9 +68,15 @@ const teamSchema = new mongoose.Schema(
     ],
     vehicleId: {
       type: String,
-      required: true,
       trim: true,
+      default: '',
     },
+    assignedResources: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
     status: {
       type: String,
       enum: ['AVAILABLE', 'ASSIGNED', 'EN_ROUTE', 'ON_SCENE', 'BUSY', 'OFFLINE'],
@@ -62,10 +108,22 @@ const teamSchema = new mongoose.Schema(
     currentAssignment: {
       type: String,
       default: null,
+      index: true,
     },
     radioChannel: {
       type: String,
       default: 'CH-01 TAC',
+      trim: true,
+    },
+    availability: {
+      type: Boolean,
+      default: true,
+      index: true,
+    },
+    responseHistory: [responseHistorySchema],
+    metadata: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
     },
   },
   {
@@ -79,8 +137,15 @@ const teamSchema = new mongoose.Schema(
   }
 );
 
+teamSchema.pre('save', function (next) {
+  this.availability = this.status === 'AVAILABLE' && !this.currentAssignment;
+  next();
+});
+
 teamSchema.index({ 'location.geometry': '2dsphere' });
 teamSchema.index({ type: 1, status: 1 });
+teamSchema.index({ availability: 1, type: 1 });
+teamSchema.index({ capabilities: 1 });
 
 export const ResponseTeamModel = mongoose.model('ResponseTeam', teamSchema);
 export default ResponseTeamModel;

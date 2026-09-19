@@ -30,11 +30,20 @@ const seedDatabase = async () => {
 
     const users = [
       {
+        name: 'Chief Administrator',
+        email: 'admin123@gmail.com',
+        password: await bcrypt.hash('Admin@123', 10),
+        role: 'ADMIN',
+        department: 'Central Crisis Executive Command',
+        badgeNumber: 'BADGE-ADM-001',
+      },
+      {
         name: 'Commander Sarah Jenkins',
         email: 'admin@emergency.ps9.gov',
         password: defaultPassword,
         role: 'ADMIN',
         department: 'Central Crisis Executive Command',
+        badgeNumber: 'BADGE-ADM-002',
       },
       {
         name: 'Operator David Chen',
@@ -214,8 +223,36 @@ const seedDatabase = async () => {
       },
     ];
 
-    await ResponseTeamModel.insertMany(teams);
-    console.log(`[Seed] Seeded ${teams.length} Response Teams.`);
+    const enrichedTeams = teams.map((t) => ({
+      ...t,
+      availability: t.status === 'AVAILABLE' && !t.currentAssignment,
+      assignedResources:
+        t.assignedResources ||
+        (t.teamId === 'TEAM-FT04'
+          ? ['RES-VEH-01']
+          : t.teamId === 'TEAM-AM07'
+          ? ['RES-VEH-02']
+          : t.teamId === 'TEAM-PD02'
+          ? ['RES-VEH-03']
+          : t.teamId === 'TEAM-HZ01'
+          ? ['RES-VEH-04']
+          : t.teamId === 'TEAM-RT03'
+          ? ['RES-VEH-08']
+          : []),
+      responseHistory: t.currentAssignment
+        ? [
+            {
+              incidentId: t.currentAssignment,
+              assignedAt: new Date(Date.now() - 25 * 60000),
+              status: t.status,
+              notes: `Initial deployment to incident ${t.currentAssignment}`,
+            },
+          ]
+        : [],
+    }));
+
+    await ResponseTeamModel.insertMany(enrichedTeams);
+    console.log(`[Seed] Seeded ${enrichedTeams.length} Response Teams.`);
 
     // 4. Seed Facilities (8 Facilities)
     console.log('[Seed] Seeding Facilities...');
@@ -350,8 +387,49 @@ const seedDatabase = async () => {
       },
     ];
 
-    await FacilityModel.insertMany(facilities);
-    console.log(`[Seed] Seeded ${facilities.length} Facilities.`);
+    const enrichedFacilities = facilities.map((f) => ({
+      ...f,
+      emergencyStatus:
+        f.status === 'DIVERTING'
+          ? 'CRITICAL'
+          : f.availableCapacity < 15 && f.type === 'HOSPITAL'
+          ? 'SURGE'
+          : 'NORMAL',
+      operationalHours: '24/7',
+      departments:
+        f.type === 'HOSPITAL'
+          ? [
+              {
+                name: 'Emergency Room',
+                capacity: Math.round(f.capacity * 0.3),
+                availableCapacity: Math.round(f.availableCapacity * 0.4),
+                status: 'OPERATIONAL',
+              },
+              {
+                name: 'Intensive Care Unit (ICU)',
+                capacity: Math.round(f.capacity * 0.2),
+                availableCapacity: Math.round(f.availableCapacity * 0.2),
+                status: f.availableCapacity < 5 ? 'FULL' : 'OPERATIONAL',
+              },
+              {
+                name: 'Trauma & Surgery',
+                capacity: Math.round(f.capacity * 0.5),
+                availableCapacity: Math.round(f.availableCapacity * 0.4),
+                status: 'OPERATIONAL',
+              },
+            ]
+          : [
+              {
+                name: 'General Intake & Shelter',
+                capacity: f.capacity,
+                availableCapacity: f.availableCapacity,
+                status: 'OPERATIONAL',
+              },
+            ],
+    }));
+
+    await FacilityModel.insertMany(enrichedFacilities);
+    console.log(`[Seed] Seeded ${enrichedFacilities.length} Facilities.`);
 
     // 5. Seed Resources (12 Resources)
     console.log('[Seed] Seeding Resources...');
@@ -532,8 +610,23 @@ const seedDatabase = async () => {
       },
     ];
 
-    await ResourceModel.insertMany(resources);
-    console.log(`[Seed] Seeded ${resources.length} Resources.`);
+    const enrichedResources = resources.map((r) => ({
+      ...r,
+      availability: r.status === 'AVAILABLE' && !r.currentAssignment,
+      assignmentHistory: r.currentAssignment
+        ? [
+            {
+              incidentId: r.currentAssignment,
+              assignedAt: new Date(Date.now() - 25 * 60000),
+              action: 'ASSIGN',
+              notes: `Initial deployment to incident ${r.currentAssignment}`,
+            },
+          ]
+        : [],
+    }));
+
+    await ResourceModel.insertMany(enrichedResources);
+    console.log(`[Seed] Seeded ${enrichedResources.length} Resources.`);
 
     // 6. Seed Incidents (22 Incidents covering diverse types, severities, priorities)
     console.log('[Seed] Seeding Incidents...');

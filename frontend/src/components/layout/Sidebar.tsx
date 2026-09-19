@@ -17,6 +17,8 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useEmergency } from '../../context/EmergencyContext';
+import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { soundFx } from '../../utils/audio';
 
 interface SidebarProps {
@@ -33,6 +35,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setMobileOpen,
 }) => {
   const { stats } = useEmergency();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    soundFx.playClick();
+    await logout();
+    navigate('/login');
+  };
 
   const navItems = [
     { label: 'Command Center', icon: LayoutDashboard, path: '/command-center' },
@@ -82,8 +92,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
       >
         {/* Navigation items */}
         <div className="flex-1 py-4 px-3 overflow-y-auto space-y-1">
-          <div className="px-3 pb-2 text-[10px] font-mono uppercase tracking-widest text-slate-400 dark:text-slate-500">
-            {!isCollapsed && 'Operations Mesh'}
+          <div className="px-3 pb-2 text-[10px] font-mono uppercase tracking-widest text-slate-400 dark:text-slate-500 flex items-center justify-between">
+            {!isCollapsed && (
+              <>
+                <span>Operations Mesh</span>
+                {user && (
+                  <span className="px-1.5 py-0.5 rounded bg-cyan-500/15 border border-cyan-500/30 text-cyan-700 dark:text-cyan-300 font-bold text-[9px]">
+                    {user.role}
+                  </span>
+                )}
+              </>
+            )}
           </div>
 
           {navItems.map((item) => (
@@ -139,14 +158,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {!isCollapsed && <span>Public Landing</span>}
           </NavLink>
 
-          <NavLink
-            to="/login"
-            onClick={() => soundFx.playClick()}
-            className="flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-mono text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-mono text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors text-left"
           >
             <LogOut className="w-4 h-4 flex-shrink-0 text-rose-600 dark:text-rose-400" />
             {!isCollapsed && <span>Switch Station</span>}
-          </NavLink>
+          </button>
 
           {/* Desktop Collapse Toggle */}
           <button

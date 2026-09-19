@@ -28,8 +28,12 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/health",
-              "host": ["{{baseUrl}}"],
-              "path": ["health"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
             },
             "description": "Verifies server uptime, database connection state, and API availability."
           },
@@ -62,8 +66,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/system/status",
-              "host": ["{{baseUrl}}"],
-              "path": ["system", "status"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "system",
+                "status"
+              ]
             },
             "description": "Checks Node.js runtime metrics, memory heap usage, Mongoose version, and uptime."
           },
@@ -111,8 +120,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "login"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
             },
             "description": "Logs in with seeded Administrator account. The test script automatically saves the returned JWT into the collection variable 'authToken'."
           },
@@ -158,8 +172,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "login"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
             }
           },
           "response": [],
@@ -197,8 +216,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "login"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
             }
           },
           "response": [],
@@ -236,8 +260,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/register",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "register"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
             }
           },
           "response": [],
@@ -283,8 +312,13 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/auth/me",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "me"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
             },
             "description": "Uses the JWT saved from the Login request."
           },
@@ -316,8 +350,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/auth/me",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "me"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
             }
           },
           "response": [],
@@ -344,11 +383,20 @@
           "name": "Get All Incidents",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/incidents",
-              "host": ["{{baseUrl}}"],
-              "path": ["incidents"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "incidents"
+              ]
             }
           },
           "response": [],
@@ -377,11 +425,20 @@
           "name": "Filter Incidents (Status & Severity)",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/incidents?status=RESPONDING&severity=CRITICAL",
-              "host": ["{{baseUrl}}"],
-              "path": ["incidents"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "incidents"
+              ],
               "query": [
                 {
                   "key": "status",
@@ -420,11 +477,21 @@
           "name": "Get Incident by Business ID (ER-2048)",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/incidents/ER-2048",
-              "host": ["{{baseUrl}}"],
-              "path": ["incidents", "ER-2048"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "incidents",
+                "ER-2048"
+              ]
             },
             "description": "Retrieves the primary demo incident '#ER-2048' (Apex Petrochemical Industrial Fire)."
           },
@@ -458,6 +525,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
               }
             ],
             "body": {
@@ -466,8 +537,12 @@
             },
             "url": {
               "raw": "{{baseUrl}}/incidents",
-              "host": ["{{baseUrl}}"],
-              "path": ["incidents"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "incidents"
+              ]
             }
           },
           "response": [],
@@ -500,6 +575,10 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
               }
             ],
             "body": {
@@ -508,8 +587,12 @@
             },
             "url": {
               "raw": "{{baseUrl}}/incidents",
-              "host": ["{{baseUrl}}"],
-              "path": ["incidents"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "incidents"
+              ]
             },
             "description": "Intentionally omitting required fields (type, description, location) to trigger Zod validation error."
           },
@@ -537,11 +620,21 @@
           "name": "Get Incident by ID (Negative - Not Found)",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/incidents/INC-NON-EXISTENT-99999",
-              "host": ["{{baseUrl}}"],
-              "path": ["incidents", "INC-NON-EXISTENT-99999"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "incidents",
+                "INC-NON-EXISTENT-99999"
+              ]
             }
           },
           "response": [],
@@ -568,11 +661,20 @@
           "name": "Get All Resources",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/resources",
-              "host": ["{{baseUrl}}"],
-              "path": ["resources"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "resources"
+              ]
             }
           },
           "response": [],
@@ -599,11 +701,20 @@
           "name": "Filter Resources by Status (AVAILABLE)",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/resources?status=AVAILABLE",
-              "host": ["{{baseUrl}}"],
-              "path": ["resources"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "resources"
+              ],
               "query": [
                 {
                   "key": "status",
@@ -637,11 +748,21 @@
           "name": "Get Resource by ID (RES-VEH-01)",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/resources/RES-VEH-01",
-              "host": ["{{baseUrl}}"],
-              "path": ["resources", "RES-VEH-01"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "resources",
+                "RES-VEH-01"
+              ]
             }
           },
           "response": [],
@@ -672,11 +793,20 @@
           "name": "Get All Response Teams",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/teams",
-              "host": ["{{baseUrl}}"],
-              "path": ["teams"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "teams"
+              ]
             }
           },
           "response": [],
@@ -702,11 +832,20 @@
           "name": "Filter Teams by Type (FIRE)",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/teams?type=FIRE",
-              "host": ["{{baseUrl}}"],
-              "path": ["teams"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "teams"
+              ],
               "query": [
                 {
                   "key": "type",
@@ -740,11 +879,21 @@
           "name": "Get Team by ID (TEAM-FT04)",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/teams/TEAM-FT04",
-              "host": ["{{baseUrl}}"],
-              "path": ["teams", "TEAM-FT04"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "teams",
+                "TEAM-FT04"
+              ]
             }
           },
           "response": [],
@@ -776,11 +925,20 @@
           "name": "Get All Facilities",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/facilities",
-              "host": ["{{baseUrl}}"],
-              "path": ["facilities"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "facilities"
+              ]
             }
           },
           "response": [],
@@ -806,11 +964,20 @@
           "name": "Filter Facilities by Type (HOSPITAL)",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/facilities?type=HOSPITAL",
-              "host": ["{{baseUrl}}"],
-              "path": ["facilities"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "facilities"
+              ],
               "query": [
                 {
                   "key": "type",
@@ -844,11 +1011,21 @@
           "name": "Get Facility by ID (HOSP-01)",
           "request": {
             "method": "GET",
-            "header": [],
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
             "url": {
               "raw": "{{baseUrl}}/facilities/HOSP-01",
-              "host": ["{{baseUrl}}"],
-              "path": ["facilities", "HOSP-01"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "facilities",
+                "HOSP-01"
+              ]
             }
           },
           "response": [],
@@ -883,8 +1060,12 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/non-existent-service-route",
-              "host": ["{{baseUrl}}"],
-              "path": ["non-existent-service-route"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "non-existent-service-route"
+              ]
             }
           },
           "response": [],

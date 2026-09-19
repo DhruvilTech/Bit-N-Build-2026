@@ -6,6 +6,7 @@ import incidentRoutes from './incident.routes.js';
 import resourceRoutes from './resource.routes.js';
 import teamRoutes from './team.routes.js';
 import facilityRoutes from './facility.routes.js';
+import auditLogRoutes from './auditLog.routes.js';
 
 const apiRouter = Router();
 
@@ -16,5 +17,6 @@ apiRouter.use('/incidents', incidentRoutes);
 apiRouter.use('/resources', resourceRoutes);
 apiRouter.use('/teams', teamRoutes);
 apiRouter.use('/facilities', facilityRoutes);
+apiRouter.use('/audit-logs', auditLogRoutes);
 
 export default apiRouter;

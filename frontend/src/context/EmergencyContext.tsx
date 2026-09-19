@@ -18,6 +18,19 @@ import {
   SIMULATION_SCENARIOS,
 } from '../data/mockData';
 import { soundFx } from '../utils/audio';
+import {
+  incidentsApi,
+  teamsApi,
+  resourcesApi,
+  facilitiesApi,
+  getToken,
+} from '../services/api';
+import {
+  adaptBackendIncidents,
+  adaptBackendTeams,
+  adaptBackendFacilities,
+  adaptBackendResources,
+} from '../utils/adapters';
 
 interface EmergencyContextType {
   incidents: Incident[];
@@ -49,6 +62,8 @@ interface EmergencyContextType {
   updateIncidentStatus: (incidentId: string, status: IncidentStatus) => void;
   markNotificationAsRead: (id: string) => void;
   markAllNotificationsAsRead: () => void;
+  isLiveBackend: boolean;
+  syncWithBackend: () => Promise<void>;
   stats: {
     totalIncidents: number;
     criticalIncidents: number;
@@ -84,6 +99,51 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isSimulating, setIsSimulating] = useState<boolean>(true);
   const [isSimulatorModalOpen, setIsSimulatorModalOpen] = useState<boolean>(false);
   const [isNotificationsDrawerOpen, setIsNotificationsDrawerOpen] = useState<boolean>(false);
+  const [isLiveBackend, setIsLiveBackend] = useState<boolean>(false);
+
+  // Sync state with live backend APIs
+  const syncWithBackend = useCallback(async () => {
+    const token = getToken();
+    if (!token) return;
+
+    try {
+      const [incidentsRes, teamsRes, facilitiesRes, resourcesRes] = await Promise.allSettled([
+        incidentsApi.getAll(),
+        teamsApi.getAll(),
+        facilitiesApi.getAll(),
+        resourcesApi.getAll(),
+      ]);
+
+      if (incidentsRes.status === 'fulfilled' && Array.isArray(incidentsRes.value) && incidentsRes.value.length > 0) {
+        const adapted = adaptBackendIncidents(incidentsRes.value);
+        setIncidents(adapted);
+        if (adapted[0]?.id) {
+          setActiveIncidentId(adapted[0].id);
+        }
+      }
+
+      if (teamsRes.status === 'fulfilled' && Array.isArray(teamsRes.value) && teamsRes.value.length > 0) {
+        setTeams(adaptBackendTeams(teamsRes.value));
+      }
+
+      if (facilitiesRes.status === 'fulfilled' && Array.isArray(facilitiesRes.value) && facilitiesRes.value.length > 0) {
+        setHospitals(adaptBackendFacilities(facilitiesRes.value));
+      }
+
+      if (resourcesRes.status === 'fulfilled' && Array.isArray(resourcesRes.value) && resourcesRes.value.length > 0) {
+        setEquipment(adaptBackendResources(resourcesRes.value));
+      }
+
+      setIsLiveBackend(true);
+    } catch (err: any) {
+      console.warn('Backend live sync deferred:', err.message);
+      setIsLiveBackend(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    syncWithBackend();
+  }, [syncWithBackend]);
 
   // Live Digital Clock
   const [currentTime, setCurrentTime] = useState<string>('13:42:08');
@@ -247,6 +307,11 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       })
     );
 
+    // Sync with backend asynchronously
+    teamsApi.assign(teamId, { incidentId }).catch((err) => {
+      console.warn('Backend dispatch sync note:', err.message);
+    });
+
     // Add notification
     setNotifications((prev) => [
       {
@@ -298,6 +363,11 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       })
     );
 
+    // Sync with backend asynchronously
+    incidentsApi.update(incidentId, { priority: 'P1', severity: 'CRITICAL' }).catch((err) => {
+      console.warn('Backend escalate sync note:', err.message);
+    });
+
     setAlerts((prev) => [
       {
         id: `ALT-${Date.now()}`,
@@ -316,6 +386,12 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Resolve Incident
   const resolveIncident = useCallback((incidentId: string) => {
     soundFx.playDispatch();
+
+    // Sync with backend asynchronously
+    incidentsApi.updateStatus(incidentId, 'RESOLVED').catch((err) => {
+      console.warn('Backend resolve sync note:', err.message);
+    });
+
     setIncidents((prev) =>
       prev.map((inc) => {
         if (inc.id === incidentId) {
@@ -358,6 +434,10 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setIncidents((prev) =>
       prev.map((inc) => (inc.id === incidentId ? { ...inc, status } : inc))
     );
+    // Sync with backend
+    incidentsApi.updateStatus(incidentId, status.toUpperCase()).catch((err) => {
+      console.warn('Backend status sync note:', err.message);
+    });
   }, []);
 
   const markNotificationAsRead = useCallback((id: string) => {
@@ -552,6 +632,8 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     updateIncidentStatus,
     markNotificationAsRead,
     markAllNotificationsAsRead,
+    isLiveBackend,
+    syncWithBackend,
     stats,
   };
 

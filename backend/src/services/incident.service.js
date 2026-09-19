@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { IncidentModel } from '../models/incident.model.js';
+import { recordAuditLog } from './auditLog.service.js';
 import { NotFoundError } from '../utils/errors.js';
 
 export const getIncidents = async (filters = {}, pagination = {}) => {
@@ -31,11 +32,12 @@ export const getIncidents = async (filters = {}, pagination = {}) => {
 
   return {
     incidents,
+    total,
     pagination: {
       total,
       page,
       limit,
-      pages: Math.ceil(total / limit),
+      pages: Math.ceil(total / limit) || 1,
     },
   };
 };
@@ -43,10 +45,8 @@ export const getIncidents = async (filters = {}, pagination = {}) => {
 export const getIncidentById = async (id) => {
   let incident = null;
 
-  // Check by incidentId (e.g. 'ER-2048') first
   incident = await IncidentModel.findOne({ incidentId: id });
 
-  // If not found and valid ObjectId, check by _id
   if (!incident && mongoose.Types.ObjectId.isValid(id)) {
     incident = await IncidentModel.findById(id);
   }
@@ -58,7 +58,7 @@ export const getIncidentById = async (id) => {
   return incident;
 };
 
-export const createIncident = async (data) => {
+export const createIncident = async (data, user = null) => {
   const incidentId = data.incidentId || `ER-${Math.floor(2050 + Math.random() * 900)}`;
 
   const incident = await IncidentModel.create({
@@ -73,6 +73,36 @@ export const createIncident = async (data) => {
         coordinates: [data.location.longitude, data.location.latitude],
       },
     },
+  });
+
+  await recordAuditLog({
+    user,
+    action: 'INCIDENT_CREATED',
+    entityType: 'INCIDENT',
+    entityId: incident.incidentId,
+    metadata: {
+      title: incident.title,
+      type: incident.type,
+      severity: incident.severity,
+      priority: incident.priority,
+    },
+  });
+
+  return incident;
+};
+
+export const updateIncidentStatus = async (id, status, user = null) => {
+  const incident = await getIncidentById(id);
+  const previousStatus = incident.status;
+  incident.status = status;
+  await incident.save();
+
+  await recordAuditLog({
+    user,
+    action: status === 'RESOLVED' ? 'INCIDENT_RESOLVED' : 'INCIDENT_UPDATED',
+    entityType: 'INCIDENT',
+    entityId: incident.incidentId,
+    metadata: { previousStatus, newStatus: status },
   });
 
   return incident;

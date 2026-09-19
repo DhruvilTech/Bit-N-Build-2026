@@ -1,10 +1,14 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
 import { EmergencyProvider } from './context/EmergencyContext';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { AppLayout } from './components/layout/AppLayout';
 
 import { Landing } from './pages/Landing';
 import { Login } from './pages/Login';
+import { Signup } from './pages/Signup';
+import { Unauthorized } from './pages/Unauthorized';
 import { Dashboard } from './pages/Dashboard';
 import { Incidents } from './pages/Incidents';
 import { IncidentDetails } from './pages/IncidentDetails';
@@ -19,33 +23,40 @@ import { Settings } from './pages/Settings';
 
 export function App() {
   return (
-    <EmergencyProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Public Intro Experience */}
-          <Route path="/" element={<Landing />} />
-          <Route path="/login" element={<Login />} />
+    <AuthProvider>
+      <EmergencyProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Public Intro Experience */}
+            <Route path="/" element={<Landing />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/signup/:roleParam" element={<Signup />} />
+            <Route path="/unauthorized" element={<Unauthorized />} />
 
-          {/* Main Application Shell */}
-          <Route element={<AppLayout />}>
-            <Route path="/command-center" element={<Dashboard />} />
-            <Route path="/incidents" element={<Incidents />} />
-            <Route path="/incidents/:id" element={<IncidentDetails />} />
-            <Route path="/map" element={<LiveMap />} />
-            <Route path="/resources" element={<Resources />} />
-            <Route path="/teams" element={<Teams />} />
-            <Route path="/alerts" element={<Alerts />} />
-            <Route path="/assistant" element={<AIAssistant />} />
-            <Route path="/analytics" element={<Analytics />} />
-            <Route path="/notifications" element={<Notifications />} />
-            <Route path="/settings" element={<Settings />} />
-          </Route>
+            {/* Protected Main Application Shell */}
+            <Route element={<ProtectedRoute />}>
+              <Route element={<AppLayout />}>
+                <Route path="/command-center" element={<Dashboard />} />
+                <Route path="/incidents" element={<Incidents />} />
+                <Route path="/incidents/:id" element={<IncidentDetails />} />
+                <Route path="/map" element={<LiveMap />} />
+                <Route path="/resources" element={<Resources />} />
+                <Route path="/teams" element={<Teams />} />
+                <Route path="/alerts" element={<Alerts />} />
+                <Route path="/assistant" element={<AIAssistant />} />
+                <Route path="/analytics" element={<Analytics />} />
+                <Route path="/notifications" element={<Notifications />} />
+                <Route path="/settings" element={<Settings />} />
+              </Route>
+            </Route>
 
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/command-center" replace />} />
-        </Routes>
-      </BrowserRouter>
-    </EmergencyProvider>
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/command-center" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </EmergencyProvider>
+    </AuthProvider>
   );
 }
 

@@ -1,8 +1,10 @@
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
+import { UserModel } from '../models/user.model.js';
+import { TokenBlacklistModel } from '../models/tokenBlacklist.model.js';
 import { UnauthorizedError, ForbiddenError } from '../utils/errors.js';
 
-export const authenticate = (req, _res, next) => {
+export const authenticate = async (req, _res, next) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return next(new UnauthorizedError('No authentication token provided'));
@@ -11,11 +13,39 @@ export const authenticate = (req, _res, next) => {
   const token = authHeader.split(' ')[1];
 
   try {
+    // 1. Check if token was explicitly revoked via logout
+    const blacklisted = await TokenBlacklistModel.findOne({ token });
+    if (blacklisted) {
+      return next(new UnauthorizedError('Session has ended or token has been revoked. Please log in again.'));
+    }
+
+    // 2. Verify JWT signature & expiration
     const decoded = jwt.verify(token, env.JWT_SECRET);
-    req.user = decoded;
+
+    // 3. Verify user exists and is active in database
+    const user = await UserModel.findById(decoded.id);
+    if (!user) {
+      return next(new UnauthorizedError('User account not found'));
+    }
+    if (!user.isActive) {
+      return next(new UnauthorizedError('User account is deactivated. Contact an administrator.'));
+    }
+
+    req.user = {
+      id: user._id.toString(),
+      email: user.email,
+      role: user.role,
+      name: user.name,
+      department: user.department,
+    };
+    req.token = token;
+
     next();
   } catch (error) {
-    next(new UnauthorizedError('Invalid or expired authentication token'));
+    if (error.name === 'TokenExpiredError') {
+      return next(new UnauthorizedError('Authentication token has expired. Please log in again.'));
+    }
+    next(new UnauthorizedError('Invalid authentication token'));
   }
 };
 
@@ -26,7 +56,11 @@ export const authorize = (...roles) => {
     }
 
     if (!roles.includes(req.user.role)) {
-      return next(new ForbiddenError('You do not have permission to perform this action'));
+      return next(
+        new ForbiddenError(
+          `Forbidden: Role '${req.user.role}' does not have required permissions for this action`
+        )
+      );
     }
 
     next();

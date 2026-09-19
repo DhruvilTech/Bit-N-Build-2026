@@ -10,6 +10,8 @@ export const registerSchema = z.object({
       .optional()
       .default('OPERATOR'),
     department: z.string().optional(),
+    badgeNumber: z.string().optional(),
+    phone: z.string().optional(),
   }),
 });
 
