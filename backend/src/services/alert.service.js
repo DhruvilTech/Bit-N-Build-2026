@@ -6,6 +6,7 @@ import { ResourceModel } from '../models/resource.model.js';
 import { ResponseTeamModel } from '../models/team.model.js';
 import { recordAuditLog } from './auditLog.service.js';
 import { emitAlertNew, emitAlertAcknowledged, emitAlertResolved } from '../utils/socket.js';
+import { recordTimelineEvent } from './timeline.service.js';
 import { NotFoundError, BadRequestError } from '../utils/errors.js';
 import { env } from '../config/env.js';
 
@@ -82,6 +83,18 @@ export const createAlert = async ({
 
   // 3. Emit real-time Socket.IO alert:new event
   emitAlertNew(alert);
+
+  if (incidentId) {
+    recordTimelineEvent({
+      incidentId,
+      eventType: 'ALERT_CREATED',
+      actor: user?.name || 'ALERT-SYSTEM',
+      actorRole: user?.role || 'SYSTEM',
+      title: `Alert: ${title || type}`,
+      description: message,
+      metadata: { alertId: alert.alertId, type, severity },
+    }).catch(() => {});
+  }
 
   // 4. Record Audit Log
   await recordAuditLog({
@@ -325,6 +338,18 @@ export const acknowledgeAlert = async (id, user = null, note = '') => {
   // Socket notification
   emitAlertAcknowledged(alert);
 
+  if (alert.incidentId) {
+    recordTimelineEvent({
+      incidentId: alert.incidentId,
+      eventType: 'ALERT_ACKNOWLEDGED',
+      actor: user?.name || 'OPERATOR',
+      actorRole: user?.role || 'OPERATOR',
+      title: `Alert Acknowledged: ${alert.title}`,
+      description: `Alert #${alert.alertId} (${alert.type}) acknowledged${note ? `: ${note}` : ''}`,
+      metadata: { alertId: alert.alertId, note },
+    }).catch(() => {});
+  }
+
   // Audit log
   await recordAuditLog({
     user,
@@ -364,6 +389,18 @@ export const resolveAlert = async (id, user = null, resolution = '', note = '') 
 
   // Socket notification
   emitAlertResolved(alert);
+
+  if (alert.incidentId) {
+    recordTimelineEvent({
+      incidentId: alert.incidentId,
+      eventType: 'ALERT_RESOLVED',
+      actor: user?.name || 'OPERATOR',
+      actorRole: user?.role || 'OPERATOR',
+      title: `Alert Resolved: ${alert.title}`,
+      description: `Alert #${alert.alertId} (${alert.type}) resolved${resolution ? `: ${resolution}` : ''}`,
+      metadata: { alertId: alert.alertId, resolution },
+    }).catch(() => {});
+  }
 
   // Audit log
   await recordAuditLog({

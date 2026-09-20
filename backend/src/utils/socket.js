@@ -83,10 +83,12 @@ export const emitIncidentStatusChanged = (incident) => {
  */
 export const emitIncidentAiProcessing = (incident) => {
   if (ioInstance) {
-    ioInstance.emit('incident:aiProcessing', {
-      incidentId: incident._id?.toString() || incident.id,
+    const payload = {
+      incidentId: incident.incidentId || incident._id?.toString() || incident.id,
       aiAnalysis: incident.aiAnalysis,
-    });
+    };
+    ioInstance.emit('incident:aiProcessing', payload);
+    ioInstance.emit('incident:aiAnalyzing', payload);
   }
 };
 
@@ -158,12 +160,14 @@ export const emitIncidentMerged = (canonicalIncident, mergedIncidentIds) => {
  */
 export const emitIncidentReviewRequired = (incident) => {
   if (ioInstance) {
-    ioInstance.emit('incident:reviewRequired', {
+    const payload = {
       incidentId: incident.incidentId || incident._id?.toString(),
       incident,
       aiAnalysis: incident.aiAnalysis,
       reason: incident.aiAnalysis?.reviewReason || 'Low AI confidence triage required',
-    });
+    };
+    ioInstance.emit('incident:reviewRequired', payload);
+    ioInstance.emit('incident:humanReviewRequired', payload);
   }
 };
 
@@ -470,3 +474,62 @@ export const emitRouteCreated = (routeData) => {
     ioInstance.emit('route:created', routeData);
   }
 };
+
+const socketStartTime = Date.now();
+
+/**
+ * PHASE 31: Get Socket.IO server health and connection count
+ */
+export const getSocketHealth = () => {
+  const isInitialized = Boolean(ioInstance);
+  const connectedClients = ioInstance?.sockets?.sockets?.size || 0;
+  return {
+    status: isInitialized ? 'healthy' : 'degraded',
+    connectedClients,
+    uptime: Math.floor((Date.now() - socketStartTime) / 1000),
+    timestamp: new Date().toISOString(),
+    transports: ['websocket', 'polling'],
+  };
+};
+
+/**
+ * PHASE 31: Broadcast system health state changes
+ */
+export const emitSystemHealth = (healthData) => {
+  if (ioInstance) {
+    ioInstance.to('operations').emit('system:health', healthData);
+    ioInstance.emit('system:health', healthData);
+  }
+};
+
+/**
+ * PHASE 32: Broadcast when AI processing activates fallback rules
+ */
+export const emitIncidentAiFallback = (incident, fallbackDetails = {}) => {
+  if (ioInstance) {
+    const payload = {
+      incidentId: incident.incidentId || incident._id?.toString() || incident.id,
+      incident,
+      aiAnalysis: incident.aiAnalysis,
+      fallbackDetails,
+    };
+    ioInstance.emit('incident:aiFallback', payload);
+    ioInstance.to('operations').emit('incident:aiFallback', payload);
+  }
+};
+
+/**
+ * PHASE 34: Broadcast when a new timeline event is logged for an incident
+ */
+export const emitIncidentTimelineUpdated = (incidentId, timelineEvent) => {
+  if (ioInstance) {
+    const payload = {
+      incidentId,
+      event: timelineEvent,
+    };
+    ioInstance.to(`incident:${incidentId}`).emit('incident:timelineUpdated', payload);
+    ioInstance.to('operations').emit('incident:timelineUpdated', payload);
+    ioInstance.emit('incident:timelineUpdated', payload);
+  }
+};
+

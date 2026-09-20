@@ -87,7 +87,7 @@ export interface UserProfile {
   id: string;
   name: string;
   email: string;
-  role: 'ADMIN' | 'OPERATOR' | 'FIELD_COORDINATOR' | 'MEDICAL_COORDINATOR';
+  role: 'ADMIN' | 'OPERATOR' | 'FIELD_COORDINATOR' | 'MEDICAL_COORDINATOR' | 'RESPONDER' | 'VIEWER';
   department?: string;
   badgeNumber?: string;
   phone?: string;
@@ -241,9 +241,20 @@ export const incidentsApi = {
     return res.data?.incident || res.data;
   },
 
-  getTimeline: async (id: string) => {
-    const res = await apiRequest(`/incidents/${id}/timeline`);
-    return res.data?.timeline || res.data || [];
+  getTimeline: async (id: string, params?: { sort?: string; page?: number; limit?: number }) => {
+    const query = params ? new URLSearchParams(params as any).toString() : '';
+    const res = await apiRequest<{
+      status: string;
+      data: {
+        timeline?: any[];
+        events?: any[];
+        total?: number;
+        page?: number;
+        limit?: number;
+        totalPages?: number;
+      };
+    }>(`/incidents/${id}/timeline${query ? `?${query}` : ''}`);
+    return res.data || { events: [], timeline: [], total: 0 };
   },
 
   getReports: async (id: string) => {
@@ -260,10 +271,14 @@ export const incidentsApi = {
   },
 
   getAiAnalysis: async (id: string) => {
-    const res = await apiRequest<{ status: string; data: { aiAnalysis: any } }>(
-      `/incidents/${id}/ai-analysis`
-    );
-    return res.data?.aiAnalysis;
+    const res = await apiRequest<{
+      status: string;
+      data: {
+        aiAnalysis: any;
+        explainability?: any;
+      };
+    }>(`/incidents/${id}/ai-analysis`);
+    return res.data;
   },
 
   classifyPreview: async (data: {
@@ -1065,5 +1080,46 @@ export const alertsApi = {
   },
 };
 
+// Phase 31: System Health API
+export interface SystemHealthComponent {
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  latencyMs?: number;
+  uptime?: number;
+  details?: any;
+  error?: string | null;
+  [key: string]: any;
+}
 
+export interface SystemHealthDetailed {
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  timestamp: string;
+  uptime: number;
+  environment: string;
+  components: {
+    API: SystemHealthComponent;
+    DATABASE: SystemHealthComponent;
+    AI: SystemHealthComponent;
+    SOCKET: SystemHealthComponent;
+    SCHEDULER: SystemHealthComponent;
+  };
+}
 
+export const systemHealthApi = {
+  getBasic: async () => {
+    return apiRequest<{
+      status: 'healthy' | 'degraded' | 'unhealthy';
+      success: boolean;
+      uptime: number;
+      timestamp: string;
+      aiService?: string;
+      database?: string;
+    }>('/health');
+  },
+  getDetailed: async () => {
+    const res = await apiRequest<{
+      status: string;
+      data: SystemHealthDetailed;
+    }>('/health/detailed');
+    return res.data;
+  },
+};

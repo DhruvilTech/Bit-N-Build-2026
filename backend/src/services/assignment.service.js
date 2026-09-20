@@ -33,6 +33,7 @@ import {
   emitIncidentStatusChanged,
   emitRouteCreated,
 } from '../utils/socket.js';
+import { recordTimelineEvent } from './timeline.service.js';
 
 // Legal Assignment Status Transitions (Phase 10 & GPS Return)
 export const VALID_ASSIGNMENT_TRANSITIONS = {
@@ -356,6 +357,17 @@ export const assignResourcesToIncident = async (
     emitIncidentStatusChanged(incident);
   }
 
+  // Phase 34: Record timeline event for team assignment
+  recordTimelineEvent({
+    incidentId: incident.incidentId,
+    eventType: 'TEAM_ASSIGNED',
+    actor: operatorInfo.name,
+    actorRole: operatorInfo.role,
+    title: 'Team Assigned',
+    description: `Assigned ${createdAssignments.length} resource(s) to incident: ${assignedResourceIds.join(', ')}`,
+    metadata: { assignedResourceIds, totalAssigned: createdAssignments.length },
+  }).catch(() => {});
+
   return {
     incidentId: incident.incidentId,
     totalAssigned: createdAssignments.length,
@@ -536,6 +548,28 @@ export const updateAssignmentStatus = async (
   emitResponseStatusChanged(assignment);
   if (newStatus === 'COMPLETED' || newStatus === 'CANCELLED') {
     emitResourceReleased(assignment.incidentId, assignment.resourceId, assignment.assignmentId);
+  }
+
+  // Phase 34: Record timeline event for dispatch / en route / arrived
+  let eventType = null;
+  if (newStatus === 'DISPATCHED') eventType = 'DISPATCHED';
+  else if (newStatus === 'EN_ROUTE') eventType = 'EN_ROUTE';
+  else if (newStatus === 'ON_SCENE') eventType = 'TEAM_ARRIVED';
+
+  if (eventType && assignment.incidentId) {
+    recordTimelineEvent({
+      incidentId: assignment.incidentId,
+      eventType,
+      actor: operatorInfo.name,
+      actorRole: operatorInfo.role,
+      title: eventType.replace(/_/g, ' '),
+      description: `Resource #${assignment.resourceId} (${assignment.resourceName}) is now ${newStatus}`,
+      metadata: {
+        assignmentId: assignment.assignmentId,
+        resourceId: assignment.resourceId,
+        status: newStatus,
+      },
+    }).catch(() => {});
   }
 
   return assignment;

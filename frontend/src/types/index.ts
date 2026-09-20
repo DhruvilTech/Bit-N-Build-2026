@@ -2,7 +2,7 @@ export type IncidentSeverity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
 export type IncidentPriority = 'P1' | 'P2' | 'P3' | 'P4';
 export type IncidentStatus = 'New' | 'Analyzing' | 'Assigned' | 'Responding' | 'Resolved' | 'Escalated';
 
-export type IncidentAiStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+export type IncidentAiStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'FALLBACK' | 'HUMAN_REVIEW';
 
 export interface IncidentAiReasoning {
   incidentType?: string;
@@ -52,6 +52,13 @@ export interface IncidentAiAnalysis {
   analyzedAt?: string | null;
   requiresHumanReview?: boolean;
   reviewReason?: string | null;
+  fallbackUsed?: boolean;
+  errorCode?: string | null;
+  failureReason?: string | null;
+  attempt?: number;
+  latencyMs?: number;
+  safetyOverrides?: any[];
+  explainability?: any;
   classification?: {
     type: string;
     confidence: number;

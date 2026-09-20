@@ -295,6 +295,82 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         ]);
       });
 
+      // Phase 31: Real-time system health broadcast
+      socket.on('system:health', (payload: any) => {
+        window.dispatchEvent(new CustomEvent('ps9:systemHealth', { detail: payload }));
+      });
+
+      // Phase 32: AI analyzing alias
+      socket.on('incident:aiAnalyzing', (payload: any) => {
+        const incId = payload.incidentId;
+        setIncidents((prev) =>
+          prev.map((i) => {
+            if (i.id === incId) {
+              return {
+                ...i,
+                aiAnalysis: {
+                  ...(i.aiAnalysis || { status: 'PENDING' }),
+                  status: 'PROCESSING',
+                  error: null,
+                },
+              };
+            }
+            return i;
+          })
+        );
+      });
+
+      // Phase 32: AI Fallback activated
+      socket.on('incident:aiFallback', (payload: any) => {
+        const incId = payload.incidentId;
+        const details = payload.fallbackDetails || {};
+        setIncidents((prev) =>
+          prev.map((i) => {
+            if (i.id === incId) {
+              return {
+                ...i,
+                requiresHumanReview: true,
+                aiAnalysis: {
+                  ...(i.aiAnalysis || { status: 'PENDING' }),
+                  status: 'FALLBACK',
+                  fallbackUsed: true,
+                  errorCode: details.errorCode || 'FALLBACK',
+                  failureReason: details.failureReason,
+                  requiresHumanReview: true,
+                },
+              };
+            }
+            return i;
+          })
+        );
+      });
+
+      // Phase 32: Human review required alias
+      socket.on('incident:humanReviewRequired', (payload: any) => {
+        const incId = payload.incidentId;
+        setIncidents((prev) =>
+          prev.map((i) => {
+            if (i.id === incId) {
+              return {
+                ...i,
+                requiresHumanReview: true,
+                aiAnalysis: {
+                  ...(i.aiAnalysis || { status: 'COMPLETED' }),
+                  requiresHumanReview: true,
+                  reviewReason: payload.reason,
+                },
+              };
+            }
+            return i;
+          })
+        );
+      });
+
+      // Phase 34: Real-time Timeline event created
+      socket.on('incident:timelineUpdated', (payload: any) => {
+        window.dispatchEvent(new CustomEvent('ps9:timelineUpdated', { detail: payload }));
+      });
+
       // GPS Tracking & Route events
       socket.on('resource:locationUpdated', (payload: any) => {
         const { resourceId, currentLocation, status, distanceKm, etaMinutes } = payload;

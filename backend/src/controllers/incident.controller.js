@@ -20,6 +20,7 @@ import {
   addReportToIncidentService,
   getRelatedIncidentsService,
 } from '../services/incident.service.js';
+import { buildIncidentExplainability } from '../services/explainability.service.js';
 import { successResponse, errorResponse } from '../utils/response.js';
 
 export const getAllIncidents = async (req, res, next) => {
@@ -130,8 +131,21 @@ export const updateLocation = async (req, res, next) => {
 
 export const getTimeline = async (req, res, next) => {
   try {
-    const timeline = await getIncidentTimeline(req.params.id);
-    return successResponse(res, `Incident #${req.params.id} timeline`, { timeline }, 200);
+    const { sort, page, limit } = req.query;
+    const result = await getIncidentTimeline(req.params.id, { sort, page, limit });
+    return successResponse(
+      res,
+      `Incident #${req.params.id} timeline`,
+      {
+        timeline: result.events || result,
+        events: result.events || result,
+        total: result.total ?? (Array.isArray(result) ? result.length : 0),
+        page: result.page ?? 1,
+        limit: result.limit ?? 50,
+        totalPages: result.totalPages ?? 1,
+      },
+      200
+    );
   } catch (error) {
     next(error);
   }
@@ -149,11 +163,16 @@ export const getReports = async (req, res, next) => {
 export const triggerAiAnalysis = async (req, res, next) => {
   try {
     const incident = await analyzeIncident(req.params.id, req.user);
+    const explainability = buildIncidentExplainability(incident);
     return res.status(200).json({
       success: true,
       status: 'ANALYZED',
       message: `AI analysis completed for incident #${incident.incidentId}`,
-      data: { incident, aiAnalysis: incident.aiAnalysis },
+      data: {
+        incident,
+        aiAnalysis: incident.aiAnalysis,
+        explainability,
+      },
     });
   } catch (error) {
     next(error);
@@ -162,11 +181,21 @@ export const triggerAiAnalysis = async (req, res, next) => {
 
 export const fetchIncidentAiAnalysis = async (req, res, next) => {
   try {
-    const aiAnalysis = await getIncidentAiAnalysis(req.params.id);
+    const incident = await getIncidentById(req.params.id);
+    const explainability = buildIncidentExplainability(incident);
+    const rawAi = incident.aiAnalysis || { status: 'PENDING' };
+    const aiAnalysis = {
+      ...(rawAi.toObject ? rawAi.toObject() : rawAi),
+      explainability,
+    };
+
     return successResponse(
       res,
       `AI analysis retrieved for incident #${req.params.id}`,
-      { aiAnalysis },
+      {
+        aiAnalysis,
+        explainability,
+      },
       200
     );
   } catch (error) {

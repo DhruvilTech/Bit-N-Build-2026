@@ -17,6 +17,7 @@ import { useNavigate } from 'react-router-dom';
 import { CyberButton } from '../ui/CyberButton';
 import { GlowButton } from '../ui/GlowButton';
 import { EmergenXLogo } from '../ui/EmergenXLogo';
+import { SystemHealthIndicator } from '../dashboard/SystemHealthIndicator';
 import { motion } from 'framer-motion';
 
 interface HeaderProps {
@@ -100,6 +101,9 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
 
       {/* Right: Actions, Simulator trigger & Profile */}
       <div className="flex items-center gap-2 sm:gap-3">
+        {/* Phase 31 & 35.1: Real-Time System Health Indicator */}
+        <SystemHealthIndicator />
+
         {/* SIMULATE EMERGENCY CTA BUTTON */}
         <CyberButton
           variant="critical"

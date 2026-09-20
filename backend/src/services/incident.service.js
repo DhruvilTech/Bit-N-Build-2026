@@ -9,6 +9,7 @@ import {
   emitIncidentAiProcessing,
   emitIncidentAiAnalyzed,
   emitIncidentAiFailed,
+  emitIncidentAiFallback,
   emitIncidentDuplicateDetected,
   emitIncidentsClustered,
   emitIncidentMerged,
@@ -16,6 +17,7 @@ import {
   emitIncidentReviewed,
   emitIncidentOverridden,
 } from '../utils/socket.js';
+import { recordTimelineEvent, getUnifiedIncidentTimeline } from './timeline.service.js';
 import {
   classifyIncidentWithAi,
   findDuplicatesWithAi,
@@ -206,6 +208,17 @@ export const createIncident = async (data, user = null) => {
   // Broadcast real-time WebSocket event
   emitIncidentNew(incident);
 
+  // Phase 34: Record timeline event for incident creation
+  recordTimelineEvent({
+    incidentId: incident.incidentId,
+    eventType: 'INCIDENT_CREATED',
+    actor: user?.name || incident.reportedBy?.name || 'CITIZEN',
+    actorRole: user?.role || incident.reportedBy?.role || 'CITIZEN',
+    title: 'Incident Created',
+    description: `Incident #${incident.incidentId} (${incident.type}, ${incident.severity}) created`,
+    metadata: { type: incident.type, severity: incident.severity, priority: incident.priority },
+  }).catch((err) => console.warn('[Timeline Error]', err.message));
+
   // Dispatch operational notification if Critical or P1
   if (incident.severity === 'CRITICAL' || incident.priority === 'P1') {
     NotificationService.notifyRole('OPERATOR', {
@@ -290,6 +303,17 @@ export const updateIncident = async (id, data, user = null) => {
 
   emitIncidentUpdated(incident);
 
+  // Phase 34: Record timeline event for incident update
+  recordTimelineEvent({
+    incidentId: incident.incidentId,
+    eventType: 'INCIDENT_UPDATED',
+    actor: user?.name || 'OPERATOR',
+    actorRole: user?.role || 'OPERATOR',
+    title: 'Incident Updated',
+    description: `Incident details updated by ${user?.name || 'Operator'}`,
+    metadata: { updatedFields: Object.keys(data) },
+  }).catch(() => {});
+
   // Evaluate escalation rules on updated incident
   EscalationService.evaluateIncident(incident).catch((e) =>
     console.warn('[Escalation] Update evaluation note:', e.message)
@@ -359,6 +383,17 @@ export const updateIncidentStatus = async (id, newStatus, reason = null, user = 
 
   emitIncidentStatusChanged(incident);
 
+  // Phase 34: Record timeline event for status change
+  recordTimelineEvent({
+    incidentId: incident.incidentId,
+    eventType: newStatus === 'RESOLVED' ? 'INCIDENT_RESOLVED' : 'STATUS_CHANGED',
+    actor: user?.name || 'SYSTEM',
+    actorRole: user?.role || 'SYSTEM',
+    title: `Status: ${newStatus}`,
+    description: `Status transitioned from ${currentStatus} to ${newStatus}${reason ? `: ${reason}` : ''}`,
+    metadata: { previousStatus: currentStatus, newStatus, reason },
+  }).catch(() => {});
+
   return incident;
 };
 
@@ -398,6 +433,17 @@ export const updateIncidentLocation = async (id, locationData, user = null) => {
 
   emitIncidentUpdated(incident);
 
+  // Phase 34: Record timeline event for location update
+  recordTimelineEvent({
+    incidentId: incident.incidentId,
+    eventType: 'LOCATION_UPDATED',
+    actor: user?.name || 'SYSTEM',
+    actorRole: user?.role || 'SYSTEM',
+    title: 'Location Updated',
+    description: `Coordinates adjusted to ${locationData.latitude.toFixed(4)}, ${locationData.longitude.toFixed(4)} (${locationData.address})`,
+    metadata: { location: incident.location },
+  }).catch(() => {});
+
   return incident;
 };
 
@@ -431,9 +477,8 @@ export const deleteIncident = async (id, user = null) => {
   return { message: `Incident #${incident.incidentId} cancelled successfully`, incident };
 };
 
-export const getIncidentTimeline = async (id) => {
-  const incident = await getIncidentById(id);
-  return incident.timeline || [];
+export const getIncidentTimeline = async (id, options = {}) => {
+  return getUnifiedIncidentTimeline(id, options);
 };
 
 export const getIncidentReports = async (id) => {
@@ -455,6 +500,16 @@ export const runAiAnalysisOnIncident = async (incidentDoc, user = null) => {
     };
     await incidentDoc.save();
     emitIncidentAiProcessing(incidentDoc);
+
+    // Phase 34: Record timeline event for AI analysis start
+    recordTimelineEvent({
+      incidentId: incidentDoc.incidentId,
+      eventType: 'AI_ANALYSIS_STARTED',
+      actor: user?.name || 'PS-9 AI Engine',
+      actorRole: user?.role || 'SYSTEM',
+      title: 'AI Analysis Started',
+      description: `AI pipeline analysis initiated for incident #${incidentDoc.incidentId}`,
+    }).catch(() => {});
 
     // 2. Query nearby recent active incidents (past 72 hours) as context for duplicate detection
     let candidates = [];
@@ -524,6 +579,13 @@ export const runAiAnalysisOnIncident = async (incidentDoc, user = null) => {
         status: 'COMPLETED',
         error: null,
         analyzedAt: new Date(),
+
+        // Phase 31 & 32 Execution Metadata & Fallback Tracking
+        attempt: result.metadata?.attempt || 1,
+        latencyMs: result.metadata?.latencyMs || 0,
+        fallbackUsed: false,
+        errorCode: null,
+        failureReason: null,
 
         // Phase 3 & 4: Review, Overrides & Ledger
         requiresHumanReview: Boolean(aiData.requiresHumanReview),
@@ -600,6 +662,35 @@ export const runAiAnalysisOnIncident = async (incidentDoc, user = null) => {
 
       await incidentDoc.save();
 
+      // Phase 34: Record timeline event for AI analysis completed
+      recordTimelineEvent({
+        incidentId: incidentDoc.incidentId,
+        eventType: 'AI_ANALYSIS_COMPLETED',
+        actor: 'PS-9 AI Engine',
+        actorRole: 'SYSTEM',
+        title: 'AI Analysis Completed',
+        description: `AI classified incident as ${aiData.classification.type} (${aiData.severity.level}, ${aiData.priority.level}) with ${Math.round(aiData.classification.confidence * 100)}% confidence`,
+        metadata: {
+          classification: aiData.classification.type,
+          severity: aiData.severity.level,
+          priority: aiData.priority.level,
+          confidence: aiData.classification.confidence,
+          attempt: result.metadata?.attempt || 1,
+          latencyMs: result.metadata?.latencyMs || 0,
+        },
+      }).catch(() => {});
+
+      if (aiData.requiresHumanReview) {
+        recordTimelineEvent({
+          incidentId: incidentDoc.incidentId,
+          eventType: 'HUMAN_REVIEW_REQUIRED',
+          actor: 'PS-9 AI Engine',
+          actorRole: 'SYSTEM',
+          title: 'Human Review Required',
+          description: reviewReason || 'Confidence below threshold; operator review required',
+        }).catch(() => {});
+      }
+
       // Emit specific events
       emitIncidentAiAnalyzed(incidentDoc);
       if (aiData.requiresHumanReview) {
@@ -610,29 +701,141 @@ export const runAiAnalysisOnIncident = async (incidentDoc, user = null) => {
       }
       emitIncidentUpdated(incidentDoc);
     } else {
-      // AI Service call returned error or timed out
-      const errorMsg = result.error || 'AI classification failed';
+      // AI Service retries exhausted or failed -> Deterministic Safety Fallback (Phase 32)
+      const errorCode = result.errorCode || 'AI_EXECUTION_FAILED';
+      const failureReason = result.failureReason || result.error || 'AI classification failed';
+      const attempts = result.metadata?.attempt || 1;
+      const latencyMs = result.metadata?.latencyMs || 0;
+
+      // Deterministic Safety Fallback: Emergency workflow MUST NOT be blocked.
+      // Never invent an AI classification - keep original reported type or 'OTHER'
+      const fallbackReviewReason = `AI analysis unavailable (${errorCode}): ${failureReason}. Deterministic safety fallback applied.`;
+
+      // Check for critical life-safety indicators in narrative
+      const textToScan = `${incidentDoc.title || ''} ${incidentDoc.description || ''}`.toLowerCase();
+      const criticalKeywords = ['fire', 'explosion', 'collapse', 'trapped', 'casualty', 'cardiac', 'unconscious', 'hazmat', 'gas leak'];
+      const hasCriticalSignal = criticalKeywords.some((kw) => textToScan.includes(kw));
+
+      let fallbackSeverity = incidentDoc.severity || 'MEDIUM';
+      let fallbackPriority = incidentDoc.priority || 'P2';
+
+      if (hasCriticalSignal && fallbackSeverity === 'LOW') {
+        fallbackSeverity = 'HIGH';
+        fallbackPriority = 'P1';
+      }
+
       incidentDoc.aiAnalysis = {
         ...(incidentDoc.aiAnalysis?.toObject ? incidentDoc.aiAnalysis.toObject() : incidentDoc.aiAnalysis),
-        status: 'FAILED',
-        error: errorMsg,
+        status: 'FALLBACK',
+        fallbackUsed: true,
+        errorCode,
+        failureReason,
+        attempt: attempts,
+        latencyMs,
+        requiresHumanReview: true,
+        reviewReason: fallbackReviewReason,
+        safetyOverrides: {
+          applied: true,
+          reason: 'AI service unavailable - deterministic emergency safety fallback applied to preserve triage',
+          originalAIValue: null,
+          finalValue: {
+            type: incidentDoc.type,
+            severity: fallbackSeverity,
+            priority: fallbackPriority,
+          },
+        },
+        humanReview: {
+          status: 'PENDING',
+          reviewedBy: null,
+          reviewedAt: null,
+          reason: fallbackReviewReason,
+        },
+        error: failureReason,
       };
+
+      incidentDoc.severity = fallbackSeverity;
+      incidentDoc.priority = fallbackPriority;
+
       await incidentDoc.save();
 
-      emitIncidentAiFailed(incidentDoc, errorMsg);
+      // Record failure and fallback events on timeline
+      recordTimelineEvent({
+        incidentId: incidentDoc.incidentId,
+        eventType: 'AI_FAILED',
+        actor: 'PS-9 AI Engine',
+        actorRole: 'SYSTEM',
+        title: 'AI Analysis Failed',
+        description: `AI pipeline failed (${errorCode}): ${failureReason} after ${attempts} attempt(s)`,
+        metadata: { errorCode, failureReason, attempts, latencyMs },
+      }).catch(() => {});
+
+      recordTimelineEvent({
+        incidentId: incidentDoc.incidentId,
+        eventType: 'AI_FALLBACK',
+        actor: 'SYSTEM',
+        actorRole: 'SYSTEM',
+        title: 'Deterministic Safety Fallback',
+        description: 'AI fallback activated. Preserved reported incident triage attributes.',
+        metadata: { fallbackUsed: true },
+      }).catch(() => {});
+
+      recordTimelineEvent({
+        incidentId: incidentDoc.incidentId,
+        eventType: 'HUMAN_REVIEW_REQUIRED',
+        actor: 'SYSTEM',
+        actorRole: 'SYSTEM',
+        title: 'Human Review Required',
+        description: fallbackReviewReason,
+        metadata: { errorCode, failureReason },
+      }).catch(() => {});
+
+      emitIncidentAiFailed(incidentDoc, failureReason);
+      emitIncidentAiFallback(incidentDoc, { errorCode, failureReason });
+      emitIncidentReviewRequired(incidentDoc);
       emitIncidentUpdated(incidentDoc);
     }
 
     return incidentDoc;
   } catch (err) {
     console.error(`[AI Execution] Unexpected error analyzing incident #${incidentDoc.incidentId}:`, err);
+    const errorCode = 'AI_FATAL_EXCEPTION';
+    const failureReason = err.message || 'Fatal error during AI analysis';
+
     incidentDoc.aiAnalysis = {
       ...(incidentDoc.aiAnalysis?.toObject ? incidentDoc.aiAnalysis.toObject() : incidentDoc.aiAnalysis),
-      status: 'FAILED',
-      error: err.message,
+      status: 'FALLBACK',
+      fallbackUsed: true,
+      errorCode,
+      failureReason,
+      requiresHumanReview: true,
+      reviewReason: `Fatal AI error: ${failureReason}. Deterministic safety fallback applied.`,
+      error: failureReason,
     };
     await incidentDoc.save().catch(() => {});
-    emitIncidentAiFailed(incidentDoc, err.message);
+
+    recordTimelineEvent({
+      incidentId: incidentDoc.incidentId,
+      eventType: 'AI_FAILED',
+      actor: 'PS-9 AI Engine',
+      actorRole: 'SYSTEM',
+      title: 'AI Analysis Failed',
+      description: `AI pipeline threw fatal exception: ${failureReason}`,
+      metadata: { errorCode, failureReason },
+    }).catch(() => {});
+
+    recordTimelineEvent({
+      incidentId: incidentDoc.incidentId,
+      eventType: 'AI_FALLBACK',
+      actor: 'SYSTEM',
+      actorRole: 'SYSTEM',
+      title: 'Deterministic Safety Fallback',
+      description: 'Fatal AI exception triggered deterministic safety fallback.',
+      metadata: { fallbackUsed: true },
+    }).catch(() => {});
+
+    emitIncidentAiFailed(incidentDoc, failureReason);
+    emitIncidentAiFallback(incidentDoc, { errorCode, failureReason });
+    emitIncidentReviewRequired(incidentDoc);
     return incidentDoc;
   }
 };

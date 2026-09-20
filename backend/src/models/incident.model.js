@@ -265,12 +265,20 @@ const incidentSchema = new mongoose.Schema(
       version: { type: String, default: '1.0' },
       status: {
         type: String,
-        enum: ['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED'],
+        enum: ['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED', 'FALLBACK', 'HUMAN_REVIEW'],
         default: 'PENDING',
         index: true,
       },
       error: { type: String, default: null },
       analyzedAt: { type: Date, default: null },
+
+      // Phase 32 & 33 Execution Metadata & Safety Fallback Tracking
+      attempt: { type: Number, default: 0 },
+      latencyMs: { type: Number, default: null },
+      errorCode: { type: String, default: null },
+      failureReason: { type: String, default: null },
+      fallbackUsed: { type: Boolean, default: false },
+      safetyOverrides: { type: mongoose.Schema.Types.Mixed, default: null },
 
       // Phase 3: Human Review Tracking
       requiresHumanReview: { type: Boolean, default: false, index: true },

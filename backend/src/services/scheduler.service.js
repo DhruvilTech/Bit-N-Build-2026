@@ -8,16 +8,26 @@ import {
 let schedulerInterval = null;
 let isExecuting = false;
 
+const schedulerStats = {
+  lastRunAt: null,
+  lastSuccessAt: null,
+  lastFailureAt: null,
+  lastError: null,
+  runCount: 0,
+  consecutiveFailures: 0,
+};
+
 /**
  * Execute one centralized scheduler tick
  */
 export const runSchedulerTick = async () => {
   if (isExecuting) return; // Prevent overlapping execution cycles
   isExecuting = true;
+  const now = new Date();
+  schedulerStats.lastRunAt = now;
+  schedulerStats.runCount += 1;
 
   try {
-    const now = new Date();
-
     // 1. Scan and process delayed assignments (Phase 14 SLA Engine)
     await scanActiveAssignmentsForDelays(now);
 
@@ -26,11 +36,48 @@ export const runSchedulerTick = async () => {
 
     // 3. Evaluate P1 escalation alerts (Phase 15 Alert Rule 5)
     await evaluateEscalationRequiredAlerts();
+
+    schedulerStats.lastSuccessAt = new Date();
+    schedulerStats.consecutiveFailures = 0;
+    schedulerStats.lastError = null;
   } catch (error) {
+    schedulerStats.lastFailureAt = new Date();
+    schedulerStats.lastError = error.message;
+    schedulerStats.consecutiveFailures += 1;
     console.error('[Scheduler] Error during scheduled maintenance cycle:', error.message);
   } finally {
     isExecuting = false;
   }
+};
+
+const schedulerStartTime = Date.now();
+
+/**
+ * Get current health and runtime status of background scheduler (Phase 31)
+ */
+export const getSchedulerHealth = () => {
+  const isRunning = Boolean(schedulerInterval);
+  let status = 'healthy';
+  if (schedulerStats.consecutiveFailures > 2) {
+    status = 'unhealthy';
+  } else if (schedulerStats.consecutiveFailures > 0) {
+    status = 'degraded';
+  }
+
+  return {
+    status,
+    running: isRunning,
+    isExecuting,
+    uptime: Math.floor((Date.now() - schedulerStartTime) / 1000),
+    timestamp: new Date().toISOString(),
+    intervalMs: env.SLA_CHECK_INTERVAL_MS || 30000,
+    lastRunAt: schedulerStats.lastRunAt ? schedulerStats.lastRunAt.toISOString() : null,
+    lastSuccessAt: schedulerStats.lastSuccessAt ? schedulerStats.lastSuccessAt.toISOString() : null,
+    lastFailureAt: schedulerStats.lastFailureAt ? schedulerStats.lastFailureAt.toISOString() : null,
+    lastError: schedulerStats.lastError,
+    runCount: schedulerStats.runCount,
+    consecutiveFailures: schedulerStats.consecutiveFailures,
+  };
 };
 
 /**
@@ -61,3 +108,4 @@ export const stopScheduler = () => {
     console.log('[Scheduler] Centralized scheduler stopped.');
   }
 };
+

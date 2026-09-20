@@ -16,6 +16,61 @@ const getAiBaseUrl = () => env.AI_SERVICE_URL || 'http://localhost:8000';
 const DEFAULT_TIMEOUT_MS = 8000;
 
 /**
+ * Phase 32 AI Failure Error Codes
+ */
+export const AI_ERROR_CODES = {
+  TIMEOUT: 'TIMEOUT',
+  CONNECTION_FAILURE: 'CONNECTION_FAILURE',
+  HTTP_FAILURE: 'HTTP_FAILURE',
+  INVALID_RESPONSE: 'INVALID_RESPONSE',
+  SCHEMA_VALIDATION_FAILURE: 'SCHEMA_VALIDATION_FAILURE',
+  LOW_CONFIDENCE: 'LOW_CONFIDENCE',
+};
+
+/**
+ * Classifies runtime errors into standard Phase 32 AI failure codes
+ */
+export const classifyAiError = (error) => {
+  if (!error) {
+    return { code: 'UNKNOWN_ERROR', reason: 'Unknown error occurred' };
+  }
+
+  const msg = (error.message || '').toLowerCase();
+  const name = error.name || '';
+  const code = error.code || '';
+  const status = error.status || error.statusCode || 0;
+
+  if (name === 'AbortError' || msg.includes('timeout') || msg.includes('aborted') || code === 'ETIMEDOUT') {
+    return { code: AI_ERROR_CODES.TIMEOUT, reason: 'AI microservice request timed out' };
+  }
+
+  if (
+    code === 'ECONNREFUSED' ||
+    code === 'ENOTFOUND' ||
+    code === 'EHOSTUNREACH' ||
+    msg.includes('econnrefused') ||
+    msg.includes('fetch failed') ||
+    msg.includes('network error')
+  ) {
+    return { code: AI_ERROR_CODES.CONNECTION_FAILURE, reason: 'Unable to connect to AI microservice' };
+  }
+
+  if (status >= 400 || msg.includes('status 5') || msg.includes('status 4') || msg.includes('http request failed')) {
+    return { code: AI_ERROR_CODES.HTTP_FAILURE, reason: `AI microservice returned HTTP error status ${status || 'failed'}` };
+  }
+
+  if (msg.includes('validation') || msg.includes('schema') || msg.includes('zod')) {
+    return { code: AI_ERROR_CODES.SCHEMA_VALIDATION_FAILURE, reason: 'AI output failed schema or business rule validation' };
+  }
+
+  if (msg.includes('json') || msg.includes('syntaxerror') || msg.includes('unexpected token') || msg.includes('empty')) {
+    return { code: AI_ERROR_CODES.INVALID_RESPONSE, reason: 'Malformed or unparseable response from AI service' };
+  }
+
+  return { code: 'AI_INTERNAL_FAILURE', reason: error.message || 'AI processing encountered an internal error' };
+};
+
+/**
  * Standardizes MongoDB incident document or payload into FastAPI IncidentInput schema.
  * @param {Object} doc - Incident document or plain object
  * @returns {Object} Normalized incident input for AI service
@@ -402,7 +457,17 @@ export const clusterIncidentsWithAi = async (
  * @param {Object} incidentPayload - Target incident document or draft
  * @param {Array<Object>} [nearbyCandidates] - Pool of nearby/recent active incidents
  * @param {string} [overrideUrl] - Optional URL override
- * @returns {Promise<{ success: boolean, data?: any, error?: string }>}
+
+/**
+ * Canonical AI Pipeline Orchestration Client (Phases 1, 2 & Phase 32)
+ * Sends normalized incident payload with nearby candidates context to FastAPI pipeline,
+ * executes automatic retries with exponential backoff, and validates response through
+ * the mandatory 5-layer validation pipeline before returning to database service.
+ *
+ * @param {Object} incidentPayload - Target incident document or draft
+ * @param {Array<Object>} [nearbyCandidates] - Pool of nearby/recent active incidents
+ * @param {string} [overrideUrl] - Optional URL override
+ * @returns {Promise<{ success: boolean, data?: any, error?: string, errorCode?: string, metadata?: any }>}
  */
 export const analyzeIncidentPipeline = async (
   incidentPayload,
@@ -410,8 +475,9 @@ export const analyzeIncidentPipeline = async (
   overrideUrl = null
 ) => {
   const baseUrl = overrideUrl || getAiBaseUrl();
-  const timeoutMs = env.AI_TIMEOUT || DEFAULT_TIMEOUT_MS;
-  const maxRetries = env.AI_RETRY_COUNT ?? 2;
+  const timeoutMs = env.AI_TIMEOUT_MS || env.AI_TIMEOUT || DEFAULT_TIMEOUT_MS;
+  const maxRetries = env.AI_MAX_RETRIES ?? env.AI_RETRY_COUNT ?? 2;
+  const baseDelayMs = env.AI_RETRY_DELAY_MS || 200;
 
   const incidentId = incidentPayload.incidentId || incidentPayload._id?.toString() || 'INC-TEMP';
   const description = incidentPayload.description || incidentPayload.title || 'Emergency reported';
@@ -475,12 +541,24 @@ export const analyzeIncidentPipeline = async (
   };
 
   let lastError = null;
+  let lastErrorCode = AI_ERROR_CODES.CONNECTION_FAILURE;
+  const pipelineStartedAt = new Date();
+
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const attemptStartedAt = Date.now();
+    let response = null;
+
+    // Exponential backoff between retries: delay = AI_RETRY_DELAY_MS * (2 ^ (attempt - 1))
+    if (attempt > 0) {
+      const backoffDelay = baseDelayMs * Math.pow(2, attempt - 1);
+      await new Promise((res) => setTimeout(res, backoffDelay));
+    }
+
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-      const response = await fetch(`${baseUrl}/api/v1/analyze-incident`, {
+      response = await fetch(`${baseUrl}/api/v1/analyze-incident`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -493,7 +571,9 @@ export const analyzeIncidentPipeline = async (
 
       if (!response.ok) {
         const errText = await response.text();
-        throw new Error(`AI service returned HTTP ${response.status}: ${errText.slice(0, 200)}`);
+        const httpErr = new Error(`AI service returned HTTP ${response.status}: ${errText.slice(0, 200)}`);
+        httpErr.status = response.status;
+        throw httpErr;
       }
 
       const rawData = await response.json();
@@ -501,31 +581,49 @@ export const analyzeIncidentPipeline = async (
       // Mandatory 5-layer validation pipeline
       const validationResult = validateAndSanitizeAiResponse(rawData, incidentId);
       if (!validationResult.valid) {
-        throw new Error(validationResult.error);
+        const valErr = new Error(validationResult.error);
+        valErr.code = AI_ERROR_CODES.SCHEMA_VALIDATION_FAILURE;
+        throw valErr;
       }
 
+      const latencyMs = Date.now() - attemptStartedAt;
       return {
         success: true,
         data: validationResult.data,
+        metadata: {
+          attempt: attempt + 1,
+          totalAttempts: attempt + 1,
+          latencyMs,
+          model: 'emergency-pipeline-v1',
+          startedAt: pipelineStartedAt,
+          completedAt: new Date(),
+          fallbackUsed: false,
+        },
       };
     } catch (err) {
       lastError = err;
+      lastErrorCode = classifyAiError(err, response);
       const isTimeout = err.name === 'AbortError';
       const msg = isTimeout
         ? `AI pipeline request timed out after ${timeoutMs}ms (attempt ${attempt + 1}/${maxRetries + 1})`
-        : `AI pipeline error (attempt ${attempt + 1}/${maxRetries + 1}): ${err.message}`;
+        : `AI pipeline error (attempt ${attempt + 1}/${maxRetries + 1}) [${lastErrorCode}]: ${err.message}`;
       console.warn(`[AI Service Client] ${msg}`);
-
-      // Exponential backoff between retries if attempts remain
-      if (attempt < maxRetries) {
-        await new Promise((res) => setTimeout(res, 200 * (attempt + 1)));
-      }
     }
   }
 
+  const totalLatencyMs = Date.now() - pipelineStartedAt.getTime();
   return {
     success: false,
     error: lastError?.message || 'AI pipeline invocation failed after retries',
+    errorCode: lastErrorCode,
+    metadata: {
+      attempts: maxRetries + 1,
+      totalAttempts: maxRetries + 1,
+      latencyMs: totalLatencyMs,
+      startedAt: pipelineStartedAt,
+      completedAt: new Date(),
+      fallbackUsed: true,
+    },
   };
 };
 
