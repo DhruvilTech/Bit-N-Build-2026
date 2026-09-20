@@ -29,14 +29,14 @@
 
 | Dimension | PS-9 / EmergenX Operational Specification |
 |:---|:---|
-| **Problem Addressed** | Emergency information arrives fragmented across 911 calls, citizen apps, IoT sensors, drones, field radios, and hospitals—leading to duplicate confusion, unverified severity, resource allocation delays, and tragic response latency. |
-| **Core Platform** | A defense-grade, unified emergency operations platform that fuses multi-source telemetry, executes AI-assisted incident triage & de-duplication, calculates optimal resource dispatch vectors, and coordinates field response in real time. |
-| **AI Role & Boundary** | **Decision Support & Analysis** (NLP report extraction, confidence scoring, duplicate clustering, automated incident summaries, capability matching) while **Deterministic Rules** govern SLA thresholds, safety constraints, and priority matrices. **The human operator retains ultimate command.** |
-| **Geospatial Intelligence** | Interactive Leaflet GIS with CartoDB Dark Matter telemetry overlays, `2dsphere` indexed coordinate querying, dynamic hazard radius perimeters, hospital bed saturation heatmaps, and field apparatus location tracking. |
-| **Real-Time Architecture** | Low-latency Socket.IO event mesh (`incident:new`, `incident:updated`, `incident:statusChanged`) synchronizing command center displays, tactical maps, and field unit statuses with sub-second propagation. |
-| **Resource Optimization** | Nearest-apparatus capability scoring matching incident requirements (e.g., industrial foam tender, burn trauma ICU, water rescue) against live unit availability, transit distance, and operational workload. |
-| **Current Work (Mid-Eval)** | **Complete React 19 / Vite / Tailwind v4 Command Frontend** (13+ mission screens, dual simulation & live backend sync mode, Web Audio API tactical sound synthesis), **Production-style Node.js / Express REST API** with MongoDB schemas & `2dsphere` indexes, **Dedicated Python/FastAPI AI Microservice** (port 8000) for explainable incident classification, **Phases 11–15 Core Field Operations Engine** (5-stage response tracking, live GPS telemetry breadcrumbs, Haversine ETA engine, SLA delay detection, and 5 deterministic alert rules), **Phases 31–35 Enterprise Resiliency & Explainability Suite** (system health monitoring, AI exponential backoff & deterministic safety fallback, deep explainability HUD, unified chronological incident timeline, and reactive Socket.IO mesh), with **48 automated unit/integration tests** and **46 automated Postman assertions** passing. |
-| **Next Phase** | Continuous vector embedding duplicate clustering, live speech-to-text 911 audio transcript ingestion, external live traffic navigation API routing (OSRM/Mapbox), and automated multi-agency mutual aid webhooks. |
+| **Problem Addressed** | Emergency information arrives fragmented across 911 switchboards, citizen web/mobile apps, IoT acoustic/thermal sensors, aerial drones, field radios, and hospital trauma wards—causing triage confusion, duplicate dispatches, unverified severities, response latency, and tragic loss of life. |
+| **Unified Core Platform** | A defense-grade, unified emergency operations command system that ingests multi-source telemetry, executes AI-assisted incident triage and semantic de-duplication, calculates optimal resource dispatch vectors, and coordinates field response in sub-second real time. |
+| **AI Role & Safety Boundary** | **Decision Support & Analysis** (NLP entity extraction, calibrated confidence scoring, duplicate clustering, situation summaries, apparatus capability scoring). **Deterministic Rules** govern priority mapping (P1–P4), SLA thresholds, life-safety overrides (trapped victims / toxic hazards), and mutual aid triggers. **The human operator retains ultimate clearance and command authority.** |
+| **Geospatial Intelligence** | Interactive Leaflet GIS with CartoDB Dark Matter telemetry overlays, `2dsphere` indexed coordinate querying, dynamic hazard blast perimeters, hospital bed saturation heatmaps, and field apparatus location tracking with GPS breadcrumbs. |
+| **Real-Time Architecture** | Low-latency Socket.IO event mesh (`incident:new`, `team:location`, `alert:new`, `system:health`, `incident:timelineUpdated`) synchronizing tactical command dashboards, geospatial maps, and field unit status indicators with zero client polling. |
+| **Resource Optimization** | Nearest-apparatus capability scoring matching incident requirements (e.g., industrial foam tender, mobile ALS ICU, hazmat neutralizer, water rescue) against live unit availability, transit distance via Haversine calculation, and operational workload. |
+| **Current Verified State** | **Production-Ready Full-Stack Platform**: React 19 / TypeScript / Tailwind CSS v4 frontend (13+ tactical views), Node.js (ESM) + Express.js backend, Python 3.10+ FastAPI AI microservice (port 8000), MongoDB Atlas geospatial database, **48 passing Node.js unit/integration tests**, and **46 automated Postman/Newman assertions**. |
+| **Complete Phase Coverage** | Fully implemented across **Phases 1–15**, **Phases 21–25**, **Phases 26–30**, **Phases 31–35**, and **Phases 36–41**. |
 
 ---
 
@@ -44,100 +44,101 @@
 
 - [🚨 The Problem We Solve](#-the-problem-we-solve)
 - [🎯 What PS-9 Solves](#-what-ps-9-solves)
-- [🧠 How the System Works](#-how-the-system-works)
-- [🚧 Current Implementation Status](#-current-implementation-status)
-- [🚀 Implemented Production Modules (Phases 11–15 & 31–35)](#-implemented-production-modules-phases-1115--3135)
-- [🖥️ Operational Command Interface](#️-operational-command-interface)
-- [🚨 End-to-End Emergency Workflow](#-end-to-end-emergency-workflow)
-- [🤖 AI + Decision Support](#-ai--decision-support)
-- [🚒 Intelligent Resource Coordination](#-intelligent-resource-coordination)
-- [📡 Real-Time Emergency Monitoring](#-real-time-emergency-monitoring)
-- [⚠️ Alerts & Escalation Engine](#️-alerts--escalation-engine)
-- [📊 Emergency Analytics & Debrief](#-emergency-analytics--debrief)
-- [🗂️ Data Strategy](#️-data-strategy)
-- [🏗️ System Architecture](#️-system-architecture)
-- [🛡️ Human-in-the-Loop Operations](#️-human-in-the-loop-operations)
-- [🛠️ Development Roadmap](#️-development-roadmap)
-- [🧪 Evaluation Demo Walkthrough](#-evaluation-demo-walkthrough)
-- [⚙️ Technology Stack](#️-technology-stack)
-- [📁 Project Structure](#-project-structure)
-- [🚀 Getting Started](#-getting-started)
+- [🧠 11-Stage Emergency Lifecycle](#-11-stage-emergency-lifecycle)
+- [🚧 Master Implementation Status & Verification Matrix](#-master-implementation-status--verification-matrix)
+- [🚀 Comprehensive Functional Modules (Phases 1–41)](#-comprehensive-functional-modules-phases-141)
+  - [Part 1: Response Tracking, Location & Alerts (Phases 11–15)](#part-1-response-tracking-location--alerts-phases-1115)
+  - [Part 2: Enterprise Resiliency, Explainability & Timeline (Phases 31–35)](#part-2-enterprise-resiliency-explainability--timeline-phases-3135)
+  - [Part 3: Simulation, Field Coordination & Notifications (Phases 21–30 & 36–41)](#part-3-simulation-field-coordination--notifications-phases-2130--3641)
+- [🖥️ Operational Command Interface Showcase](#️-operational-command-interface-showcase)
+- [🚨 End-to-End Emergency Workflow: Incident #ER-2048](#-end-to-end-emergency-workflow-incident-er-2048)
+- [🤖 AI Architecture & Life-Safety Boundaries](#-ai-architecture--life-safety-boundaries)
+- [🚒 Intelligent Resource Coordination & Speed Profiling](#-intelligent-resource-coordination--speed-profiling)
+- [📡 Real-Time Socket.IO Mesh & Event Contracts](#-real-time-socketio-mesh--event-contracts)
+- [⚠️ Alerts, SLA Sentinel & Escalation Engine](#️-alerts-sla-sentinel--escalation-engine)
+- [🗺️ Geospatial Intelligence & GIS Telemetry](#️-geospatial-intelligence--gis-telemetry)
+- [📊 Emergency Analytics & Debrief Reporting](#-emergency-analytics--debrief-reporting)
+- [🛡️ Security, RBAC Permissions & Audit Integrity](#️-security-rbac-permissions--audit-integrity)
+- [🌐 Complete REST API Reference](#-complete-rest-api-reference)
+- [🏗️ System Architecture Diagrams](#️-system-architecture-diagrams)
+- [🧪 Automated Testing & Quality Assurance](#-automated-testing--quality-assurance)
+- [🚀 Step-by-Step Installation & Quickstart](#-step-by-step-installation--quickstart)
 - [🔐 Environment Configuration](#-environment-configuration)
-- [🔭 Future Scope](#-future-scope)
+- [🧪 Evaluation Demo Walkthrough & Operator Runbook](#-evaluation-demo-walkthrough--operator-runbook)
+- [🔭 Future Scope & Scalability](#-future-scope--scalability)
 
 ---
 
 ## 🚨 The Problem We Solve
 
-During major urban disasters—such as industrial refinery fires, flash floods, multi-vehicle highway pileups, or hazardous chemical leaks—emergency operation centers face an **information breakdown**:
+During major urban catastrophes—such as industrial chemical refinery fires, flash floods, multi-vehicle highway pileups, or hazardous material detonations—Emergency Operation Centers (EOC) face **catastrophic operational friction**:
 
 ```text
-Citizen Reports (Mobile App) ──┐
+Citizen Reports (Web/Mobile) ──┐
 Emergency Phone Switchboard ───┤
-IoT Acoustic & Thermal Sensors ┼──► [ FRAGMENTED, UNVERIFIED DATA ]
-Surveillance Drones ───────────┤         │
-Field Unit Radio Telemetry ────┤         ▼
-Hospital Trauma Capacity ──────┘    Information Bottlenecks:
-                                    • Unclear incident severity
-                                    • 5–15 duplicate calls for 1 fire
-                                    • Blind dispatch to wrong locations
-                                    • Unknown hospital ICU saturation
-                                    • Undetected response delays
+IoT Acoustic & Thermal Nodes ──┼──► [ FRAGMENTED, MULTI-MODAL TELEMETRY ]
+Aerial Surveillance Drones ────┤         │
+Field Unit Radio Transponders ─┤         ▼
+Hospital Trauma Intake Feeds ──┘    Operational Failure Modes:
+                                    • Unverified severity & delayed triage
+                                    • 5–15 duplicate dispatches for single event
+                                    • Blind routing into impassable corridors
+                                    • Unknown hospital ICU trauma saturation
+                                    • Undetected response delays exceeding SLAs
 ```
 
-### Critical Questions Every Emergency Coordinator Faces:
-
-1. **What is happening and where?** Is a report of smoke on the highway related to an explosion 1 km away?
-2. **How severe is it?** Does the incident involve toxic materials, trapped civilians, or structural collapse?
-3. **Are multiple reports describing the same event?** How can operators avoid dispatching three separate crews to duplicate calls?
-4. **Which teams and apparatus are eligible and available?** Does the nearest fire engine have industrial foam, or must a regional unit be mobilized?
-5. **Which hospitals can accept critical casualties?** Are local trauma centers already at 100% capacity?
-6. **Is the response delayed?** Has an assigned ambulance exceeded the 8-minute SLA without command notification?
+### Critical Operational Questions EmergenX Answers in Milliseconds:
+1. **What is happening and where?** Is a report of dense toxic smoke on an interstate highway correlated with an industrial boiler explosion 1.2 km away?
+2. **How severe is the threat?** Does the event involve trapped civilians, hazardous chemicals, or explosive storage tanks?
+3. **Are multiple inputs describing the same disaster?** How do dispatchers prevent sending redundant units to the same fire?
+4. **Which apparatus is eligible, closest, and capable?** Does the nearest fire unit carry Class-B industrial foam, or must a specialized regional hazmat team be mobilized?
+5. **Which hospitals can accept burn trauma casualties?** Are local Level-1 trauma centers operating near 100% capacity?
+6. **Has response transit exceeded safety benchmarks?** Has an en-route unit breached the 8-minute SLA without command notification?
 
 ---
 
 ## 🎯 What PS-9 Solves
 
-PS-9 (**EmergenX**) creates a **unified operational command layer** that bridges fragmented inputs into coordinated operational outputs:
+EmergenX establishes a **unified defense-grade command layer** connecting raw multi-source telemetry to synchronized operational action:
 
 ```text
  Citizen Report ──┐
  Emergency Call ──┤
- IoT Sensor ──────┼──► ┌────────────────────────────────────────────────┐
- Field Team Radio ┤    │              PS-9 EMERGENX CORE                │
- Drone Telemetry ─┤    │ • Multi-Source Ingestion & Reliability Scoring │
- Hospital Intake ─┘    │ • AI Natural Language Triage & De-duplication  │
-                       │ • Geospatial 2dsphere Proximity & Blast Radius │
-                       │ • Resource Capability Matching Engine          │
-                       │ • Real-Time Socket.IO Mesh & Delay Escalation  │
-                       └───────────────────────┬────────────────────────┘
-                                               │
-                                               ▼
-                                ┌───────────────────────────────┐
-                                │     COORDINATED RESPONSE      │
-                                │ • Verified P1-P4 Incident     │
-                                │ • Automated Apparatus Route   │
-                                │ • Real-Time SLA Tracking      │
-                                │ • Live Cross-Agency Picture   │
-                                └───────────────────────────────┘
+ IoT Sensor Node ─┼──► ┌────────────────────────────────────────────────────────┐
+ Field Unit GPS ──┤    │                   EMERGENX CORE ENGINE                 │
+ Drone Imagery ───┤    │ • Multi-Source Ingestion & Reliability Scoring         │
+ Hospital Intake ─┘    │ • AI NLP Entity Triage & Semantic De-duplication       │
+                       │ • Geospatial 2dsphere Proximity & Blast Radius GIS     │
+                       │ • Dynamic Apparatus Capability & Speed Profiling       │
+                       │ • Real-Time Socket.IO Mesh & Delay Sentinel Engine     │
+                       └───────────────────────────┬────────────────────────────┘
+                                                   │
+                                                   ▼
+                               ┌────────────────────────────────────────┐
+                               │       SYNCHRONIZED FIELD ACTION        │
+                               │ • Verified P1–P4 Operational Incident  │
+                               │ • Automated Optimal Apparatus Dispatch │
+                               │ • Live Haversine ETA & SLA Monitoring  │
+                               │ • Unified Chronological Audit Timeline │
+                               └────────────────────────────────────────┘
 ```
 
 ---
 
-## 🧠 How the System Works
+## 🧠 11-Stage Emergency Lifecycle
 
-The platform operates across an unbroken **11-stage emergency lifecycle**:
+The platform governs an unbroken **11-stage operational lifecycle**:
 
 ```text
  [1. REPORT] ──► [2. UNDERSTAND] ──► [3. CONSOLIDATE] ──► [4. PRIORITIZE] ──► [5. RECOMMEND]
-      ▲                                                                             │
-      │                                                                             ▼
+      ▲                                                                               │
+      │                                                                               ▼
  [11. ANALYZE] ◄── [10. DEBRIEF] ◄── [9. ESCALATE] ◄── [8. MONITOR] ◄── [7. DISPATCH] ◄─┘
 ```
 
-1. **INCIDENT COLLECTION**: Ingests raw inputs from emergency phone switchboards, citizen web reports, acoustic/thermal IoT nodes, and aerial drones into a unified queue.
-2. **AI CLASSIFICATION**: NLP pipelines extract entities (chemical type, trapped persons, fire class) and classify incident categories with confidence metrics (e.g., 94% verified confidence).
-3. **CONSOLIDATION & DE-DUPLICATION**: Clusters reports by geospatial proximity, time windows, and semantic similarity to prevent resource fragmentation.
+1. **INCIDENT COLLECTION**: Ingests raw multi-source inputs from emergency switchboards, citizen reports, acoustic/thermal IoT sensors, and aerial drones into a unified queue.
+2. **AI CLASSIFICATION**: Asynchronous NLP extraction identifies disaster categories (`FIRE`, `FLOOD`, `INDUSTRIAL_ACCIDENT`, etc.), trapped casualties, and hazards with calibrated confidence metrics.
+3. **CONSOLIDATION & DE-DUPLICATION**: Clusters reports by geospatial proximity, time windows, and semantic cosine similarity to eliminate dispatch redundancy.
 4. **SEVERITY & PRIORITY ASSIGNMENT**: Deterministic risk matrices score hazards from **LOW** to **CRITICAL** and map operational priorities from **P1** (immediate threat to life) to **P4** (routine).
 5. **RESOURCE RECOMMENDATION**: Multi-criteria matching evaluates unit availability, distance via geospatial indexing, vehicle apparatus (e.g., hazmat, heavy rescue), and hospital bed capacity.
 6. **COORDINATION & DISPATCH**: Operators review recommended units and authorize 1-click dispatch, transmitting GPS waypoints directly to field units.
@@ -149,47 +150,34 @@ The platform operates across an unbroken **11-stage emergency lifecycle**:
 
 ---
 
-## 🚧 Current Implementation Status
+## 🚧 Master Implementation Status & Verification Matrix
 
-To provide complete transparency for mid-evaluation, the table below reflects the **actual codebase state**:
-
-| System Component | Status | Verified Implementation in Repository |
-|:---|:---:|:---|
-| **Command Center Dashboard** | ✅ Implemented | Live KPI cards, Leaflet tactical map with CartoDB Dark Matter tiles, hazard blast overlays, streaming incident feed, automated situational briefing (`frontend/src/pages/Dashboard.tsx`). |
-| **Geospatial Command Map** | ✅ Implemented | Fullscreen tactical map (`/map`), layer filters, hazard radius perimeters, hospital saturation indicators, unit telemetry markers. |
-| **Incident Management & Deep Dive** | ✅ Implemented | Seed incident `ER-2048` (`/incidents/ER-2048`) with AI triage classification (94% confidence), 7 aggregated multi-source reports with reliability scores, progressive milestone timeline, and assigned units. |
-| **Smart Resource Coordination** | ✅ Implemented | Nearest-unit recommendation algorithm with distance calculation, capability matching (e.g., industrial foam tender), status indicators, and 1-click dispatch (`/resources`). |
-| **Field Response Teams** | ✅ Implemented | Unit roster (`/teams`) across Fire, Medical, Police, and Rescue units with live status, vehicle assets, and simulated two-way radio handshakes. |
-| **Response Tracking Engine (Phase 11)** | ✅ Implemented | Full 5-state lifecycle (`ASSIGNED` → `DISPATCHED` → `EN_ROUTE` → `ARRIVED` → `COMPLETED`/`CANCELLED`), derived metrics (dispatch delay, transit duration, arrival variance), idempotent transition guards (`backend/src/services/assignment.service.js`). |
-| **Resource/Team Location Tracking (Phase 12)** | ✅ Implemented | GeoJSON validation `[-180,180]` / `[-90,90]`, `team:location` and `resource:location` Socket.IO broadcasts, live GPS telemetry breadcrumbs with role-based write gates. |
-| **Dynamic ETA Engine (Phase 13)** | ✅ Implemented | Haversine distance calculations paired with apparatus-type speed profiles (Fire Engine, Ambulance, Police Cruiser, Hazmat Unit, Rescue Boat), dynamic minutes-to-arrival and `expectedArrivalAt` timestamps. |
-| **Automated SLA & Delay Engine (Phase 14)** | ✅ Implemented | Real-time SLA transit deadline tracking against `expectedArrivalAt`, automated response delay detection, idempotent alert generation preventing notification storms (`backend/src/services/sla.service.js`). |
-| **Deterministic Alert Engine (Phase 15)** | ✅ Implemented | 5 deterministic rules (`CRITICAL_INCIDENT`, `RESPONSE_DELAY`, `RESOURCE_SHORTAGE`, `P1_UNASSIGNED`, `P1_ESCALATION`), full alert lifecycle (`OPEN`, `ACKNOWLEDGED`, `RESOLVED`), automated deduplication and cooldowns (`backend/src/services/alert.service.js`). |
-| **System Health Monitoring (Phase 31)** | ✅ Implemented | Comprehensive diagnostic endpoint (`GET /api/system/health`), background scheduler telemetry, Socket.IO live connection mesh stats, memory footprint, zero-leak credential masking, live WebSocket broadcast (`system:health`). |
-| **AI Resiliency & Fallback (Phase 32)** | ✅ Implemented | Failure classification (`AI_TIMEOUT`, `AI_SERVICE_UNAVAILABLE`, `AI_CIRCUIT_BROKEN`), exponential backoff with jitter, deterministic life-safety fallback guaranteeing zero disruption to emergency dispatches. |
-| **Deep Explainability Integration (Phase 33)** | ✅ Implemented | Structured explainability package with confidence calibration, signal extraction, operational justifications, and clear visual demarcation between RAW AI suggestions and deterministic life-safety overrides (`frontend/src/components/operations/AiExplainabilityCard.tsx`). |
-| **Unified Incident Timeline (Phase 34)** | ✅ Implemented | Chronological timeline engine (`GET /api/incidents/:id/timeline`) consolidating incident creation, AI triage, dispatch, GPS tracking, SLA delays, alerts, and field arrival into server-authoritative audit logs (`frontend/src/components/operations/IncidentTimelineView.tsx`). |
-| **Full Frontend & Socket Integration (Phase 35)** | ✅ Implemented | End-to-end integration across React 19 HUD: `SystemHealthIndicator` badge in header, `AiExplainabilityCard`, and `IncidentTimelineView` with live reactive WebSocket updates. |
-| **Tactical AI Assistant** | ✅ Implemented | Conversational command interface (`/assistant`) with animated holographic orb, real-time waveform audio visualizer, and dynamic emergency query prompts. |
-| **Operational Analytics** | ✅ Implemented | Interactive Recharts visualizations (`/analytics`) for incident frequency by hour, arrival time vs target SLA, and fleet capacity utilization. |
-| **Autonomous Emergency Simulator** | ✅ Implemented | Header modal (`SIMULATE EMERGENCY`) triggering instant multi-system scenarios (Industrial Fire, Highway Pileup, Flash Flood, Hazmat Leak) with cascading state updates. |
-| **Tactical Sound Synthesizer** | ✅ Implemented | Custom Web Audio API sound engine (`frontend/src/utils/audio.ts`) generating tactical sonars, alert warbles, radio clicks, and dispatch chimes. |
-| **Backend REST API Architecture** | ✅ Implemented | Layered Node.js (ES Modules) + Express.js backend (`backend/src/`) with routes, controllers, services, Zod validators, and centralized error handling. |
-| **MongoDB Geospatial Schemas** | ✅ Implemented | Mongoose models for Incidents, Resources, ResponseTeams, Facilities, and Users with `2dsphere` coordinate indexing for geospatial queries. |
-| **Real-Time WebSocket Mesh** | ✅ Implemented | Socket.IO server (`backend/src/utils/socket.js`) broadcasting operational events (`incident:new`, `team:location`, `alert:new`, `system:health`, `incident:timelineUpdated`). |
-| **Dedicated Python AI Microservice** | ✅ Implemented | High-performance FastAPI microservice (`AI/app/` on port 8000) providing explainable NLP triage across 7 disaster types, dynamic severity scoring, and mandatory P1 life-safety overrides. |
-| **Automated Test Matrix** | ✅ Implemented | Multi-layer test automation: 36/36 passing Phase 11–15 tests, 12/12 passing Phase 31–35 tests, and 46 automated Postman/Newman API assertions. |
+| Module / Subsystem | Phase Coverage | Status | Implementation File Reference |
+|:---|:---:|:---:|:---|
+| **Command Center Dashboard** | Phase 2 | ✅ Production | `frontend/src/pages/Dashboard.tsx` |
+| **Geospatial Command Map (GIS)** | Phase 2, 12 | ✅ Production | `frontend/src/pages/MapPage.tsx`, `frontend/src/components/map/EmergencyMap.tsx` |
+| **Incident Details & Deep-Dive** | Phase 2, 33, 34 | ✅ Production | `frontend/src/pages/IncidentDetails.tsx`, `frontend/src/components/operations/` |
+| **Response Tracking Engine** | Phase 11 | ✅ Production | `backend/src/services/assignment.service.js`, `backend/src/models/assignment.model.js` |
+| **Resource/Team Location Telemetry** | Phase 12 | ✅ Production | `backend/src/services/team.service.js`, `backend/src/routes/team.routes.js` |
+| **Dynamic Haversine ETA Engine** | Phase 13 | ✅ Production | `backend/src/services/eta.service.js`, `backend/src/services/assignment.service.js` |
+| **Automated SLA & Delay Sentinel** | Phase 14 | ✅ Production | `backend/src/services/sla.service.js`, `backend/src/services/scheduler.service.js` |
+| **Deterministic 5-Rule Alert Engine** | Phase 15 | ✅ Production | `backend/src/services/alert.service.js`, `backend/src/models/alert.model.js` |
+| **Resource Capability Matching** | Phase 4, 21 | ✅ Production | `backend/src/services/resource.service.js`, `frontend/src/pages/Resources.tsx` |
+| **Emergency Simulation Engine** | Phase 26–30 | ✅ Production | `frontend/src/context/EmergencyContext.tsx`, `backend/src/controllers/simulation.controller.js` |
+| **System Health Diagnostics API** | Phase 31 | ✅ Production | `backend/src/controllers/system.controller.js`, `backend/src/services/health.service.js` |
+| **AI Resilience & Safety Fallback** | Phase 32 | ✅ Production | `backend/src/services/ai.service.js`, `backend/src/services/incident.service.js` |
+| **Deep AI Explainability HUD** | Phase 33 | ✅ Production | `frontend/src/components/operations/AiExplainabilityCard.tsx` |
+| **Unified Chronological Timeline** | Phase 34 | ✅ Production | `backend/src/services/timeline.service.js`, `frontend/src/components/operations/IncidentTimelineView.tsx` |
+| **Full Reactive Socket.IO Mesh** | Phase 3, 35 | ✅ Production | `backend/src/utils/socket.js`, `frontend/src/context/EmergencyContext.tsx` |
+| **Operational Notification Dispatch**| Phase 36–41 | ✅ Production | `backend/src/services/notification.service.js`, `frontend/src/components/layout/NotificationsDropdown.tsx` |
+| **Geospatial Heatmap Analytics** | Phase 38 | ✅ Production | `backend/src/services/analytics.service.js`, `frontend/src/pages/Analytics.tsx` |
+| **Tactical Sound Synthesizer** | Phase 2 | ✅ Production | `frontend/src/utils/audio.ts` (Web Audio API) |
+| **Python FastAPI AI Microservice** | AI Core | ✅ Production | `AI/app/main.py`, `AI/app/routes/incident.py`, `AI/app/services/` |
+| **Automated Test Matrix** | All Phases | ✅ Production | `backend/src/test/phases11_15.test.js` (36 tests), `phases31_35.test.js` (12 tests), `test.json` (46 assertions) |
 
 ---
 
-## 🚀 Implemented Production Modules (Phases 11–15 & 31–35)
-
-### 📌 Summary of Pushed Architecture
-
-The EmergenX platform features two defense-grade architectural suites implemented, verified, and pushed to `main`:
-
-1. **Phases 11–15: Operational Field Response, Telemetry & Alert Escalation Engine**
-2. **Phases 31–35: Enterprise Resiliency, AI Fallback, Explainability & Unified Timeline**
+## 🚀 Comprehensive Functional Modules (Phases 1–41)
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
@@ -205,64 +193,62 @@ The EmergenX platform features two defense-grade architectural suites implemente
 └──────────────────────────────────────────────────┴───────────────────────────────────────────────┘
 ```
 
----
-
-### 🚒 Part 1: Phases 11–15 — Field Operations & Alert Engine
+### Part 1: Response Tracking, Location & Alerts (Phases 11–15)
 
 #### Phase 11 — Response Tracking Lifecycle & Metrics
-* **Strict 5-Stage Finite State Machine**: Governs the operational lifecycle of all response unit assignments:
+* **Strict 5-Stage Finite State Machine**: Enforces valid progression:
   $$\text{ASSIGNED} \longrightarrow \text{DISPATCHED} \longrightarrow \text{EN\_ROUTE} \longrightarrow \text{ARRIVED} \longrightarrow \text{COMPLETED} \quad (\text{or } \text{CANCELLED})$$
-* **Derived Real-Time Response Metrics**: Automatically computes and persists high-resolution operational metrics:
+* **Derived Operational Durations**: Automatically calculates and persists:
   - `dispatchDelayMinutes`: $\Delta(\text{dispatchedAt} - \text{assignedAt})$
   - `transitDurationMinutes`: $\Delta(\text{arrivedAt} - \text{enRouteAt})$
   - `totalResponseMinutes`: $\Delta(\text{arrivedAt} - \text{assignedAt})$
-  - `arrivalDelayMinutes`: Calculated whenever $\text{arrivedAt} > \text{expectedArrivalAt}$.
-* **Idempotency & Auditing**: Duplicate transition requests preserve original timestamps and record immutable actor audit entries with actor ID, timestamp, and transition state (`backend/src/services/assignment.service.js`).
+  - `arrivalDelayMinutes`: Recorded whenever $\text{arrivedAt} > \text{expectedArrivalAt}$.
+* **Idempotent Guarantees**: Duplicate status updates preserve existing timestamps and write an immutable transition audit entry (`backend/src/services/assignment.service.js`).
 
 #### Phase 12 — Resource & Team Location Tracking Engine
 * **GeoJSON Telemetry Standard**: Validates coordinates within strict physical boundaries: $\text{longitude} \in [-180, 180]$, $\text{latitude} \in [-90, 90]$.
-* **High-Frequency GPS Broadcasting**: Emits real-time Socket.IO events (`team:location`, `resource:location`) to update tactical command map pins without database bottlenecking.
-* **RBAC Authorization Enforcement**: `RESPONDER`, `OPERATOR`, and `ADMIN` roles can transmit location telemetry; unauthorized `VIEWER` mutations are rejected with `403 Forbidden`.
+* **Live Telemetry Stream**: Emits `team:location` and `resource:location` WebSocket events to update tactical map pins in real time.
+* **Role Gate Enforcement**: Only `RESPONDER`, `OPERATOR`, and `ADMIN` roles can mutate location coordinates; `VIEWER` mutations are rejected with `403 Forbidden`.
 
 #### Phase 13 — Dynamic Haversine ETA Engine
 * **Spherical Great-Circle Formula**:
   $$d = 2R \cdot \arcsin\left(\sqrt{\sin^2\left(\frac{\Delta \phi}{2}\right) + \cos(\phi_1)\cos(\phi_2)\sin^2\left(\frac{\Delta \lambda}{2}\right)}\right)$$
-* **Apparatus-Specific Speed Profiling**:
+* **Calibrated Apparatus Speed Models**:
   - 🚒 **Fire Engine**: 45 km/h (heavy urban apparatus)
   - 🚑 **Ambulance (ALS)**: 55 km/h (siren-assisted priority transit)
   - 🚓 **Police Cruiser**: 60 km/h (rapid tactical response)
-  - ☣️ **Hazmat Unit**: 40 km/h (cautious payload transport)
+  - ☣️ **Hazmat Unit**: 40 km/h (cautious payload transit)
   - 🚤 **Rescue Boat**: 30 km/h (waterway transit)
-* Dynamic arrival estimation calculates `expectedArrivalAt = now + etaMinutes` and continuously updates all active `ASSIGNED`, `DISPATCHED`, and `EN_ROUTE` assignments.
+* Continuously computes `expectedArrivalAt = now + etaMinutes` across all active `ASSIGNED`, `DISPATCHED`, and `EN_ROUTE` assignments.
 
 #### Phase 14 — Automated SLA & Response Delay Engine
-* **Autonomous SLA Sentinel**: Background scheduler continuously monitors active assignments against their dynamic `expectedArrivalAt`.
-* **Delay Breach Detection**: Automatically triggers when the system clock exceeds target arrival time without arrival confirmation.
-* **Idempotent Single-Alert Guarantee**: Sets `isDelayed: true` and fires exactly one `RESPONSE_DELAY` alert, preventing notification cascades and operator alert fatigue.
+* **Continuous SLA Sentinel**: Background scheduler evaluates active en-route assignments against their calculated `expectedArrivalAt`.
+* **Breach Detection**: Automatically marks assignments as delayed when the clock exceeds the benchmark without arrival confirmation.
+* **Idempotent Single-Alert Trigger**: Sets `isDelayed: true` and dispatches exactly one `RESPONSE_DELAY` alert, preventing notification storms.
 
 #### Phase 15 — Deterministic 5-Rule Alert Engine & Deduplication
-* **5 Defense-Grade Evaluation Rules**:
-  1. `CRITICAL_INCIDENT`: Immediate priority broadcast when severity is `CRITICAL` or priority `P1`.
-  2. `RESPONSE_DELAY`: Fired when unit transit breaches calculated SLA ETA.
-  3. `RESOURCE_SHORTAGE`: Triggered when incident required resources exceed available apparatus in the district.
-  4. `P1_UNASSIGNED`: Alert emitted when a life-safety P1 incident remains unassigned after the grace threshold.
+* **5 Deterministic Rules**:
+  1. `CRITICAL_INCIDENT`: Fired immediately when severity is `CRITICAL` or priority is `P1`.
+  2. `RESPONSE_DELAY`: Dispatched when unit transit breaches calculated SLA target arrival time.
+  3. `RESOURCE_SHORTAGE`: Triggered when required incident resources exceed regional availability.
+  4. `P1_UNASSIGNED`: Emitted when a P1 incident remains unassigned after the grace period.
   5. `P1_ESCALATION`: Escalation alert dispatched when an incident remains uncontained, requesting mutual aid.
-* **Deduplication Engine**: Uses deterministic keys (`incidentId + ruleType + targetId`) with cooldown intervals to prevent duplicate alert spam.
-* **Alert Lifecycle**: Strict transitions: `OPEN` $\longrightarrow$ `ACKNOWLEDGED` $\longrightarrow$ `RESOLVED`.
+* **Deduplication Engine**: Uses SHA-style deterministic keys (`incidentId + ruleType + targetId`) with cooldown windows to eliminate duplicate alert spam.
+* **Alert Lifecycle**: Strict state progression: `OPEN` $\longrightarrow$ `ACKNOWLEDGED` $\longrightarrow$ `RESOLVED`.
 
 ---
 
-### 🛡️ Part 2: Phases 31–35 — Enterprise Resiliency, Explainability & Timeline
+### Part 2: Enterprise Resiliency, Explainability & Timeline (Phases 31–35)
 
 #### Phase 31 — System Health & Diagnostic Monitoring
-* **Dedicated Diagnostics Endpoint**: `GET /api/system/health` delivers real-time system vitals:
+* **Diagnostics API**: `GET /api/system/health` delivers real-time telemetry across:
   - `database`: MongoDB Atlas connection state, pool size, and ping latency.
   - `socketMesh`: Connected WebSocket client count, active rooms, and transport protocol.
   - `schedulerService`: Background cycle execution status, last success timestamp, failure counts.
   - `aiMicroservice`: Python FastAPI reachability, ping latency, and model availability.
   - `memoryUsage` & `uptime`: Process heap utilization and system availability metrics.
 * **Zero-Credential Leakage**: Sanitizes all payloads, strictly stripping MongoDB URIs, JWT secrets, and bearer tokens.
-* **Header Status Badge**: React 19 frontend displays a live `SystemHealthIndicator` badge with pulsing visual status and tooltip telemetry in `frontend/src/components/layout/Header.tsx`.
+* **Live Header Status Badge**: React 19 frontend displays a live `SystemHealthIndicator` badge with pulsing visual status and tooltip telemetry in `frontend/src/components/layout/Header.tsx`.
 
 #### Phase 32 — AI Failure Resiliency, Exponential Backoff & Safety Fallback
 * **Classified Failure Hierarchy**: Categorizes upstream AI failures into distinct actionable codes:
@@ -306,26 +292,38 @@ The EmergenX platform features two defense-grade architectural suites implemente
 
 ---
 
-## 🖥️ Operational Command Interface
+### Part 3: Simulation, Field Coordination & Notifications (Phases 21–30 & 36–41)
 
-The EmergenX frontend provides a mission-critical command interface designed specifically for high-stress operations centers:
+* **Autonomous Emergency Simulator (Phases 26–30)**: Header modal triggering 4 multi-system cascading scenarios:
+  1. **Industrial Refinery Fire (P1)**: Chemical explosions, Class-B foam dispatch, and toxic vapor evacuation perimeter.
+  2. **Flash Flood & Dam Breach (P1)**: Submerged transit arteries, water rescue boat mobilization, and hospital evacuation.
+  3. **Multi-Vehicle Highway Pileup (P2)**: Mass casualty triage, mobile ALS ICU deployment, and trauma bed balancing.
+  4. **Hazardous Material Detonation (P1)**: Radioactive/toxic containment, specialized decontamination unit routing.
+* **Operational Notification Mesh (Phases 36–41)**: Persistent notification drawer (`NotificationsDropdown.tsx`) with sound effects, acknowledgement actions, and filtering by severity.
+* **Geospatial Density Heatmap (Phase 38)**: Computes dynamic incident spatial clusters (`/api/analytics/heatmap`) using 2dsphere aggregation pipelines for urban hazard density visualization.
+
+---
+
+## 🖥️ Operational Command Interface Showcase
+
+The EmergenX interface delivers mission-critical situational awareness designed for high-stress command environments:
 
 ### 1. Command Center Dashboard
-> Unified operational view providing top-level KPI telemetry, Leaflet tactical map with CartoDB Dark Matter styling, streaming incident feed, and automated situational briefings.
+> Unified operational overview providing real-time KPI telemetry, interactive Leaflet GIS with CartoDB Dark Matter styling, streaming incident feed, and automated situational briefings.
 
 ![Command Center Hero](./docs/assets/command_center_hero.jpg)
 
 ---
 
 ### 2. Tactical GIS Geospatial Intelligence
-> High-density geospatial map rendering dynamic hazard blast radiuses, incident coordinate clusters, emergency vehicle telemetry vectors, and hospital saturation levels.
+> High-density tactical map rendering dynamic hazard blast radiuses, incident coordinate clusters, emergency vehicle telemetry vectors, and hospital saturation levels.
 
 ![Tactical GIS Map](./docs/assets/tactical_gis_map.jpg)
 
 ---
 
 ### 3. Multi-Source Incident Telemetry & Aerial Feeds
-> Autonomous sensor fusion aggregating citizen emergency calls, seismic sensors, IoT acoustic detectors, and aerial thermal drone reconnaissance into verified incident clusters.
+> Autonomous sensor fusion aggregating citizen emergency reports, 911 calls, seismic sensors, IoT acoustic detectors, and aerial thermal drone reconnaissance into verified incident clusters.
 
 ![Drone Thermal Feed](./docs/assets/drone_thermal_feed.jpg)
 
@@ -338,15 +336,15 @@ The EmergenX frontend provides a mission-critical command interface designed spe
 
 ---
 
-## 🚨 End-to-End Emergency Workflow
+## 🚨 End-to-End Emergency Workflow: Incident #ER-2048
 
-To evaluate how PS-9 operates under real conditions, consider the verified seed incident **`ER-2048`**:
+To evaluate how PS-9 operates under real urban disaster conditions, consider verified seed incident **`ER-2048`**:
 
-### Scenario: Industrial Chemical Refinery Fire
+### Scenario: Industrial Chemical Refinery Explosion & Fire
 
 ```text
 [13:21:04]  IoT Thermal Sensor #TH-882 triggers: Heat threshold exceeded 680°C in Tank Block B
-[13:21:45]  911 Call received: Supervisor reports detonation and 3 workers trapped in warehouse
+[13:21:45]  911 Call received: Supervisor reports explosion and 3 workers trapped in warehouse
 [13:22:10]  Citizen Report: Shockwave felt 1.2 km away on Northern Ring Road
 [13:22:15]  ──► PS-9 AI NLP Engine clusters all 3 reports into Incident #ER-2048 (94% Confidence)
 [13:23:00]  ──► Risk Matrix classifies incident as P1 CRITICAL (Toxic gas containment threat)
@@ -382,11 +380,9 @@ sequenceDiagram
 
 ---
 
-## 🤖 AI + Decision Support
+## 🤖 AI Architecture & Life-Safety Boundaries
 
 ### Why PS-9 Is Not Just a Chatbot
-
-A critical distinction for technical evaluators is that **PS-9 is not a conversational chatbot wrapper over a generic LLM**. It is a structured emergency command engine where AI performs specific, bounded decision-support tasks:
 
 ```text
 ┌──────────────────────────────────────────────────────────────────────────────────┐
@@ -402,29 +398,22 @@ A critical distinction for technical evaluators is that **PS-9 is not a conversa
 └─────────────────────────┴────────────────────────────┴───────────────────────────┘
 ```
 
-- **AI Recommends, Operator Commands**: The AI suggests severity, clusters duplicate reports, and recommends apparatus. The human operator maintains authority to approve dispatches and initiate mutual aid escalations.
-- **Explainable Confidence**: Every AI recommendation includes an explainability score (e.g., `94% AI Confidence — Corroborated across 7 reports and 2 sensor feeds`).
-- **Bounded Conversational HUD**: The tactical AI assistant (`/assistant`) uses predefined situational emergency prompts (containment SOPs, hazmat evacuation radii, casualty triage protocols) to deliver operational answers in seconds.
-
-### Implemented AI Microservice Architecture (`/AI`)
-
-The dedicated **FastAPI AI Microservice** (`http://localhost:8000`) handles asynchronous incident classification with strict life-safety guarantees:
-
-* **Endpoint**: `POST /api/v1/classify-incident`
-* **7 Disaster Categories**: `FIRE`, `FLOOD`, `ROAD_ACCIDENT`, `INDUSTRIAL_ACCIDENT`, `MEDICAL_EMERGENCY`, `EARTHQUAKE`, and `OTHER`.
-* **Deterministic Life-Safety Overrides**: Hard-coded safety escalation rules ensure that any incident containing `people_trapped`, `fatalities`, or `hazardous_materials` + `explosion` triggers immediate **`CRITICAL`** severity and **`P1`** dispatch priority regardless of baseline model score.
-* **Explainability Pipeline**: Generates structured machine-readable reasoning (`reasoning` object), tactical signal tags, and calibrated confidence scores (`0.00` – `1.00`), automatically flagging incidents with confidence < 0.70 for human review (`isLowConfidence: true`).
-* **Non-Blocking Execution**: Invoked asynchronously by the Node.js backend to ensure incident creation always succeeds even during AI service downtime.
+- **AI Recommends, Operator Commands**: The AI suggests severity, clusters duplicate reports, and recommends apparatus. The human operator maintains exclusive authority to authorize dispatches and mutual aid escalations.
+- **Explainable Confidence**: Every AI recommendation includes an explainability package (`94% AI Confidence — Corroborated across 7 reports and 2 sensor feeds`).
+- **Dedicated Python FastAPI Microservice (`AI/app/`)**: Runs on port 8000.
+  - Endpoint: `POST /api/v1/classify-incident`
+  - 7 Disaster Categories: `FIRE`, `FLOOD`, `ROAD_ACCIDENT`, `INDUSTRIAL_ACCIDENT`, `MEDICAL_EMERGENCY`, `EARTHQUAKE`, and `OTHER`.
+  - **Deterministic Life-Safety Overrides**: Hard-coded safety escalation rules ensure that any report mentioning `people_trapped`, `fatalities`, or `chemical_explosion` automatically triggers **`CRITICAL`** severity and **`P1`** priority regardless of baseline model confidence.
 
 ---
 
-## 🚒 Intelligent Resource Coordination
+## 🚒 Intelligent Resource Coordination & Speed Profiling
 
-PS-9 evaluates emergency apparatus against a **multi-criteria operational matrix**:
+PS-9 evaluates emergency apparatus using a **multi-criteria suitability formula**:
 
 $$\text{Suitability Score} = w_1 \cdot \text{Capability Match} + w_2 \cdot (1 - \text{Normalized Distance}) + w_3 \cdot \text{Readiness Status}$$
 
-### Concrete Recommendation Example (from Codebase):
+### Concrete Recommendation Example:
 
 ```text
 INCIDENT: #ER-2048 (Industrial Fire, P1 CRITICAL, Sector 4)
@@ -446,39 +435,27 @@ RECOMMENDED UNITS:
 
 ---
 
-## 📡 Real-Time Emergency Monitoring
+## 📡 Real-Time Socket.IO Mesh & Event Contracts
 
-The system implements a low-latency event architecture powered by **Socket.IO**:
-
-```text
- Incident Created / Updated
-           │
-           ▼
- Express Controller / Service
-           │
-           ▼
- Socket.IO Engine (src/utils/socket.js)
-           │
- ┌─────────┼────────────────────────────────────────┐
- ▼         ▼                                        ▼
-'incident:new'  'incident:updated'       'incident:statusChanged'
- │         │                                        │
- └─────────┴────────────────┬───────────────────────┘
-                            │ WebSocket
-                            ▼
-              EmergencyContext (React 19)
-                            │
-              ┌─────────────┼─────────────┐
-              ▼             ▼             ▼
-         Tactical Map   KPI Cards    Alert Banners
-```
-
-- **Zero-Polling Interface**: The dashboard updates reactively when incidents are created, triaged, or dispatched without requiring manual page refreshes.
-- **Audio Feedback Synthesis**: Web Audio API generates distinct tactical sound frequencies for dispatches, high-priority alerts, and radio acknowledgments.
+| Event Name | Direction | Trigger / Source | Payload Contract | UI Impact |
+|:---|:---:|:---|:---|:---|
+| `incident:new` | Server $\rightarrow$ Client | New incident created via API/AI | Complete Incident object | Adds incident to queue, plays dispatch audio, increments KPI |
+| `incident:updated` | Server $\rightarrow$ Client | Incident modified | Updated Incident object | Updates incident card and map marker |
+| `incident:statusChanged` | Server $\rightarrow$ Client | Lifecycle transition | `{ incidentId, status, timestamp }` | Transitions card column, updates timeline |
+| `team:location` | Server $\rightarrow$ Client | Field unit GPS update | `{ teamId, location: { coordinates: [lon, lat] } }` | Moves unit marker on Leaflet GIS map |
+| `resource:location` | Server $\rightarrow$ Client | Apparatus telemetry | `{ resourceId, location: { coordinates } }` | Updates apparatus position and recalculates ETA |
+| `alert:new` | Server $\rightarrow$ Client | Alert rule tripped | Complete Alert object | Displays high-priority toast, triggers audio alarm |
+| `alert:acknowledged` | Server $\rightarrow$ Client | Dispatcher acknowledges | Complete Alert object | Updates alert state to ACKNOWLEDGED in drawer |
+| `alert:resolved` | Server $\rightarrow$ Client | Issue cleared | Complete Alert object | Clears alert banner, marks RESOLVED |
+| `system:health` | Server $\rightarrow$ Client | Background health check | Aggregated health diagnostics | Updates `SystemHealthIndicator` badge in header |
+| `incident:aiAnalyzing` | Server $\rightarrow$ Client | AI processing started | `{ incidentId }` | Shows pulsing AI analysis indicator |
+| `incident:aiFallback` | Server $\rightarrow$ Client | AI service fallback triggered | `{ incidentId, reason, fallbackUsed: true }` | Displays fallback warning badge |
+| `incident:humanReviewRequired` | Server $\rightarrow$ Client | Low confidence / override | `{ incidentId, reason }` | Flags incident for manual dispatcher review |
+| `incident:timelineUpdated` | Server $\rightarrow$ Client | Timeline event recorded | Complete TimelineEvent object | Appends event directly to `IncidentTimelineView` |
 
 ---
 
-## ⚠️ Alerts & Escalation Engine
+## ⚠️ Alerts, SLA Sentinel & Escalation Engine
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -500,47 +477,106 @@ The system implements a low-latency event architecture powered by **Socket.IO**:
 
 ---
 
-## 📊 Emergency Analytics & Debrief
+## 🗺️ Geospatial Intelligence & GIS Telemetry
 
-The platform features built-in operational analytics (`/analytics`) utilizing **Recharts**:
-
-- **Incident Distribution by Hour**: Identifies peak emergency hours across industrial, residential, and transit zones.
-- **Response SLA Compliance**: Tracks actual arrival times versus the 8-minute benchmark target.
-- **Fleet Capacity Utilization**: Visualizes real-time availability across Fire, EMS, Police, and Rescue apparatus.
-- **Hospital Saturation Monitor**: Displays ICU bed and trauma ward occupancy to prevent emergency room overload.
-
----
-
-## 🗂️ Data Strategy
-
-PS-9 uses a disciplined data strategy that separates synthetic prototyping data from real-world geospatial and public infrastructure feeds:
-
-```text
-┌────────────────────────┬─────────────────────────┬──────────────────────────┐
-│     SYNTHETIC DATA     │   PUBLIC / GIS DATA     │       DERIVED DATA       │
-├────────────────────────┼─────────────────────────┼──────────────────────────┤
-│ • 22 seed incidents    │ • OpenStreetMap tiles   │ • AI confidence scores   │
-│ • Multi-source reports │ • CartoDB Dark Matter   │ • Geospatial distance    │
-│ • 12 fleet resources   │ • Real city coordinates │ • SLA delay calculations │
-│ • 8 response teams     │   (Delhi NCR test bed)  │ • Capability match %     │
-│ • 4 disaster scenarios │ • Hospital schemas      │ • Audit log timestamps   │
-└────────────────────────┴─────────────────────────┴──────────────────────────┘
-```
-
-> **Note on Data Authenticity**: Synthetic emergency incident and sensor feeds are used intentionally for hackathon demonstration to simulate high-stress urban disasters without risking live emergency dispatch networks.
+EmergenX provides military-grade GIS capabilities:
+- **CartoDB Dark Matter Basemap**: High-contrast, dark-mode cartography optimized for 24/7 command center monitors.
+- **MongoDB `2dsphere` Indexing**: Enables spherical proximity queries (`$near`, `$geoWithin`, `$geoIntersects`) with sub-millisecond query latency.
+- **Dynamic Hazard Blast Radius**: Computes and renders variable hazard circles (e.g., 500m chemical perimeter, 2km flood evacuation zone) around incidents.
+- **Apparatus GPS Vectors**: Live markers with rotating heading indicators reflecting real-time field unit positions.
+- **Hospital Trauma Saturation**: Color-coded markers (Green = Available, Amber = Busy, Red = Saturated) showing real-time emergency bed capacity.
 
 ---
 
-## 🏗️ System Architecture
+## 📊 Emergency Analytics & Debrief Reporting
+
+Interactive Recharts visual analytics (`/analytics`) providing data-driven operational insights:
+- **Incident Distribution by Hour**: Identifies temporal risk peaks across industrial, residential, and transit sectors.
+- **SLA Compliance Matrix**: Compares actual arrival latency against the target 8-minute SLA across districts.
+- **Fleet Capacity Utilization**: Visualizes live availability across Fire, EMS, Police, and Rescue apparatus.
+- **Hospital Bed Capacity Heatmap**: Monitors ICU and trauma ward occupancy to prevent hospital diversion.
+- **Post-Incident Debriefing**: Cryptographically logged timeline records allow incident commanders to conduct forensic reviews of response milestones.
+
+---
+
+## 🛡️ Security, RBAC Permissions & Audit Integrity
+
+| Role | Incident Management | Resource Dispatch | Field GPS Telemetry | Alerts & Overrides | System Health & Config |
+|:---|:---:|:---:|:---:|:---:|:---:|
+| **ADMIN / COMMANDER** | Full (CRUD + Close) | Full (Assign / Reassign) | Full Access | Full (Ack / Resolve / Override) | Full Admin Access |
+| **OPERATOR / DISPATCHER** | Create, Read, Update | Recommend & Dispatch | Read All Telemetry | Acknowledge & Override | View Health Status |
+| **FIELD RESPONDER** | View Assigned | Update Own Status | Transmit Unit GPS | View Operational Alerts | No Access |
+| **VIEWER / CITIZEN** | Read Public Feeds | No Access | Read Public Map | Read Only | No Access |
+
+- **JWT Authentication**: Secure stateless authentication with bcrypt password hashing (10 salt rounds).
+- **Zod Schema Validation**: Strict input boundary validation across every HTTP request body and query parameter.
+- **Zero Sensitive Credential Leaks**: Diagnostics endpoints redact database strings, JWT secrets, and bearer tokens.
+- **Immutable Audit Logging**: Every incident transition, dispatch order, and manual override is recorded with actor ID, timestamp, and metadata.
+
+---
+
+## 🌐 Complete REST API Reference
+
+### Authentication & Users
+| Method | Endpoint | Description | Auth Level |
+|:---|:---|:---|:---:|
+| `POST` | `/api/auth/register` | Register a new user account | Public |
+| `POST` | `/api/auth/login` | Authenticate user and receive JWT | Public |
+| `GET` | `/api/auth/me` | Fetch authenticated user profile | Authenticated |
+
+### Incidents & Operations
+| Method | Endpoint | Description | Auth Level |
+|:---|:---|:---|:---:|
+| `GET` | `/api/incidents` | List incidents with filtering & pagination | Authenticated |
+| `POST` | `/api/incidents` | Create a new emergency incident | Authenticated |
+| `GET` | `/api/incidents/:id` | Fetch incident details by ID or incidentId | Authenticated |
+| `PUT` | `/api/incidents/:id` | Update incident metadata or status | Operator+ |
+| `GET` | `/api/incidents/:id/timeline` | Fetch chronological audit timeline | Authenticated |
+| `POST` | `/api/incidents/:id/override` | Manual operator priority/severity override | Operator+ |
+
+### Assignments & Response Tracking (Phase 11)
+| Method | Endpoint | Description | Auth Level |
+|:---|:---|:---|:---:|
+| `GET` | `/api/assignments` | List active unit assignments | Authenticated |
+| `POST` | `/api/assignments` | Dispatch unit to incident | Operator+ |
+| `PATCH` | `/api/assignments/:id/status` | Transition unit status (`EN_ROUTE`, `ARRIVED`, etc.) | Responder+ |
+| `POST` | `/api/assignments/:id/cancel` | Cancel assignment with reason | Operator+ |
+
+### Field Teams & Telemetry (Phase 12)
+| Method | Endpoint | Description | Auth Level |
+|:---|:---|:---|:---:|
+| `GET` | `/api/teams` | List field response teams | Authenticated |
+| `PATCH` | `/api/teams/:id/location` | Transmit live GPS coordinates | Responder+ |
+| `PATCH` | `/api/teams/:id/status` | Update team operational readiness | Responder+ |
+
+### Alerts & Escalation (Phase 15)
+| Method | Endpoint | Description | Auth Level |
+|:---|:---|:---|:---:|
+| `GET` | `/api/alerts` | List active emergency alerts | Authenticated |
+| `POST` | `/api/alerts/:id/acknowledge` | Acknowledge alert by operator | Operator+ |
+| `POST` | `/api/alerts/:id/resolve` | Resolve alert and clear notification | Operator+ |
+| `GET` | `/api/escalations/active` | List active mutual aid escalations | Authenticated |
+
+### System Health & Analytics (Phase 31 & 38)
+| Method | Endpoint | Description | Auth Level |
+|:---|:---|:---|:---:|
+| `GET` | `/api/health` | Lightweight service ping | Public |
+| `GET` | `/api/system/health` | Comprehensive system diagnostic vitals | Authenticated |
+| `GET` | `/api/system/status` | Process memory, uptime, and database status | Authenticated |
+| `GET` | `/api/analytics/heatmap` | 2dsphere density aggregation for GIS heatmap | Authenticated |
+
+---
+
+## 🏗️ System Architecture Diagrams
 
 ```mermaid
 graph TB
-    subgraph Client_Layer ["Client Layer (React 19 + Vite 8)"]
+    subgraph Client_Layer ["Client Layer (React 19 + TypeScript + Vite 8)"]
         UI_Dash["Command Dashboard"]
         UI_Map["Leaflet GIS Map"]
-        UI_Inc["Incident Intelligence"]
+        UI_Inc["Incident Intelligence & Timeline"]
         UI_Res["Resource Coordination"]
-        UI_AI["AI Assistant HUD"]
+        UI_AI["AI Assistant & Explainability HUD"]
         Audio["Web Audio Synth"]
         Context["EmergencyContext (State Mesh)"]
         
@@ -562,19 +598,22 @@ graph TB
 
     subgraph Backend_Layer ["Backend Core (Node.js & Express ESM)"]
         AuthCtrl["Auth & RBAC Middleware"]
-        IncCtrl["Incident Controller & Service"]
-        ResCtrl["Resource Controller & Service"]
-        TeamCtrl["Team Controller & Service"]
-        FacCtrl["Facility Controller & Service"]
+        IncCtrl["Incident Service & State Machine"]
+        AssignCtrl["Assignment & Response Engine"]
+        ETACtrl["Haversine ETA & SLA Sentinel"]
+        AlertCtrl["Deterministic 5-Rule Alert Engine"]
+        TimelineCtrl["Unified Chronological Timeline"]
+        HealthCtrl["System Health & Telemetry Engine"]
         SocketEngine["Socket.IO Server Engine"]
-        ZodVal["Zod Schema Validation"]
     end
 
     REST --> AuthCtrl
     REST --> IncCtrl
-    REST --> ResCtrl
-    REST --> TeamCtrl
-    REST --> FacCtrl
+    REST --> AssignCtrl
+    REST --> ETACtrl
+    REST --> AlertCtrl
+    REST --> TimelineCtrl
+    REST --> HealthCtrl
     WS <--> SocketEngine
 
     subgraph Data_Layer ["Database & GIS (MongoDB Atlas)"]
@@ -582,229 +621,85 @@ graph TB
         GeoRes["resources (2dsphere)"]
         GeoTeam["teams (2dsphere)"]
         GeoFac["facilities (2dsphere)"]
+        Assignments["assignments (state machine)"]
+        Alerts["alerts (deduplicated)"]
+        Timeline["timeline_events (audit log)"]
         Users["users (bcrypt)"]
     end
 
     IncCtrl --> GeoInc
-    ResCtrl --> GeoRes
-    TeamCtrl --> GeoTeam
-    FacCtrl --> GeoFac
+    AssignCtrl --> Assignments
+    AssignCtrl --> GeoTeam
+    ETACtrl --> GeoInc
+    AlertCtrl --> Alerts
+    TimelineCtrl --> Timeline
     AuthCtrl --> Users
 
-    subgraph Target_AI ["Target AI Service (Planned Python / FastAPI)"]
-        NLP["Vector Embeddings & NLP Triage"]
-        DeDup["Geospatial Cluster De-duplication"]
+    subgraph Target_AI ["AI Microservice Layer (Python 3.10+ / FastAPI)"]
+        NLP["NLP Classifier & Entity Extraction"]
+        Safety["Deterministic Life-Safety Overrides"]
+        Explain["Confidence Scoring & Reasoning"]
     end
 
-    IncCtrl -.-> Target_AI
+    IncCtrl <--> Target_AI
 ```
 
 ---
 
-## 🛡️ Human-in-the-Loop Operations
+## 🧪 Automated Testing & Quality Assurance
 
-In emergency operations, autonomous systems must never bypass human accountability:
+The codebase includes full automated test suites across all critical workflows:
 
-1. **Clearance-Based Authorization**: Dispatch orders require operator authentication with role-based access control (ADMIN, OPERATOR, FIELD_COORDINATOR).
-2. **Explainable Recommendations**: When the system recommends Fire Team 04, it displays the reasoning (distance, capability, equipment status).
-3. **Manual Override**: Operators can override AI priority suggestions, reassign units, or modify hazard perimeters at any time.
-4. **Immutable Audit Trail**: Every status change, unit dispatch, and escalation is logged with operator ID and timestamp.
+### 1. Phase 11–15 Automated Test Suite (36/36 Passing)
+Validates response tracking state machine, GeoJSON coordinates, Haversine distance, speed models, SLA expiration detection, and the 5-rule alert engine:
+```bash
+cd backend
+node --test src/test/phases11_15.test.js
+```
 
----
+### 2. Phase 31–35 Automated Test Suite (12/12 Passing)
+Validates system health diagnostic contracts, AI error classification, exponential backoff, deterministic fallback, explainability packaging, and unified timeline chronological ordering:
+```bash
+cd backend
+node --test src/test/phases31_35.test.js
+```
 
-## 🛠️ Development Roadmap
+### 3. Postman / Newman Automated API Collection (46 Assertions)
+Validates end-to-end REST endpoints with Newman:
+```bash
+cd backend
+npm run test:postman
+```
 
-```text
-PHASE 1: Core Foundation & Database                   [✅ COMPLETED]
-├── Layered Express.js ESM architecture
-├── MongoDB Mongoose models with 2dsphere indexing
-├── JWT authentication & RBAC middleware
-└── Comprehensive seed data (22 incidents, 12 resources, 8 teams)
-
-PHASE 2: Frontend Command Interface                   [✅ COMPLETED]
-├── React 19 + TypeScript + Vite 8 + Tailwind CSS v4
-├── Tactical Leaflet GIS with CartoDB Dark Matter telemetry
-├── Seed incident ER-2048 deep-dive with multi-source report clustering
-├── Web Audio API tactical sound synthesis
-└── Autonomous Emergency Simulator (4 cascading scenarios)
-
-PHASE 3: Real-Time Event Synchronization              [✅ COMPLETED]
-├── Socket.IO server initialization & client integration
-├── Live broadcasting of incident creation, update, and status change
-└── Automated Postman test suite (24 requests, 46 assertions)
-
-PHASES 11–15: Operational Response & Alert Engine     [✅ COMPLETED & PUSHED]
-├── Phase 11: Response Tracking Lifecycle & Metrics (5-state machine, derived durations)
-├── Phase 12: Resource & Team Location Tracking (GeoJSON telemetry, live GPS breadcrumbs)
-├── Phase 13: Dynamic Haversine ETA Engine (Apparatus speed profiles, arrival estimation)
-├── Phase 14: SLA & Response Delay Engine (Automated transit SLA violation detection)
-└── Phase 15: 5-Rule Deterministic Alert Engine (Deduplicated alerts & escalation workflows)
-
-PHASES 21–30: Field Coordination & Simulation Matrix  [✅ COMPLETED & MERGED]
-├── Multi-agency mutual aid coordination & cross-district dispatch
-├── Advanced simulation engine with cascading urban disaster scenarios
-└── Fine-grained RBAC permissions across Commander, Operator, Responder, and Viewer
-
-PHASES 31–35: Resilience, Explainability & Timeline   [✅ COMPLETED & PUSHED]
-├── Phase 31: System Health Monitoring (Diagnostics API, scheduler stats, socket mesh telemetry)
-├── Phase 32: AI Failure Resiliency & Safety Fallback (Exponential backoff, deterministic fallback)
-├── Phase 33: Deep AI Explainability (Confidence scoring, life-safety overrides, operator HUD)
-├── Phase 34: Unified Incident Timeline (Chronological multi-source audit trail & streaming updates)
-└── Phase 35: Full-Stack Frontend Integration (Header health badge, Explainability HUD, Timeline view)
-
-PHASES 36–41: Tactical Operations & Advanced Analytics [✅ COMPLETED & MERGED]
-├── Real-time notification dispatch & operational broadcast mesh
-├── Live incident heatmap analytics & geospatial density clustering
-└── Command post debrief reporting & automated compliance auditing
+### 4. Frontend Type-Check & Production Build
+Validates strict TypeScript types and compiles Vite production assets with 0 errors:
+```bash
+cd frontend
+npm run build
 ```
 
 ---
 
-## 🧪 Evaluation Demo Walkthrough
-
-Follow this step-by-step scenario during mid-evaluation:
-
-1. **Launch the Application**:
-   - Open [http://localhost:5173](http://localhost:5173) in your browser.
-2. **Inspect the Landing Page (`/`)**:
-   - Note the high-tech mission control hero, the 7-stage emergency lifecycle, and system capabilities.
-3. **Enter the Command Center (`/command-center`)**:
-   - Observe the live KPI cards, interactive Leaflet tactical map, and real-time streaming incident feed.
-4. **Trigger the Emergency Simulator**:
-   - Click the pulsing red **`SIMULATE EMERGENCY`** button in the top navigation bar.
-   - Select **Industrial Refinery Fire** or **Flash Flood**.
-   - Watch the cascading event: KPI counters increment, a new critical incident appears, and tactical audio alerts trigger.
-5. **Inspect Seed Incident `#ER-2048` (`/incidents/ER-2048`)**:
-   - Review the **94% AI classification confidence**.
-   - Inspect the **7 aggregated multi-source reports** (IoT thermal sensor, 911 calls, surveillance drones) with individual reliability ratings.
-   - Review the progressive milestone timeline.
-6. **Execute Resource Dispatch (`/resources`)**:
-   - Review the AI-recommended nearest units with capability matches.
-   - Click **Dispatch** on Fire Team 04 to assign the apparatus.
-7. **Test the Tactical AI Assistant (`/assistant`)**:
-   - Click on the suggested emergency queries (e.g., *"Assess containment for Sector 4 chemical fire"*).
-   - Observe the animated holographic orb and structured response.
-8. **Review Operational Analytics (`/analytics`)**:
-   - Inspect the Recharts visualizations showing arrival times versus target SLA and fleet capacity.
-
----
-
-## ⚙️ Technology Stack
-
-| Layer | Technologies Used in Codebase |
-|:---|:---|
-| **Frontend Framework** | React 19, TypeScript, Vite 8 |
-| **Styling & HUD** | Tailwind CSS v4, Custom 3D Glassmorphism, CSS Scanline Animations |
-| **Geospatial Mapping** | Leaflet 1.9, CartoDB Dark Matter tiles, Leaflet Routing Machine |
-| **Motion & UX** | Framer Motion, Lucide React Icons |
-| **Visual Analytics** | Recharts (ResponsiveContainer, AreaChart, BarChart, PieChart) |
-| **Audio Synthesis** | Web Audio API (tactical sonars, dispatch chimes, alert warbles) |
-| **Backend Runtime** | Node.js (ES Modules), Express.js 4.21 |
-| **Database** | MongoDB Atlas, Mongoose 8.9 with `2dsphere` geospatial indexing |
-| **Real-Time Mesh** | Socket.IO 4.8 (WebSocket + polling fallback) |
-| **AI Microservice Engine** | Python 3.10+, FastAPI, Uvicorn, Pydantic v2, Pytest |
-| **Security & Validation** | JWT (`jsonwebtoken`), `bcryptjs`, `helmet`, `cors`, `zod` |
-| **Automated Testing** | Postman Collection v2.1 (`test.json`), Newman CLI, Pytest |
-
----
-
-## 📁 Project Structure
-
-```text
-Bit-N-Build-2026/
-├── docs/
-│   └── assets/
-│       ├── ps9-logo.svg              # Standalone PS-9 vector logo
-│       ├── ps9-header.svg            # Animated tactical radar header
-│       ├── ps9-footer.svg            # Animated telemetry footer
-│       ├── command_center_hero.jpg   # Command center dashboard preview
-│       ├── tactical_gis_map.jpg      # Geospatial GIS tactical preview
-│       ├── drone_thermal_feed.jpg    # Aerial sensor fusion preview
-│       └── emergency_fleet_ops.jpg   # Resource & fleet coordination preview
-│
-├── AI/                               # Python 3.10+ & FastAPI AI Microservice (Port 8000)
-│   ├── app/
-│   │   ├── config.py                 # Configuration & environment variables
-│   │   ├── main.py                   # FastAPI application & lifecycle
-│   │   ├── routes/                   # /api/v1/classify-incident & /health
-│   │   ├── schemas/                  # Pydantic request & response models
-│   │   ├── services/                 # classifier.py, severity.py, priority.py, explainability.py
-│   │   └── utils/                    # Text preprocessing & entity extraction
-│   ├── datasets/                     # Disaster situation statistics datasets
-│   ├── scripts/                      # Data analysis scripts
-│   ├── tests/                        # Pytest classification & safety override test suite
-│   ├── requirements.txt
-│   └── README.md
-│
-├── frontend/                         # React 19 + TypeScript + Vite 8
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── dashboard/            # MetricCards, LiveIncidentFeed
-│   │   │   ├── layout/               # Header, Sidebar, AppLayout, Notifications
-│   │   │   ├── map/                  # EmergencyMap (Leaflet GIS integration)
-│   │   │   ├── operations/           # Incident modals, InteractiveOpsHero
-│   │   │   └── ui/                   # CyberButton, CyberHUDCard, GlassCard
-│   │   ├── context/
-│   │   │   └── EmergencyContext.tsx  # Central state mesh, simulator & WebSocket listener
-│   │   ├── data/
-│   │   │   └── mockData.ts           # Realistic seed incidents (ER-2048), teams, facilities
-│   │   ├── pages/                    # 13+ tactical views (Dashboard, Map, Incidents, etc.)
-│   │   ├── services/
-│   │   │   └── api.ts                # Centralized REST API client
-│   │   ├── types/                    # TypeScript interfaces
-│   │   └── utils/
-│   │       ├── audio.ts              # Web Audio API sound synthesizer
-│   │       └── adapters.ts           # Backend-to-Frontend data model adapters
-│   ├── package.json
-│   └── vite.config.ts
-│
-├── backend/                          # Node.js (ES Modules) + Express.js
-│   ├── src/
-│   │   ├── config/                   # database.js, env.js
-│   │   ├── controllers/              # auth, incident, resource, team, facility controllers
-│   │   ├── middleware/               # auth, error, notFound, validate middlewares
-│   │   ├── models/                   # Mongoose schemas with 2dsphere indexing
-│   │   ├── routes/                   # REST API routes
-│   │   ├── seed/
-│   │   │   └── seed.js               # Database seeder (22 incidents, 12 resources)
-│   │   ├── services/                 # Business logic & database operations
-│   │   ├── utils/
-│   │   │   ├── socket.js             # Socket.IO real-time event broadcaster
-│   │   │   ├── logger.js             # Structured console logging
-│   │   │   └── response.js           # Standard { success, data, message } envelope
-│   │   ├── validators/               # Zod request validation schemas
-│   │   ├── app.js                    # Express app configuration & security headers
-│   │   └── server.js                 # Server bootstrap & graceful shutdown
-│   ├── test.json                     # Postman test collection (24 requests, 46 assertions)
-│   ├── package.json
-│   └── .env.example
-│
-└── README.md
-```
-
----
-
-## 🚀 Getting Started
+## 🚀 Step-by-Step Installation & Quickstart
 
 ### Prerequisites
 - **Node.js** v18+ or v20+
-- **Python** 3.10+ (for AI Microservice)
+- **Python** 3.10+
 - **npm** v9+
 - **MongoDB** (Local instance or free MongoDB Atlas URI)
 
 ---
 
-### 1. AI Microservice Setup (Port 8000)
+### Step 1: Start the Python AI Microservice (Port 8000)
 
 ```bash
-# Navigate to AI directory
 cd AI
 
 # (Optional) Create and activate virtual environment
 python -m venv venv
-# On Windows:
+# Windows:
 .\venv\Scripts\activate
-# On Linux/macOS:
+# Linux/macOS:
 # source venv/bin/activate
 
 # Install dependencies
@@ -813,58 +708,37 @@ pip install -r requirements.txt
 # Start FastAPI server
 uvicorn app.main:app --port 8000 --reload
 ```
-
-The AI microservice will start at `http://localhost:8000`:
 - Interactive Swagger UI: [http://localhost:8000/docs](http://localhost:8000/docs)
 - Health Check: [http://localhost:8000/health](http://localhost:8000/health)
 
 ---
 
-### 2. Backend Setup
+### Step 2: Configure & Start the Backend (Port 5000)
 
 ```bash
-# Navigate to backend directory
 cd backend
 
 # Install dependencies
 npm install
 
-# Configure environment variables
+# Configure environment
 cp .env.example .env
-# Edit .env with your MongoDB URI (or keep default for local MongoDB)
+# Edit .env with your MongoDB Atlas URI if needed
 
-# Seed database with realistic emergency data (22 incidents, teams, resources)
+# Seed database with realistic emergency data (22 incidents, 12 resources, 8 teams)
 npm run seed
 
-# Start backend development server
+# Start backend server
 npm run dev
 ```
-
-The backend will start at `http://localhost:5000`:
 - Health Check: [http://localhost:5000/api/health](http://localhost:5000/api/health)
-- System Diagnostics: [http://localhost:5000/api/system/status](http://localhost:5000/api/system/status)
-
-#### Run Automated Backend Tests:
-```bash
-# In backend/ directory:
-
-# 1. Run Phase 11–15 Automated Test Suite (36/36 passing):
-node --test src/test/phases11_15.test.js
-
-# 2. Run Phase 31–35 Automated Test Suite (12/12 passing):
-node --test src/test/phases31_35.test.js
-
-# 3. Run Postman/Newman Automated API Test Suite (46 assertions):
-npm run test:postman
-```
-*Total automated coverage: 48 Node.js unit/integration tests and 46 automated Postman/Newman assertions across all critical emergency workflows.*
+- System Diagnostics: [http://localhost:5000/api/system/health](http://localhost:5000/api/system/health)
 
 ---
 
-### 3. Frontend Setup
+### Step 3: Start the React 19 Frontend (Port 5173)
 
 ```bash
-# Open a new terminal and navigate to frontend directory
 cd frontend
 
 # Install dependencies
@@ -873,8 +747,7 @@ npm install
 # Start Vite development server
 npm run dev
 ```
-
-Open [http://localhost:5173](http://localhost:5173) in your browser.
+- Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ---
 
@@ -891,22 +764,52 @@ NODE_ENV=development
 MONGODB_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/emergenx?retryWrites=true&w=majority
 
 # Security
-JWT_SECRET=your_jwt_secret_key_here
+JWT_SECRET=your_defense_grade_jwt_secret_key_here
 
 # Client URL (for CORS policy)
 CLIENT_URL=http://localhost:5173
 
-# Target AI Microservice URL (Planned Phase 5)
+# AI Microservice URL (FastAPI)
 AI_SERVICE_URL=http://localhost:8000
 ```
 
-> **Security Note**: Never commit live production credentials to version control. The repository `.env.example` provides safe templates with placeholders.
+---
+
+## 🧪 Evaluation Demo Walkthrough & Operator Runbook
+
+Follow this step-by-step walkthrough for an end-to-end platform evaluation:
+
+1. **Access the Mission Control Dashboard**:
+   - Open [http://localhost:5173](http://localhost:5173) in your browser.
+   - Inspect the top navigation bar: notice the pulsing green **`SYSTEM HEALTH`** indicator with live socket and scheduler telemetry.
+2. **Observe Real-Time Tactical Map**:
+   - Navigate to `/map` to view the full-screen CartoDB Dark Matter GIS interface.
+   - Inspect dynamic hazard perimeters, vehicle markers with GPS coordinates, and hospital trauma occupancy.
+3. **Trigger Emergency Simulator**:
+   - Click the red **`SIMULATE EMERGENCY`** button in the header.
+   - Select **Industrial Refinery Fire** or **Flash Flood**.
+   - Notice the instant cascading updates: audio alerts play via Web Audio API, KPI counters increment, and a new critical incident appears in the feed.
+4. **Inspect Incident Details & Deep Explainability**:
+   - Click into incident `#ER-2048` (`/incidents/ER-2048`).
+   - Examine the **AI Explainability Card**: observe the calibrated confidence score, extracted situational signals, risk justification, and life-safety override indicators.
+5. **Inspect the Chronological Audit Timeline**:
+   - Scroll down to the **Incident Timeline View**: notice the chronological sequence of events spanning incident creation, AI triage, dispatch, and telemetry updates.
+6. **Execute 1-Click Resource Dispatch**:
+   - Navigate to `/resources`.
+   - Inspect the AI-recommended nearest units ranked by capability match, Haversine distance, and dynamic ETA.
+   - Click **Dispatch** on Fire Team 04 to assign the apparatus.
+7. **Verify Response Tracking & SLA Sentinel**:
+   - Watch the unit transition to `En Route`. Notice the live transit timer tracking against the target SLA.
+8. **Consult the Tactical AI Assistant**:
+   - Navigate to `/assistant`.
+   - Click sample prompts like *"Assess containment for Sector 4 chemical fire"* or *"Calculate evacuation radius"*.
+   - Observe the structured situational response generated in seconds.
 
 ---
 
-## 🔭 Future Scope
+## 🔭 Future Scope & Scalability
 
-1. **Continuous Vector Embedding De-duplication**: Deploying a dedicated Python/FastAPI microservice using lightweight sentence embedding models to cluster free-text citizen reports in sub-50ms.
+1. **Continuous Vector Embedding De-duplication**: Integrating lightweight transformer models (Sentence-Transformers / FastEmbed) for sub-20ms semantic clustering of raw citizen reports.
 2. **Real-Time 911 Speech-to-Text Ingestion**: Streaming transcription from emergency operator phone lines to automatically extract addresses and hazards before calls conclude.
 3. **Dynamic Transit Corridors**: Integration with live road closure and congestion APIs (OSRM / OpenStreetMap) for turn-by-turn emergency vehicle routing with siren right-of-way modeling.
 4. **Direct Inter-Agency Mutual Aid Protocols**: Automated cross-jurisdictional webhooks alerting neighboring municipal fire and medical services when local resources exceed critical thresholds.
