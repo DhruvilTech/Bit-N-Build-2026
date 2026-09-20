@@ -431,6 +431,35 @@ export const incidentsApi = {
     }>(`/incidents/${id}/response-metrics`);
     return res.data;
   },
+
+  autoDispatch: async (id: string) => {
+    const res = await apiRequest<{
+      status: string;
+      data: {
+        incident: any;
+        dispatchedResources: any[];
+        message: string;
+      };
+    }>(`/incidents/${id}/auto-dispatch`, {
+      method: 'POST',
+    });
+    return res.data;
+  },
+
+  cancelDispatch: async (id: string, reason?: string) => {
+    const res = await apiRequest<{
+      status: string;
+      data: {
+        incident: any;
+        recalledResources: any[];
+        message: string;
+      };
+    }>(`/incidents/${id}/cancel-dispatch`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+    return res.data;
+  },
 };
 
 // Resource Assignments & Lifecycle Tracking API (Phases 8-14)
@@ -1305,8 +1334,9 @@ export const analyticsApi = {
     return res.data;
   },
 
-  getResourceShortages: async (): Promise<ResourceShortageAnalysis> => {
-    const res = await apiRequest<{ success: boolean; data: ResourceShortageAnalysis }>('/analytics/resource-shortages');
+  getResourceShortages: async (city?: string): Promise<ResourceShortageAnalysis> => {
+    const qs = city && city !== 'ALL' ? `?city=${encodeURIComponent(city)}` : '';
+    const res = await apiRequest<{ success: boolean; data: ResourceShortageAnalysis }>(`/analytics/resource-shortages${qs}`);
     return res.data;
   },
 };

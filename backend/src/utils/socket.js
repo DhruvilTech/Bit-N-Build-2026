@@ -562,14 +562,32 @@ export const emitSimulationStopped = (simulation) => {
 /**
  * Broadcast when a simulation encounters an error
  */
-export const emitSimulationError = (simulation, error) => {
+export const emitSimulationError = (simulationId, error) => {
   if (ioInstance) {
-    const simId = simulation?.simulationId;
-    if (simId) {
-      ioInstance.to(`simulation:${simId}`).emit('simulation:error', { simulation, error });
-    }
-    ioInstance.to('operations').emit('simulation:error', { simulation, error });
-    ioInstance.emit('simulation:error', { simulation, error });
+    ioInstance.to(`simulation:${simulationId}`).emit('simulation:error', { simulationId, error: error?.message || error });
+    ioInstance.to('operations').emit('simulation:error', { simulationId, error: error?.message || error });
+    ioInstance.emit('simulation:error', { simulationId, error: error?.message || error });
   }
 };
+
+/**
+ * Broadcast when resources are autonomously dispatched to an incident by AI
+ */
+export const emitIncidentAutoDispatched = (data) => {
+  if (ioInstance) {
+    ioInstance.to('operations').emit('incident:autoDispatched', data);
+    ioInstance.emit('incident:autoDispatched', data);
+  }
+};
+
+/**
+ * Broadcast when an autonomous dispatch is cancelled/revoked by an operator
+ */
+export const emitIncidentDispatchCancelled = (data) => {
+  if (ioInstance) {
+    ioInstance.to('operations').emit('incident:dispatchCancelled', data);
+    ioInstance.emit('incident:dispatchCancelled', data);
+  }
+};
+
 

@@ -18,6 +18,7 @@ import {
   AlertCircle,
   Radio,
   AlertTriangle,
+  AlertOctagon,
   HeartPulse,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -38,16 +39,21 @@ export const Resources: React.FC = () => {
     activeIncident,
     dispatchTeamToIncident,
     liveResources,
+    triggerAutoDispatch,
+    cancelAutoDispatch,
   } = useEmergency();
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState<'all' | 'teams' | 'equipment' | 'hospitals' | 'shortages'>('all');
+  const [selectedCity, setSelectedCity] = useState<'ALL' | 'Bangalore' | 'Delhi NCR' | 'Mumbai'>('ALL');
   const [strategy, setStrategy] = useState<'BALANCED' | 'FASTEST_ETA' | 'CAPABILITY_FIRST'>('BALANCED');
   const [recommendation, setRecommendation] = useState<any | null>(null);
   const [explanation, setExplanation] = useState<string | null>(null);
   const [isLoadingRec, setIsLoadingRec] = useState<boolean>(false);
   const [recError, setRecError] = useState<string | null>(null);
   const [isAssigning, setIsAssigning] = useState<boolean>(false);
+  const [isAutoDispatching, setIsAutoDispatching] = useState<boolean>(false);
+  const [isCancellingDispatch, setIsCancellingDispatch] = useState<boolean>(false);
   const [assignSuccessMsg, setAssignSuccessMsg] = useState<string | null>(null);
 
   // Phase 24: Resource Shortage State
@@ -59,12 +65,13 @@ export const Resources: React.FC = () => {
   const [isLoadingCapacities, setIsLoadingCapacities] = useState<boolean>(false);
 
   // Fetch Shortages and Hospital Capacities
-  const fetchOperationsData = useCallback(async () => {
+  const fetchOperationsData = useCallback(async (cityOverride?: string) => {
     setIsLoadingShortages(true);
     setIsLoadingCapacities(true);
     try {
+      const city = cityOverride !== undefined ? cityOverride : (selectedCity === 'ALL' ? undefined : selectedCity);
       const [shortagesRes, capacitiesRes] = await Promise.all([
-        analyticsApi.getResourceShortages(),
+        analyticsApi.getResourceShortages(city),
         facilitiesApi.getCapacity(),
       ]);
       setShortageAnalysis(shortagesRes);
@@ -75,7 +82,7 @@ export const Resources: React.FC = () => {
       setIsLoadingShortages(false);
       setIsLoadingCapacities(false);
     }
-  }, []);
+  }, [selectedCity]);
 
   useEffect(() => {
     fetchOperationsData();
@@ -230,11 +237,31 @@ export const Resources: React.FC = () => {
         >
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-200 dark:border-white/10">
-              <div className="flex items-center gap-2 font-mono text-xs">
+              <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
                 <AlertTriangle className={`w-4 h-4 ${shortageAnalysis.criticalCount > 0 ? 'text-amber-500 animate-pulse' : 'text-[#2DD4BF]'}`} />
                 <span className="font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-                  RESOURCE SHORTAGE INTELLIGENCE (DEMAND VS AVAILABLE SUPPLY)
+                  SHORTAGE INTELLIGENCE ({selectedCity === 'ALL' ? 'ALL CITIES' : selectedCity.toUpperCase()})
                 </span>
+
+                {/* City Filter Pills */}
+                <div className="flex items-center gap-1 bg-slate-100 dark:bg-white/[0.04] p-1 rounded-lg border border-slate-200 dark:border-white/10 font-mono text-[10px] ml-0 sm:ml-2">
+                  {(['ALL', 'Bangalore', 'Delhi NCR', 'Mumbai'] as const).map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => {
+                        setSelectedCity(c);
+                        fetchOperationsData(c === 'ALL' ? undefined : c);
+                      }}
+                      className={`px-2 py-0.5 rounded transition-all ${
+                        selectedCity === c
+                          ? 'bg-[#2DD4BF] text-slate-950 font-bold shadow-sm'
+                          : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div className="font-mono text-[11px] text-slate-500 dark:text-slate-400">
                 Total Demand: <strong className="text-slate-900 dark:text-white">{shortageAnalysis.totalDemand}</strong> | Supply: <strong className="text-emerald-700 dark:text-[#34D399]">{shortageAnalysis.totalSupply}</strong>
@@ -430,8 +457,8 @@ export const Resources: React.FC = () => {
               </p>
             </div>
 
-            {/* Recommendation CTA — ADMIN/OPERATOR only can dispatch */}
-            <div className="flex flex-col sm:flex-row lg:flex-col gap-3 flex-shrink-0">
+            {/* Recommendation CTA with Auto-Dispatch & Cancel — ADMIN/OPERATOR only can dispatch */}
+            <div className="flex flex-col sm:flex-row lg:flex-col gap-2.5 flex-shrink-0">
               <RoleGate
                 permission="RESOURCE_ASSIGN"
                 fallback={
@@ -444,21 +471,91 @@ export const Resources: React.FC = () => {
                 <CyberButton
                   variant="primary"
                   size="lg"
-                  disabled={isAssigning || (fallbackTeam?.status === 'EN_ROUTE' && !recommendation)}
-                  onClick={handleSmartAssign}
+                  disabled={isAutoDispatching}
+                  onClick={async () => {
+                    if (!activeIncident?.id) return;
+                    setIsAutoDispatching(true);
+                    try {
+                      await triggerAutoDispatch(activeIncident.id);
+                    } catch (err) {
+                      console.error('Auto dispatch error:', err);
+                    } finally {
+                      setIsAutoDispatching(false);
+                    }
+                  }}
                   icon={
-                    isAssigning ? (
+                    isAutoDispatching ? (
                       <Cpu className="w-4 h-4 animate-spin" />
                     ) : (
-                      <CheckCircle2 className="w-4 h-4" />
+                      <Sparkles className="w-4 h-4 text-[#2DD4BF]" />
                     )
                   }
                 >
-                  {isAssigning
-                    ? 'DISPATCHING VIA MESH...'
-                    : 'ASSIGN RECOMMENDED TEAM'}
+                  {isAutoDispatching ? 'AUTO-DISPATCHING...' : 'AI AUTO-DISPATCH'}
                 </CyberButton>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    disabled={isAssigning || (fallbackTeam?.status === 'EN_ROUTE' && !recommendation)}
+                    onClick={handleSmartAssign}
+                    className="flex-1 px-3 py-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 font-mono text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Assign Single</span>
+                  </button>
+
+                  <button
+                    disabled={isCancellingDispatch}
+                    onClick={async () => {
+                      if (!activeIncident?.id) return;
+                      setIsCancellingDispatch(true);
+                      try {
+                        await cancelAutoDispatch(activeIncident.id, 'Operator manual abort');
+                      } catch (err) {
+                        console.error('Cancel dispatch error:', err);
+                      } finally {
+                        setIsCancellingDispatch(false);
+                      }
+                    }}
+                    title="Cancel and recall all active dispatches for this incident"
+                    className="px-3 py-2 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/40 text-red-300 hover:text-red-200 font-mono text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                  >
+                    <AlertOctagon className="w-3.5 h-3.5 text-red-400" />
+                    <span>Cancel</span>
+                  </button>
+                </div>
               </RoleGate>
+
+              <div className="flex items-center gap-2">
+                <button
+                  disabled={isAssigning || (fallbackTeam?.status === 'EN_ROUTE' && !recommendation)}
+                  onClick={handleSmartAssign}
+                  className="flex-1 px-3 py-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 border border-cyan-500/30 text-cyan-300 font-mono text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Assign Single</span>
+                </button>
+
+                <button
+                  disabled={isCancellingDispatch}
+                  onClick={async () => {
+                    if (!activeIncident?.id) return;
+                    setIsCancellingDispatch(true);
+                    try {
+                      await cancelAutoDispatch(activeIncident.id, 'Operator manual abort');
+                    } catch (err) {
+                      console.error('Cancel dispatch error:', err);
+                    } finally {
+                      setIsCancellingDispatch(false);
+                    }
+                  }}
+                  title="Cancel and recall all active dispatches for this incident"
+                  className="px-3 py-2 rounded-xl bg-red-500/15 hover:bg-red-500/25 border border-red-500/40 text-red-300 hover:text-red-200 font-mono text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                >
+                  <AlertOctagon className="w-3.5 h-3.5 text-red-400" />
+                  <span>Cancel</span>
+                </button>
+              </div>
 
               <button
                 onClick={() => navigate('/map')}

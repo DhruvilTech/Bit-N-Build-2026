@@ -1,5 +1,7 @@
 import mongoose from 'mongoose';
 import { IncidentModel } from '../models/incident.model.js';
+import { AssignmentModel } from '../models/assignment.model.js';
+import { ResourceModel } from '../models/resource.model.js';
 import { recordAuditLog } from './auditLog.service.js';
 import { NotFoundError, ValidationError, ForbiddenError } from '../utils/errors.js';
 import {
@@ -16,6 +18,8 @@ import {
   emitIncidentReviewed,
   emitIncidentOverridden,
   emitIncidentTimeline,
+  emitIncidentAutoDispatched,
+  emitIncidentDispatchCancelled,
 } from '../utils/socket.js';
 import {
   classifyIncidentWithAi,
@@ -24,6 +28,8 @@ import {
   clusterIncidentsWithAi,
   analyzeIncidentPipeline,
 } from './ai.service.js';
+import { generateRecommendations } from './recommendation.service.js';
+import { assignResourcesToIncident } from './assignment.service.js';
 import NotificationService from './notification.service.js';
 import EscalationService from './escalation.service.js';
 import { evaluateCriticalIncidentAlert } from './alert.service.js';
@@ -62,6 +68,149 @@ export const appendTimelineEvent = async (incidentId, eventData) => {
     console.error(`[Timeline Error] Failed to append event to #${incidentId}:`, err.message);
     return null;
   }
+};
+
+/**
+ * Autonomously selects optimal city-scoped emergency resources and dispatches them to an incident.
+ * Emits real-time notification with instant operator override/cancel capability.
+ */
+export const autoDispatchIncidentResources = async (incidentId, operator = null) => {
+  const incident = await getIncidentById(incidentId);
+
+  // If already assigned/responding or in terminal status, skip
+  if (['ASSIGNED', 'RESPONDING', 'ON_SCENE', 'RESOLVED', 'CANCELLED'].includes(incident.status)) {
+    return {
+      success: false,
+      message: `Incident #${incident.incidentId} is already in status '${incident.status}'.`,
+      incident,
+    };
+  }
+
+  // Generate recommendations scoped by city and requirements
+  const recommendationResult = await generateRecommendations(incident.incidentId, {
+    strategy: 'BALANCED',
+    limit: 2,
+    refresh: true,
+  });
+
+  const topRecs = recommendationResult.recommendations || [];
+  if (topRecs.length === 0) {
+    return {
+      success: false,
+      message: `No available resources found in ${incident.city || 'area'} matching operational requirements.`,
+      incident,
+      recommendations: [],
+    };
+  }
+
+  // Pick the top 1 or 2 resources
+  const resourceIdsToAssign = topRecs.slice(0, 2).map((r) => r.resourceId);
+
+  const assignResult = await assignResourcesToIncident(
+    incident.incidentId,
+    {
+      resourceIds: resourceIdsToAssign,
+      notes: `AI Autonomous Rapid Dispatch (${incident.city || 'City Metro'} Fleet)`,
+    },
+    operator || { id: 'AI-SYSTEM', name: 'AI Autonomous Dispatcher', role: 'SYSTEM' }
+  );
+
+  const autoDispatchPayload = {
+    incidentId: incident.incidentId,
+    title: incident.title,
+    city: incident.city || 'Bangalore',
+    severity: incident.severity,
+    priority: incident.priority,
+    type: incident.type,
+    assignedResources: resourceIdsToAssign,
+    recommendations: topRecs,
+    assignments: assignResult.assignments,
+    canCancel: true,
+    autoDispatchedAt: new Date().toISOString(),
+  };
+
+  emitIncidentAutoDispatched(autoDispatchPayload);
+
+  return {
+    success: true,
+    message: `AI successfully auto-dispatched ${resourceIdsToAssign.length} resource(s) from ${incident.city || 'Metro'} fleet.`,
+    ...autoDispatchPayload,
+  };
+};
+
+/**
+ * Cancels active resource dispatch on an incident, revoking assignments and returning
+ * units to AVAILABLE status with full timeline recording.
+ */
+export const cancelIncidentDispatch = async (incidentId, operator = null, reason = 'Auto-dispatch cancelled by operator') => {
+  const incident = await getIncidentById(incidentId);
+
+  // Find active assignments for this incident
+  const activeAssignments = await AssignmentModel.find({
+    incidentId: incident.incidentId,
+    status: { $in: ['ASSIGNED', 'DISPATCHED', 'EN_ROUTE'] },
+  });
+
+  const recalledResourceIds = [];
+
+  for (const asn of activeAssignments) {
+    recalledResourceIds.push(asn.resourceId);
+    await ResourceModel.updateOne(
+      { resourceId: asn.resourceId },
+      {
+        $set: {
+          status: 'AVAILABLE',
+          availability: true,
+          currentAssignment: null,
+          destinationLocation: null,
+        },
+      }
+    );
+
+    asn.status = 'CANCELLED';
+    asn.cancelledAt = new Date();
+    asn.notes = `${asn.notes} | ${reason}`;
+    await asn.save();
+  }
+
+  // Revert incident assignedResources
+  const prevStatus = incident.status;
+  incident.assignedResources = [];
+  if (['ASSIGNED', 'RESPONDING'].includes(incident.status)) {
+    incident.status = 'ACKNOWLEDGED';
+  }
+
+  const timelineEntry = {
+    timelineId: `TL-${Date.now()}-DISPCANCEL`,
+    event: 'FIELD_UPDATE',
+    previousStatus: prevStatus,
+    newStatus: incident.status,
+    changedBy: operator
+      ? { userId: String(operator.id || operator._id), name: operator.name, role: operator.role }
+      : { userId: 'OPERATOR-MANUAL', name: 'Duty Operator', role: 'OPERATOR' },
+    timestamp: new Date(),
+    reason,
+    description: `Resource dispatch cancelled by operator. Recalled units: ${recalledResourceIds.join(', ') || 'none'}.`,
+  };
+
+  incident.timeline.push(timelineEntry);
+  await incident.save();
+
+  emitIncidentDispatchCancelled({
+    incidentId: incident.incidentId,
+    recalledResources: recalledResourceIds,
+    reason,
+  });
+  emitIncidentTimeline(incident.incidentId, timelineEntry);
+  emitIncidentStatusChanged(incident);
+
+  return {
+    success: true,
+    incidentId: incident.incidentId,
+    recalledResources: recalledResourceIds,
+    message: `Dispatch cancelled successfully. ${recalledResourceIds.length} unit(s) recalled and returned to available staging.`,
+    status: incident.status,
+  };
 };
 
 // Safe Status Lifecycle Transition Rules

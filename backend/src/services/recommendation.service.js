@@ -166,6 +166,7 @@ export const generateRecommendations = async (
   const requirements = extractIncidentRequirements(incident);
   const incLat = incident.location?.latitude;
   const incLng = incident.location?.longitude;
+  const incCity = incident.city || incident.location?.city || '';
 
   // 4. Fetch available resources (exclude assigned/busy/offline and already assigned to this incident)
   const query = {
@@ -178,6 +179,7 @@ export const generateRecommendations = async (
   if (availableResources.length === 0) {
     const emptyResult = {
       incidentId,
+      city: incCity,
       strategy,
       requiredCapabilities: requirements.required,
       recommendations: [],
@@ -201,12 +203,18 @@ export const generateRecommendations = async (
     return emptyResult;
   }
 
-  // 5. Evaluate each resource against requirements & location
+  // 5. Evaluate each resource against requirements & location (scoped by City and Proximity)
   const scoredRecommendations = [];
 
   for (const res of availableResources) {
     const resLat = res.location?.latitude;
     const resLng = res.location?.longitude;
+    const resCity = res.city || '';
+
+    // Enforce city scoping: do not match resources across different cities
+    if (incCity && resCity && incCity.toLowerCase() !== resCity.toLowerCase()) {
+      continue;
+    }
 
     const distanceKm = calculateDistanceKm(incLat, incLng, resLat, resLng);
     if (distanceKm > maxDistanceKm) {
@@ -240,6 +248,7 @@ export const generateRecommendations = async (
       resourceId: res.resourceId,
       name: res.name,
       type: res.type,
+      city: res.city || incCity || 'Bangalore',
       capabilityMatch: matchResult.capabilityMatch,
       distanceKm,
       estimatedArrivalMinutes: etaMinutes,
@@ -345,6 +354,7 @@ export const generateRecommendations = async (
 
   return {
     incidentId,
+    city: incCity || 'Bangalore',
     strategy,
     requiredCapabilities: requirements.required,
     recommendations: topRecommendations,

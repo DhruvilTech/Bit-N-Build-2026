@@ -120,6 +120,19 @@ interface EmergencyContextType {
     activeEscalations: number;
     unreadNotifications: number;
   };
+  autoDispatchModalData: AutoDispatchModalData | null;
+  setAutoDispatchModalData: React.Dispatch<React.SetStateAction<AutoDispatchModalData | null>>;
+  triggerAutoDispatch: (incidentId: string) => Promise<any>;
+  cancelAutoDispatch: (incidentId: string, reason?: string) => Promise<any>;
+  closeAutoDispatchModal: () => void;
+}
+
+export interface AutoDispatchModalData {
+  isOpen: boolean;
+  incident: any;
+  dispatchedResources: any[];
+  message: string;
+  isCancelled?: boolean;
 }
 
 const EmergencyContext = createContext<EmergencyContextType | undefined>(undefined);
@@ -156,6 +169,7 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isSimulationMode, setIsSimulationMode] = useState<boolean>(false);
   const [focusLocation, setFocusLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [activeSimulation, setActiveSimulation] = useState<SimulationState | null>(null);
+  const [autoDispatchModalData, setAutoDispatchModalData] = useState<AutoDispatchModalData | null>(null);
   const socketRef = React.useRef<any>(null);
 
   // Socket.IO Real-Time Mesh Integration
@@ -658,6 +672,72 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         const id = payload.alertId || payload.id;
         setAlerts((prev) => prev.filter((a) => a.id !== id));
       });
+
+      // Autonomous AI City-Scoped Dispatch Event
+      socket.on('incident:autoDispatched', (payload: any) => {
+        soundFx.playDispatch();
+        const { incident, dispatchedResources, message } = payload;
+        if (incident) {
+          const adaptedList = adaptBackendIncidents([incident]);
+          if (adaptedList.length > 0) {
+            const adapted = adaptedList[0];
+            setIncidents((prev) => prev.map((i) => (i.id === adapted.id ? adapted : i)));
+          }
+        }
+        setAutoDispatchModalData({
+          isOpen: true,
+          incident: incident || payload,
+          dispatchedResources: dispatchedResources || [],
+          message: message || 'AI has automatically assigned city-scoped emergency units.',
+          isCancelled: false,
+        });
+        setNotifications((prev) => [
+          {
+            id: `NOTIF-AUTO-${Date.now()}`,
+            category: 'Critical',
+            title: `🤖 AI Auto-Dispatched: ${incident?.incidentId || incident?.id || 'Incident'}`,
+            message: `${dispatchedResources?.length || 0} unit(s) dispatched (${incident?.city || 'City'}). Operator override available.`,
+            timestamp: new Date().toTimeString().slice(0, 5),
+            read: false,
+            incidentId: incident?.incidentId || incident?.id,
+          },
+          ...prev,
+        ]);
+      });
+
+      // Dispatch Cancelled / Recalled Event
+      socket.on('incident:dispatchCancelled', (payload: any) => {
+        soundFx.playEmergencyAlert();
+        const { incident, recalledResources, message } = payload;
+        if (incident) {
+          const adaptedList = adaptBackendIncidents([incident]);
+          if (adaptedList.length > 0) {
+            const adapted = adaptedList[0];
+            setIncidents((prev) => prev.map((i) => (i.id === adapted.id ? adapted : i)));
+          }
+        }
+        setAutoDispatchModalData((prev) =>
+          prev
+            ? {
+                ...prev,
+                isCancelled: true,
+                message: message || 'Dispatch cancelled by operator. Units recalled to base.',
+              }
+            : null
+        );
+        setNotifications((prev) => [
+          {
+            id: `NOTIF-CANCEL-${Date.now()}`,
+            category: 'Critical',
+            title: `🛑 Dispatch Cancelled: ${incident?.incidentId || incident?.id || 'Incident'}`,
+            message: `${recalledResources?.length || 0} unit(s) recalled to base.`,
+            timestamp: new Date().toTimeString().slice(0, 5),
+            read: false,
+            incidentId: incident?.incidentId || incident?.id,
+          },
+          ...prev,
+        ]);
+      });
     } catch (err: any) {
       console.warn('Socket connection deferred:', err.message);
     }
@@ -1076,6 +1156,64 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     );
   }, []);
 
+  const closeAutoDispatchModal = useCallback(() => {
+    setAutoDispatchModalData((prev) => (prev ? { ...prev, isOpen: false } : null));
+  }, []);
+
+  const triggerAutoDispatch = useCallback(async (incidentId: string) => {
+    soundFx.playDispatch();
+    try {
+      const data = await incidentsApi.autoDispatch(incidentId);
+      if (data?.incident) {
+        const adaptedList = adaptBackendIncidents([data.incident]);
+        if (adaptedList.length > 0) {
+          const adapted = adaptedList[0];
+          setIncidents((prev) => prev.map((i) => (i.id === adapted.id ? adapted : i)));
+        }
+      }
+      setAutoDispatchModalData({
+        isOpen: true,
+        incident: data?.incident || { id: incidentId },
+        dispatchedResources: data?.dispatchedResources || [],
+        message: data?.message || 'Autonomous AI dispatch initiated for city-scoped units.',
+        isCancelled: false,
+      });
+      await syncWithBackend();
+      return data;
+    } catch (err: any) {
+      console.warn('triggerAutoDispatch error:', err.message);
+      throw err;
+    }
+  }, [syncWithBackend]);
+
+  const cancelAutoDispatch = useCallback(async (incidentId: string, reason?: string) => {
+    soundFx.playEmergencyAlert();
+    try {
+      const data = await incidentsApi.cancelDispatch(incidentId, reason || 'Operator cancelled dispatch');
+      if (data?.incident) {
+        const adaptedList = adaptBackendIncidents([data.incident]);
+        if (adaptedList.length > 0) {
+          const adapted = adaptedList[0];
+          setIncidents((prev) => prev.map((i) => (i.id === adapted.id ? adapted : i)));
+        }
+      }
+      setAutoDispatchModalData((prev) =>
+        prev
+          ? {
+              ...prev,
+              isCancelled: true,
+              message: data?.message || 'Dispatch revoked by operator. Units returning to staging base.',
+            }
+          : null
+      );
+      await syncWithBackend();
+      return data;
+    } catch (err: any) {
+      console.warn('cancelAutoDispatch error:', err.message);
+      throw err;
+    }
+  }, [syncWithBackend]);
+
   const createIncident = useCallback(async (data: any) => {
     soundFx.playDispatch();
     const created = await incidentsApi.create(data);
@@ -1088,6 +1226,30 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       });
       setActiveIncidentId(adapted.id);
     }
+
+    // Auto-dispatch city-scoped resources immediately per user requirement
+    try {
+      const targetId = created.incidentId || created.id || created._id;
+      if (targetId) {
+        const dispatchRes = await incidentsApi.autoDispatch(targetId);
+        if (dispatchRes?.incident) {
+          const updAdapted = adaptBackendIncidents([dispatchRes.incident]);
+          if (updAdapted.length > 0) {
+            setIncidents((prev) => prev.map((i) => (i.id === updAdapted[0].id ? updAdapted[0] : i)));
+          }
+        }
+        setAutoDispatchModalData({
+          isOpen: true,
+          incident: dispatchRes?.incident || created,
+          dispatchedResources: dispatchRes?.dispatchedResources || [],
+          message: dispatchRes?.message || 'AI has automatically assigned city-scoped emergency units.',
+          isCancelled: false,
+        });
+      }
+    } catch (dispatchErr: any) {
+      console.warn('Auto-dispatch on creation note:', dispatchErr.message);
+    }
+
     await syncWithBackend();
     return created;
   }, [syncWithBackend]);
@@ -1493,6 +1655,11 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     returnResourceToStation,
     dispatchIncidentSimulation,
     stats,
+    autoDispatchModalData,
+    setAutoDispatchModalData,
+    triggerAutoDispatch,
+    cancelAutoDispatch,
+    closeAutoDispatchModal,
   };
 
   return (

@@ -95,7 +95,8 @@ export const getHeatmap = async (req, res, next) => {
 
 export const getResourceShortages = async (req, res, next) => {
   try {
-    const shortages = await ShortageService.checkAndEmitShortageAlerts();
+    const { city } = req.query;
+    const shortages = await ShortageService.checkAndEmitShortageAlerts(city);
     return successResponse(res, 'Resource shortages analyzed successfully', shortages, 200);
   } catch (error) {
     next(error);

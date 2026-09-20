@@ -57,16 +57,25 @@ export class ShortageService {
 
   /**
    * Calculate real-time resource shortages: Demand - Available Supply
+   * Supports optional city-level scoping.
    */
-  static async calculateResourceShortages() {
-    // 1. Fetch active uncontained incidents
-    const activeIncidents = await IncidentModel.find({
+  static async calculateResourceShortages(filterCity = null) {
+    const incidentQuery = {
       status: { $in: ['NEW', 'ANALYZING', 'PRIORITIZED', 'ASSIGNED', 'RESPONDING', 'ON_SCENE', 'ESCALATED'] },
-    })
-      .select('incidentId title type severity priority status location')
+    };
+    if (filterCity && filterCity !== 'all') {
+      incidentQuery.$or = [
+        { city: new RegExp(`^${filterCity}$`, 'i') },
+        { 'location.address': new RegExp(filterCity, 'i') },
+      ];
+    }
+
+    // 1. Fetch active uncontained incidents
+    const activeIncidents = await IncidentModel.find(incidentQuery)
+      .select('incidentId title type severity priority status location city')
       .lean();
 
-    // 2. Aggregate demand across all active incidents
+    // 2. Aggregate demand across active incidents
     const demandByType = {};
     for (const inc of activeIncidents) {
       const reqs = this.getRequiredResourcesForIncident(inc);
@@ -92,10 +101,19 @@ export class ShortageService {
     }
 
     // 3. Aggregate available supply from ResourceModel
-    const availableResources = await ResourceModel.find({
+    const resourceQuery = {
       status: 'AVAILABLE',
-    })
-      .select('resourceId name type status')
+      currentAssignment: null,
+    };
+    if (filterCity && filterCity !== 'all') {
+      resourceQuery.$or = [
+        { city: new RegExp(`^${filterCity}$`, 'i') },
+        { 'location.address': new RegExp(filterCity, 'i') },
+      ];
+    }
+
+    const availableResources = await ResourceModel.find(resourceQuery)
+      .select('resourceId name type status city')
       .lean();
 
     const supplyByType = {};
@@ -141,6 +159,8 @@ export class ShortageService {
       totalDemand,
       totalSupply,
       activeIncidentsCount: activeIncidents.length,
+      selectedCity: filterCity || 'all',
+      availableCities: ['Bangalore', 'Delhi NCR', 'Mumbai'],
       evaluatedAt: new Date().toISOString(),
     };
   }
@@ -148,8 +168,8 @@ export class ShortageService {
   /**
    * Check shortage thresholds and emit alert with 15-minute deduplication cooldown
    */
-  static async checkAndEmitShortageAlerts() {
-    const analysis = await this.calculateResourceShortages();
+  static async checkAndEmitShortageAlerts(filterCity = null) {
+    const analysis = await this.calculateResourceShortages(filterCity);
     const criticalShortages = analysis.shortages.filter((s) => s.shortage > 0 && (s.severity === 'CRITICAL' || s.severity === 'HIGH'));
 
     if (criticalShortages.length === 0) {

@@ -21,6 +21,8 @@ import {
   overrideIncident,
   addIncidentReport,
   fetchRelatedIncidents,
+  autoDispatchIncident,
+  cancelIncidentDispatchController,
 } from '../controllers/incident.controller.js';
 import { getIncidentEscalations } from '../controllers/escalation.controller.js';
 import { validate } from '../middleware/validate.middleware.js';
@@ -271,6 +273,22 @@ router.get(
   authenticate,
   authorize('ADMIN', 'OPERATOR', 'FIELD_COORDINATOR', 'MEDICAL_COORDINATOR'),
   getIncidentResponseMetrics
+);
+
+// 19. Autonomous AI Dispatch to Incident
+router.post(
+  '/:id/auto-dispatch',
+  authenticate,
+  authorize('ADMIN', 'OPERATOR', 'FIELD_COORDINATOR'),
+  autoDispatchIncident
+);
+
+// 20. Cancel / Revoke Dispatch on Incident
+router.post(
+  '/:id/cancel-dispatch',
+  authenticate,
+  authorize('ADMIN', 'OPERATOR', 'FIELD_COORDINATOR'),
+  cancelIncidentDispatchController
 );
 
 export default router;
