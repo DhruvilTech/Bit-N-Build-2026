@@ -64,7 +64,7 @@ router.patch(
 router.patch(
   '/:id/location',
   authenticate,
-  authorize('ADMIN', 'OPERATOR', 'FIELD_COORDINATOR'),
+  authorize('ADMIN', 'OPERATOR', 'FIELD_COORDINATOR', 'RESPONDER'),
   validate(updateTeamLocationSchema),
   updateLocation
 );

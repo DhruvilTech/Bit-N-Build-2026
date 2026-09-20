@@ -14,6 +14,7 @@ import assignmentRoutes from './assignment.routes.js';
 import stationRoutes from './station.routes.js';
 import routeRoutes from './route.routes.js';
 import simulationRoutes from './simulation.routes.js';
+import alertRoutes from './alert.routes.js';
 
 const apiRouter = Router();
 
@@ -32,5 +33,6 @@ apiRouter.use('/assignments', assignmentRoutes);
 apiRouter.use('/stations', stationRoutes);
 apiRouter.use('/routes', routeRoutes);
 apiRouter.use('/simulation', simulationRoutes);
+apiRouter.use('/alerts', alertRoutes);
 
 export default apiRouter;

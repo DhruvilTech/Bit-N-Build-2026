@@ -59,6 +59,10 @@ class AudioManager {
     }
   }
 
+  playWarning() {
+    this.playEmergencyAlert();
+  }
+
   playEmergencyAlert() {
     const ctx = this.getContext();
     if (!ctx) return;

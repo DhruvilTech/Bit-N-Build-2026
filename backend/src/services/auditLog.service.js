@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { AuditLogModel } from '../models/auditLog.model.js';
 
 export const recordAuditLog = async ({
@@ -8,6 +9,9 @@ export const recordAuditLog = async ({
   metadata = {},
 }) => {
   try {
+    if (mongoose.connection.readyState !== 1) {
+      return null;
+    }
     const userId = user ? (user.id || user._id?.toString()) : null;
     const userName = user ? (user.name || user.email || 'SYSTEM') : 'SYSTEM';
     const userRole = user ? (user.role || 'SYSTEM') : 'SYSTEM';

@@ -99,6 +99,14 @@ const teamSchema = new mongoose.Schema(
         },
       },
     },
+    currentLocation: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    locationUpdatedAt: {
+      type: Date,
+      default: Date.now,
+    },
     capabilities: [
       {
         type: String,

@@ -9,14 +9,39 @@ export const createAssignmentsSchema = z.object({
   }),
 });
 
+export const createAssignmentSchema = z.object({
+  body: z
+    .object({
+      incidentId: z.string().min(1, 'Incident ID is required'),
+      teamId: z.string().optional(),
+      resourceId: z.string().optional(),
+      notes: z.string().max(500, 'Notes cannot exceed 500 characters').optional(),
+    })
+    .refine((data) => Boolean(data.teamId || data.resourceId), {
+      message: 'Either teamId or resourceId must be provided',
+    }),
+});
+
+export const cancelAssignmentSchema = z.object({
+  params: z
+    .object({
+      id: z.string().optional(),
+    })
+    .optional(),
+  body: z.object({
+    reason: z.string().min(1, 'Reason for cancellation is required'),
+    notes: z.string().max(500, 'Notes cannot exceed 500 characters').optional(),
+  }),
+});
+
 export const updateAssignmentStatusSchema = z.object({
   params: z.object({
     id: z.string().min(1, 'Assignment ID is required'),
   }),
   body: z.object({
-    status: z.enum(['DISPATCHED', 'EN_ROUTE', 'ON_SCENE', 'COMPLETED', 'CANCELLED'], {
+    status: z.enum(['DISPATCHED', 'EN_ROUTE', 'ARRIVED', 'ON_SCENE', 'COMPLETED', 'CANCELLED'], {
       errorMap: () => ({
-        message: 'Status must be one of: DISPATCHED, EN_ROUTE, ON_SCENE, COMPLETED, CANCELLED',
+        message: 'Status must be one of: DISPATCHED, EN_ROUTE, ARRIVED, ON_SCENE, COMPLETED, CANCELLED',
       }),
     }),
     notes: z.string().max(500, 'Notes cannot exceed 500 characters').optional(),

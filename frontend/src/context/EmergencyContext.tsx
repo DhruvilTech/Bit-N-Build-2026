@@ -32,6 +32,7 @@ import {
   stationsApi,
   routesApi,
   simulationApi,
+  alertsApi,
   getToken,
 } from '../services/api';
 import {
@@ -500,6 +501,95 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           );
         }
       });
+
+      // Phase 12: Team Live GPS Location
+      socket.on('team:location', (payload: any) => {
+        setTeams((prev) =>
+          prev.map((t) => {
+            if (t.id === payload.teamId || t.name?.includes(payload.teamId)) {
+              return {
+                ...t,
+                lat: payload.latitude,
+                lng: payload.longitude,
+              };
+            }
+            return t;
+          })
+        );
+      });
+
+      // Phase 13: Assignment Dynamic ETA Update
+      socket.on('assignment:etaUpdated', (payload: any) => {
+        setTeams((prev) =>
+          prev.map((t) => {
+            if (t.id === payload.teamId) {
+              return {
+                ...t,
+                etaMinutes: payload.estimatedArrivalMinutes,
+              };
+            }
+            return t;
+          })
+        );
+      });
+
+      // Phase 14: SLA Latency Delay Alert
+      socket.on('response:delayed', (payload: any) => {
+        soundFx.playWarning();
+        setNotifications((prev) => [
+          {
+            id: `NOTIF-DELAY-${Date.now()}`,
+            category: 'Critical',
+            title: `⚠️ Response Delayed: Team ${payload.teamId}`,
+            message: `Unit is delayed by ${payload.delayMinutes} min past expected SLA for incident #${payload.incidentId}.`,
+            timestamp: new Date().toTimeString().slice(0, 5),
+            read: false,
+            incidentId: payload.incidentId,
+          },
+          ...prev,
+        ]);
+      });
+
+      // Phase 15: Emergency Alert Mesh
+      socket.on('alert:new', (payload: any) => {
+        soundFx.playEmergencyAlert();
+        const newAlert: AlertItem = {
+          id: payload.alertId || payload.id,
+          incidentId: payload.incidentId,
+          severity:
+            payload.type === 'RESPONSE_DELAY'
+              ? 'RESPONSE DELAY'
+              : payload.type === 'RESOURCE_SHORTAGE'
+              ? 'RESOURCE SHORTAGE'
+              : payload.severity === 'CRITICAL'
+              ? 'CRITICAL'
+              : 'WARNING',
+          title: payload.title,
+          message: payload.message,
+          timestamp: new Date(payload.createdAt || Date.now()).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+          acknowledged: payload.status === 'ACKNOWLEDGED' || payload.status === 'RESOLVED',
+          requiresEscalation: payload.type === 'ESCALATION_REQUIRED',
+        };
+        setAlerts((prev) => {
+          if (prev.some((a) => a.id === newAlert.id)) return prev;
+          return [newAlert, ...prev];
+        });
+      });
+
+      socket.on('alert:acknowledged', (payload: any) => {
+        const id = payload.alertId || payload.id;
+        setAlerts((prev) =>
+          prev.map((a) => (a.id === id ? { ...a, acknowledged: true } : a))
+        );
+      });
+
+      socket.on('alert:resolved', (payload: any) => {
+        const id = payload.alertId || payload.id;
+        setAlerts((prev) => prev.filter((a) => a.id !== id));
+      });
     } catch (err: any) {
       console.warn('Socket connection deferred:', err.message);
     }
@@ -515,7 +605,7 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (!token) return;
 
     try {
-      const [incidentsRes, teamsRes, facilitiesRes, resourcesRes, stationsRes, simRes, notifsRes, escalationsRes] = await Promise.allSettled([
+      const [incidentsRes, teamsRes, facilitiesRes, resourcesRes, stationsRes, simRes, notifsRes, escalationsRes, alertsRes] = await Promise.allSettled([
         incidentsApi.getAll(),
         teamsApi.getAll(),
         facilitiesApi.getAll(),
@@ -524,6 +614,7 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         simulationApi.getStatus(),
         notificationsApi.getAll(),
         escalationsApi.getActive(),
+        alertsApi.getAll(),
       ]);
 
       if (incidentsRes.status === 'fulfilled' && Array.isArray(incidentsRes.value) && incidentsRes.value.length > 0) {
@@ -577,6 +668,27 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
       if (escalationsRes.status === 'fulfilled' && Array.isArray(escalationsRes.value)) {
         setEscalations(escalationsRes.value);
+      }
+
+      if (alertsRes.status === 'fulfilled' && Array.isArray(alertsRes.value) && alertsRes.value.length > 0) {
+        const adaptedAlerts: AlertItem[] = alertsRes.value.map((a: any) => ({
+          id: a.alertId || a.id,
+          incidentId: a.incidentId,
+          severity:
+            a.type === 'RESPONSE_DELAY'
+              ? 'RESPONSE DELAY'
+              : a.type === 'RESOURCE_SHORTAGE'
+              ? 'RESOURCE SHORTAGE'
+              : a.severity === 'CRITICAL'
+              ? 'CRITICAL'
+              : 'WARNING',
+          title: a.title,
+          message: a.message,
+          timestamp: new Date(a.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          acknowledged: a.status === 'ACKNOWLEDGED' || a.status === 'RESOLVED',
+          requiresEscalation: a.type === 'ESCALATION_REQUIRED',
+        }));
+        setAlerts(adaptedAlerts);
       }
 
       setIsLiveBackend(true);
