@@ -173,6 +173,22 @@ const resourceSchema = new mongoose.Schema(
       index: true,
     },
     assignmentHistory: [assignmentRecordSchema],
+    isSimulation: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    simulationId: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    city: {
+      type: String,
+      trim: true,
+      index: true,
+      default: 'Bangalore',
+    },
     metadata: {
       type: mongoose.Schema.Types.Mixed,
       default: {},
@@ -226,6 +242,19 @@ resourceSchema.pre('save', function (next) {
     };
   }
 
+  // Infer city if not explicitly provided
+  if (!this.city) {
+    const addr = (this.location?.address || this.currentLocation?.address || '').toLowerCase();
+    const lat = this.location?.latitude || this.currentLocation?.latitude;
+    if (addr.includes('bangalore') || addr.includes('bengaluru') || (lat && lat >= 12.5 && lat <= 13.5)) {
+      this.city = 'Bangalore';
+    } else if (addr.includes('mumbai') || addr.includes('thane') || (lat && lat >= 18.5 && lat <= 19.5)) {
+      this.city = 'Mumbai';
+    } else {
+      this.city = 'Delhi NCR';
+    }
+  }
+
   this.availability = this.status === 'AVAILABLE' && !this.currentAssignment;
   next();
 });
@@ -233,6 +262,7 @@ resourceSchema.pre('save', function (next) {
 resourceSchema.index({ 'location.geometry': '2dsphere' });
 resourceSchema.index({ type: 1, status: 1 });
 resourceSchema.index({ availability: 1, type: 1 });
+resourceSchema.index({ city: 1, type: 1, status: 1 });
 resourceSchema.index({ 'capabilities': 1 });
 
 export const ResourceModel = mongoose.model('Resource', resourceSchema);

@@ -446,6 +446,35 @@ export const incidentsApi = {
     }>(`/incidents/${id}/response-metrics`);
     return res.data;
   },
+
+  autoDispatch: async (id: string) => {
+    const res = await apiRequest<{
+      status: string;
+      data: {
+        incident: any;
+        dispatchedResources: any[];
+        message: string;
+      };
+    }>(`/incidents/${id}/auto-dispatch`, {
+      method: 'POST',
+    });
+    return res.data;
+  },
+
+  cancelDispatch: async (id: string, reason?: string) => {
+    const res = await apiRequest<{
+      status: string;
+      data: {
+        incident: any;
+        recalledResources: any[];
+        message: string;
+      };
+    }>(`/incidents/${id}/cancel-dispatch`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+    return res.data;
+  },
 };
 
 // Resource Assignments & Lifecycle Tracking API (Phases 8-14)
@@ -700,8 +729,68 @@ export const routesApi = {
   },
 };
 
-// Simulation API
+// Simulation Engine Interfaces & API
+export interface SimulationEvent {
+  step: number;
+  type: string;
+  timestamp: string;
+  status: string;
+  entityType: string;
+  entityId?: string;
+  payload?: any;
+  message: string;
+}
+
+export interface SimulationState {
+  id: string;
+  simulationId: string;
+  scenario: string;
+  status: 'CREATED' | 'RUNNING' | 'PAUSED' | 'COMPLETED' | 'STOPPED' | 'FAILED';
+  currentStep: number;
+  totalSteps: number;
+  incidentIds: string[];
+  eventHistory: SimulationEvent[];
+  configuration: {
+    speed: number;
+    autoRun: boolean;
+    stepDelayMs: number;
+  };
+  startedAt?: string;
+  stoppedAt?: string;
+  completedAt?: string;
+}
+
+// Simulation API (Phases 26-27 & Legacy GPS)
 export const simulationApi = {
+  // Phase 26 & 27 Simulation Engine
+  start: async (data: { scenario: string; speed?: number; autoRun?: boolean; stepDelayMs?: number }): Promise<SimulationState> => {
+    const res = await apiRequest<{ success: boolean; simulation: SimulationState }>('/simulation/start', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return res.simulation;
+  },
+
+  advance: async (simulationId: string): Promise<SimulationState> => {
+    const res = await apiRequest<{ success: boolean; simulation: SimulationState }>(`/simulation/${simulationId}/advance`, {
+      method: 'POST',
+    });
+    return res.simulation;
+  },
+
+  stop: async (simulationId: string): Promise<SimulationState> => {
+    const res = await apiRequest<{ success: boolean; simulation: SimulationState }>(`/simulation/${simulationId}/stop`, {
+      method: 'POST',
+    });
+    return res.simulation;
+  },
+
+  getById: async (simulationId: string): Promise<SimulationState> => {
+    const res = await apiRequest<{ success: boolean; simulation: SimulationState }>(`/simulation/${simulationId}`);
+    return res.simulation;
+  },
+
+  // Legacy GPS Movement Simulation
   getStatus: async () => {
     const res = await apiRequest<{
       status: string;
@@ -852,6 +941,11 @@ export const facilitiesApi = {
     });
     return res.data?.facility || res.data;
   },
+
+  getCapacity: async (): Promise<HospitalCapacityItem[]> => {
+    const res = await apiRequest<{ success: boolean; data: HospitalCapacityItem[] }>('/facilities/capacity');
+    return res.data;
+  },
 };
 
 // Audit Logs API
@@ -863,6 +957,9 @@ export interface AuditLogItem {
   action: string;
   entityType: string;
   entityId?: string;
+  previousValue?: any;
+  newValue?: any;
+  simulationId?: string;
   metadata?: Record<string, any>;
   ipAddress?: string;
   timestamp: string;
@@ -1019,6 +1116,8 @@ export interface AiChatResult {
     status: string;
     link?: string | null;
   }>;
+  executedTools?: string[];
+  verifiedData?: boolean;
   sources: string[];
   generatedAt: string;
 }
@@ -1050,6 +1149,7 @@ export const aiApi = {
     return res.data;
   },
 };
+
 
 // Phase 15: Alerts API
 export const alertsApi = {
@@ -1120,6 +1220,182 @@ export const systemHealthApi = {
       status: string;
       data: SystemHealthDetailed;
     }>('/health/detailed');
+    return res.data;
+  },
+};
+
+// Analytics Interfaces & API (Phases 22-28)
+export interface AnalyticsOverview {
+  period: string;
+  totalIncidents: number;
+  activeIncidents: number;
+  criticalIncidents: number;
+  resolvedIncidents: number;
+  averageArrivalTime: string;
+  averageArrivalMinutes: number;
+  aiTriageAccuracy: number;
+  deduplicationRate: number;
+  slaAdherence: number;
+  dispatchLatency: string;
+  generatedAt: string;
+}
+
+export interface AnalyticsCategory {
+  name: string;
+  value: number;
+  color: string;
+}
+
+export interface AnalyticsSeverityItem {
+  level: string;
+  count: number;
+  color: string;
+}
+
+export interface AnalyticsResponseTime {
+  hourlyData: Array<{ hour: string; incidents: number; resolved: number }>;
+  responseTimeData: Array<{ zone: string; actual: number; target: number }>;
+}
+
+export interface AnalyticsFleetItem {
+  category: string;
+  active: number;
+  reserve: number;
+  activeCount?: number;
+  reserveCount?: number;
+  totalCount?: number;
+}
+
+export interface HeatmapPoint {
+  lat: number;
+  lng: number;
+  weight: number;
+  incidentId: string;
+  title: string;
+  type: string;
+  severity: string;
+  status: string;
+}
+
+export interface ResourceShortageItem {
+  resourceType: string;
+  required: number;
+  available: number;
+  shortage: number;
+  severity: 'NORMAL' | 'HIGH' | 'CRITICAL';
+}
+
+export interface ResourceShortageAnalysis {
+  shortages: ResourceShortageItem[];
+  criticalCount: number;
+  totalDemand: number;
+  totalSupply: number;
+  activeIncidentsCount: number;
+  evaluatedAt: string;
+}
+
+export interface HospitalCapacityItem {
+  id: string;
+  name: string;
+  totalBeds: number;
+  availableBeds: number;
+  occupiedBeds: number;
+  occupancyPercentage: number;
+  divertStatus: boolean;
+  emergencyStatus: string;
+  status?: string;
+  icu: {
+    total: number;
+    available: number;
+    occupied: number;
+  } | null;
+  burn: {
+    total: number;
+    available: number;
+    occupied: number;
+  } | null;
+  location: string;
+}
+
+export const analyticsApi = {
+  getMetrics: async (): Promise<any> => {
+    const res = await apiRequest<{ success: boolean; data: any }>('/analytics/metrics');
+    return res.data;
+  },
+
+  getOverview: async (params?: { period?: string; from?: string; to?: string }): Promise<AnalyticsOverview> => {
+    const qs = new URLSearchParams();
+    if (params?.period) qs.set('period', params.period);
+    if (params?.from) qs.set('from', params.from);
+    if (params?.to) qs.set('to', params.to);
+    const qStr = qs.toString();
+    const res = await apiRequest<{ success: boolean; data: AnalyticsOverview }>(`/analytics/overview${qStr ? `?${qStr}` : ''}`);
+    return res.data;
+  },
+
+  getIncidents: async (params?: { period?: string; from?: string; to?: string }): Promise<{ total: number; categories: AnalyticsCategory[] }> => {
+    const qs = new URLSearchParams();
+    if (params?.period) qs.set('period', params.period);
+    if (params?.from) qs.set('from', params.from);
+    if (params?.to) qs.set('to', params.to);
+    const qStr = qs.toString();
+    const res = await apiRequest<{ success: boolean; data: { total: number; categories: AnalyticsCategory[] } }>(`/analytics/incidents${qStr ? `?${qStr}` : ''}`);
+    return res.data;
+  },
+
+  getSeverity: async (params?: { period?: string; from?: string; to?: string }): Promise<{ severity: AnalyticsSeverityItem[]; total: number }> => {
+    const qs = new URLSearchParams();
+    if (params?.period) qs.set('period', params.period);
+    const qStr = qs.toString();
+    const res = await apiRequest<{ success: boolean; data: { severity: AnalyticsSeverityItem[]; total: number } }>(`/analytics/severity${qStr ? `?${qStr}` : ''}`);
+    return res.data;
+  },
+
+  getResponseTime: async (params?: { period?: string; from?: string; to?: string }): Promise<AnalyticsResponseTime> => {
+    const qs = new URLSearchParams();
+    if (params?.period) qs.set('period', params.period);
+    if (params?.from) qs.set('from', params.from);
+    if (params?.to) qs.set('to', params.to);
+    const qStr = qs.toString();
+    const res = await apiRequest<{ success: boolean; data: AnalyticsResponseTime }>(`/analytics/response-time${qStr ? `?${qStr}` : ''}`);
+    return res.data;
+  },
+
+  getResources: async (): Promise<{ fleetData: AnalyticsFleetItem[] }> => {
+    const res = await apiRequest<{ success: boolean; data: { fleetData: AnalyticsFleetItem[] } }>('/analytics/resources');
+    return res.data;
+  },
+
+  getDelays: async (params?: { period?: string; from?: string; to?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.period) qs.set('period', params.period);
+    const qStr = qs.toString();
+    const res = await apiRequest<{ success: boolean; data: any }>(`/analytics/delays${qStr ? `?${qStr}` : ''}`);
+    return res.data;
+  },
+
+  getAreas: async (params?: { period?: string; from?: string; to?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.period) qs.set('period', params.period);
+    const qStr = qs.toString();
+    const res = await apiRequest<{ success: boolean; data: any }>(`/analytics/areas${qStr ? `?${qStr}` : ''}`);
+    return res.data;
+  },
+
+  getHeatmap: async (params?: { from?: string; to?: string; type?: string; severity?: string }): Promise<HeatmapPoint[]> => {
+    const qs = new URLSearchParams();
+    if (params?.from) qs.set('from', params.from);
+    if (params?.to) qs.set('to', params.to);
+    if (params?.type) qs.set('type', params.type);
+    if (params?.severity) qs.set('severity', params.severity);
+    const qStr = qs.toString();
+    const res = await apiRequest<{ success: boolean; data: HeatmapPoint[] }>(`/analytics/heatmap${qStr ? `?${qStr}` : ''}`);
+    return res.data;
+  },
+
+  getResourceShortages: async (city?: string): Promise<ResourceShortageAnalysis> => {
+    const qs = city && city !== 'ALL' ? `?city=${encodeURIComponent(city)}` : '';
+    const res = await apiRequest<{ success: boolean; data: ResourceShortageAnalysis }>(`/analytics/resource-shortages${qs}`);
     return res.data;
   },
 };

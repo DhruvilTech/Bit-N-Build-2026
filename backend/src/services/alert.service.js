@@ -5,7 +5,7 @@ import { AssignmentModel } from '../models/assignment.model.js';
 import { ResourceModel } from '../models/resource.model.js';
 import { ResponseTeamModel } from '../models/team.model.js';
 import { recordAuditLog } from './auditLog.service.js';
-import { emitAlertNew, emitAlertAcknowledged, emitAlertResolved } from '../utils/socket.js';
+import { emitAlertNew, emitAlertAcknowledged, emitAlertResolved, emitIncidentTimeline } from '../utils/socket.js';
 import { recordTimelineEvent } from './timeline.service.js';
 import { NotFoundError, BadRequestError } from '../utils/errors.js';
 import { env } from '../config/env.js';
@@ -85,12 +85,13 @@ export const createAlert = async ({
   emitAlertNew(alert);
 
   if (incidentId) {
+    const eventType = (type === 'DELAY' || type === 'RESPONSE_DELAY' || type === 'SLA_BREACH') ? 'RESPONSE_DELAYED' : 'ALERT_CREATED';
     recordTimelineEvent({
       incidentId,
-      eventType: 'ALERT_CREATED',
+      eventType,
       actor: user?.name || 'ALERT-SYSTEM',
       actorRole: user?.role || 'SYSTEM',
-      title: `Alert: ${title || type}`,
+      title: `Alert [${severity}]: ${title || type}`,
       description: message,
       metadata: { alertId: alert.alertId, type, severity },
     }).catch(() => {});

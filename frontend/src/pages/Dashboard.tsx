@@ -2,7 +2,9 @@ import React from 'react';
 import { MetricCards } from '../components/dashboard/MetricCards';
 import { EmergencyMap } from '../components/map/EmergencyMap';
 import { LiveIncidentFeed } from '../components/dashboard/LiveIncidentFeed';
+import { RoleBanner } from '../components/dashboard/RoleBanner';
 import { useEmergency } from '../context/EmergencyContext';
+import { useAuth } from '../context/AuthContext';
 import { TextScramble } from '../components/motion/TextScramble';
 import {
   Sparkles,
@@ -10,6 +12,13 @@ import {
   Radio,
   Flame,
   AlertOctagon,
+  Activity,
+  HeartPulse,
+  MapPin,
+  Truck,
+  BarChart3,
+  Clock,
+  ShieldCheck,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -19,10 +28,150 @@ export const Dashboard: React.FC = () => {
     stats,
     setIsSimulatorModalOpen,
   } = useEmergency();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
+  // Build role-specific quick action buttons
+  const getQuickActions = () => {
+    const role = user?.role ?? 'VIEWER';
+
+    if (role === 'ADMIN' || role === 'OPERATOR') {
+      return {
+        title: 'RAPID COMMAND ACTIONS',
+        actions: [
+          {
+            label: 'Simulate Catastrophic Incident',
+            icon: <Flame className="w-4 h-4 text-red-600 dark:text-[#FB4A4A] group-hover:scale-110 transition-transform" />,
+            onClick: () => setIsSimulatorModalOpen(true),
+            className: 'bg-red-50 hover:bg-red-100 dark:bg-red-950/30 dark:hover:bg-red-900/40 border-red-300 dark:border-red-500/40 text-red-900 dark:text-red-300',
+          },
+          {
+            label: 'Auto-Recommend Units',
+            icon: <Sparkles className="w-4 h-4 text-teal-600 dark:text-[#2DD4BF]" />,
+            onClick: () => navigate('/resources'),
+            className: 'bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.03] dark:hover:bg-white/5 border-slate-300 dark:border-white/10 text-slate-900 dark:text-slate-200',
+          },
+          {
+            label: 'Delayed Response Monitor',
+            icon: <AlertOctagon className="w-4 h-4 text-amber-600 dark:text-[#F5A623]" />,
+            onClick: () => navigate('/alerts'),
+            className: 'bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.03] dark:hover:bg-white/5 border-slate-300 dark:border-white/10 text-slate-900 dark:text-slate-200',
+          },
+        ],
+      };
+    }
+
+    if (role === 'FIELD_COORDINATOR') {
+      return {
+        title: 'FIELD COMMANDER ACTIONS',
+        actions: [
+          {
+            label: 'View Active Incidents',
+            icon: <ShieldCheck className="w-4 h-4 text-teal-600 dark:text-[#2DD4BF]" />,
+            onClick: () => navigate('/incidents'),
+            className: 'bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/30 dark:hover:bg-teal-900/40 border-teal-300 dark:border-teal-500/40 text-teal-900 dark:text-teal-200',
+          },
+          {
+            label: 'Track Field Resources',
+            icon: <Truck className="w-4 h-4 text-blue-600 dark:text-[#60A5FA]" />,
+            onClick: () => navigate('/resources'),
+            className: 'bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.03] dark:hover:bg-white/5 border-slate-300 dark:border-white/10 text-slate-900 dark:text-slate-200',
+          },
+          {
+            label: 'View Escalation Alerts',
+            icon: <AlertOctagon className="w-4 h-4 text-amber-600 dark:text-[#F5A623]" />,
+            onClick: () => navigate('/alerts'),
+            className: 'bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.03] dark:hover:bg-white/5 border-slate-300 dark:border-white/10 text-slate-900 dark:text-slate-200',
+          },
+        ],
+      };
+    }
+
+    if (role === 'MEDICAL_COORDINATOR') {
+      return {
+        title: 'MEDICAL LIAISON ACTIONS',
+        actions: [
+          {
+            label: 'Hospital Capacity Status',
+            icon: <HeartPulse className="w-4 h-4 text-pink-600 dark:text-[#F472B6] group-hover:scale-110 transition-transform" />,
+            onClick: () => navigate('/resources'),
+            className: 'bg-pink-50 hover:bg-pink-100 dark:bg-pink-950/30 dark:hover:bg-pink-900/40 border-pink-300 dark:border-pink-500/40 text-pink-900 dark:text-pink-200',
+          },
+          {
+            label: 'Medical Resource Fleet',
+            icon: <Truck className="w-4 h-4 text-teal-600 dark:text-[#2DD4BF]" />,
+            onClick: () => navigate('/resources'),
+            className: 'bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.03] dark:hover:bg-white/5 border-slate-300 dark:border-white/10 text-slate-900 dark:text-slate-200',
+          },
+          {
+            label: 'View Incident Reports',
+            icon: <Activity className="w-4 h-4 text-purple-600 dark:text-[#A78BFA]" />,
+            onClick: () => navigate('/incidents'),
+            className: 'bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.03] dark:hover:bg-white/5 border-slate-300 dark:border-white/10 text-slate-900 dark:text-slate-200',
+          },
+        ],
+      };
+    }
+
+    if (role === 'RESPONDER') {
+      return {
+        title: 'FIELD UNIT ACTIONS',
+        actions: [
+          {
+            label: 'My Active Assignment',
+            icon: <MapPin className="w-4 h-4 text-blue-600 dark:text-[#60A5FA] group-hover:scale-110 transition-transform" />,
+            onClick: () => navigate('/incidents'),
+            className: 'bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/30 dark:hover:bg-blue-900/40 border-blue-300 dark:border-blue-500/40 text-blue-900 dark:text-blue-200',
+          },
+          {
+            label: 'My Unit Status',
+            icon: <Radio className="w-4 h-4 text-teal-600 dark:text-[#2DD4BF]" />,
+            onClick: () => navigate('/teams'),
+            className: 'bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.03] dark:hover:bg-white/5 border-slate-300 dark:border-white/10 text-slate-900 dark:text-slate-200',
+          },
+          {
+            label: 'Tactical Map View',
+            icon: <Activity className="w-4 h-4 text-purple-600 dark:text-[#A78BFA]" />,
+            onClick: () => navigate('/map'),
+            className: 'bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.03] dark:hover:bg-white/5 border-slate-300 dark:border-white/10 text-slate-900 dark:text-slate-200',
+          },
+        ],
+      };
+    }
+
+    // VIEWER — read-only shortcuts
+    return {
+      title: 'OBSERVATION SHORTCUTS',
+      actions: [
+        {
+          label: 'Live Incident Map',
+          icon: <MapPin className="w-4 h-4 text-teal-600 dark:text-[#2DD4BF]" />,
+          onClick: () => navigate('/map'),
+          className: 'bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.03] dark:hover:bg-white/5 border-slate-300 dark:border-white/10 text-slate-900 dark:text-slate-200',
+        },
+        {
+          label: 'Analytics Dashboard',
+          icon: <BarChart3 className="w-4 h-4 text-purple-600 dark:text-[#A78BFA]" />,
+          onClick: () => navigate('/analytics'),
+          className: 'bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.03] dark:hover:bg-white/5 border-slate-300 dark:border-white/10 text-slate-900 dark:text-slate-200',
+        },
+        {
+          label: 'View Notifications',
+          icon: <Clock className="w-4 h-4 text-amber-600 dark:text-[#F5A623]" />,
+          onClick: () => navigate('/notifications'),
+          className: 'bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.03] dark:hover:bg-white/5 border-slate-300 dark:border-white/10 text-slate-900 dark:text-slate-200',
+        },
+      ],
+    };
+  };
+
+  const quickActions = getQuickActions();
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {/* Role Identity & Mission Context Banner */}
+      <RoleBanner />
+
       {/* Top 6 KPI Metric Cards */}
       <MetricCards />
 
@@ -54,7 +203,7 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Lower Operations Section: AI Situational Summary + Quick Response Shortcuts */}
+      {/* Lower Operations Section: AI Situational Summary + Role-specific Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Autonomous Response AI Summary Card */}
         <div className="lg:col-span-8 p-6 rounded-[18px] bg-white dark:bg-[rgba(11,14,19,0.78)] border border-purple-500/30 dark:border-[rgba(124,92,252,0.35)] backdrop-blur-[18px] relative overflow-hidden shadow-lg dark:shadow-[0_10px_40px_rgba(0,0,0,0.4)]">
@@ -120,47 +269,28 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Quick Rapid Action Shortcuts */}
+        {/* Role-specific Quick Action Panel */}
         <div className="lg:col-span-4 p-6 rounded-[18px] bg-white dark:bg-[rgba(11,14,19,0.78)] border border-slate-300 dark:border-white/10 backdrop-blur-[18px] flex flex-col justify-between shadow-lg dark:shadow-[0_10px_40px_rgba(0,0,0,0.4)]">
           <div>
             <div className="flex items-center gap-2 mb-4 pb-3 border-b border-slate-200 dark:border-white/10">
               <Radio className="w-4 h-4 text-teal-600 dark:text-[#2DD4BF]" />
-              <h3 className="text-sm font-display font-bold text-slate-900 dark:text-white tracking-wide">RAPID COMMAND ACTIONS</h3>
+              <h3 className="text-sm font-display font-bold text-slate-900 dark:text-white tracking-wide">{quickActions.title}</h3>
             </div>
 
             <div className="space-y-2.5">
-              <button
-                onClick={() => setIsSimulatorModalOpen(true)}
-                className="w-full p-3 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-950/30 dark:hover:bg-red-900/40 border border-red-300 dark:border-red-500/40 text-red-900 dark:text-red-300 font-mono text-xs flex items-center justify-between transition-all group shadow-sm"
-              >
-                <span className="flex items-center gap-2 font-semibold">
-                  <Flame className="w-4 h-4 text-red-600 dark:text-[#FB4A4A] group-hover:scale-110 transition-transform" />
-                  Simulate Catastrophic Incident
-                </span>
-                <span className="text-xs text-red-600 dark:text-[#FB4A4A] font-bold">&rarr;</span>
-              </button>
-
-              <button
-                onClick={() => navigate('/resources')}
-                className="w-full p-3 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.03] dark:hover:bg-white/5 border border-slate-300 dark:border-white/10 text-slate-900 dark:text-slate-200 font-mono text-xs flex items-center justify-between transition-all shadow-sm font-medium"
-              >
-                <span className="flex items-center gap-2 font-semibold">
-                  <Sparkles className="w-4 h-4 text-teal-600 dark:text-[#2DD4BF]" />
-                  Auto-Recommend Units
-                </span>
-                <span className="text-xs text-slate-500 dark:text-slate-400">&rarr;</span>
-              </button>
-
-              <button
-                onClick={() => navigate('/alerts')}
-                className="w-full p-3 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-white/[0.03] dark:hover:bg-white/5 border border-slate-300 dark:border-white/10 text-slate-900 dark:text-slate-200 font-mono text-xs flex items-center justify-between transition-all shadow-sm font-medium"
-              >
-                <span className="flex items-center gap-2 font-semibold">
-                  <AlertOctagon className="w-4 h-4 text-amber-600 dark:text-[#F5A623]" />
-                  Delayed Response Monitor
-                </span>
-                <span className="text-xs text-slate-500 dark:text-slate-400">&rarr;</span>
-              </button>
+              {quickActions.actions.map((action, i) => (
+                <button
+                  key={i}
+                  onClick={action.onClick}
+                  className={`w-full p-3 rounded-xl border font-mono text-xs flex items-center justify-between transition-all group shadow-sm font-medium ${action.className}`}
+                >
+                  <span className="flex items-center gap-2 font-semibold">
+                    {action.icon}
+                    {action.label}
+                  </span>
+                  <span className="text-xs opacity-60">&rarr;</span>
+                </button>
+              ))}
             </div>
           </div>
 

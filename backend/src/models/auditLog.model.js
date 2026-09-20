@@ -24,13 +24,50 @@ const auditLogSchema = new mongoose.Schema(
     entityType: {
       type: String,
       required: true,
-      enum: ['USER', 'INCIDENT', 'RESOURCE', 'RESPONSE_TEAM', 'FACILITY', 'ASSIGNMENT', 'SYSTEM', 'ALERT'],
+      enum: [
+        'USER',
+        'INCIDENT',
+        'RESOURCE',
+        'RESPONSE_TEAM',
+        'FACILITY',
+        'ASSIGNMENT',
+        'SYSTEM',
+        'SIMULATION',
+        'ALERT',
+        'ESCALATION',
+        'NOTIFICATION',
+      ],
       index: true,
     },
     entityId: {
       type: String,
       required: true,
       index: true,
+    },
+    previousValue: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    newValue: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
+    },
+    simulationId: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    ipAddress: {
+      type: String,
+      default: null,
+    },
+    userAgent: {
+      type: String,
+      default: null,
+    },
+    source: {
+      type: String,
+      default: 'SYSTEM',
     },
     timestamp: {
       type: Date,
@@ -55,6 +92,7 @@ const auditLogSchema = new mongoose.Schema(
 
 auditLogSchema.index({ timestamp: -1 });
 auditLogSchema.index({ entityType: 1, entityId: 1 });
+auditLogSchema.index({ action: 1, timestamp: -1 });
 
 export const AuditLogModel = mongoose.model('AuditLog', auditLogSchema);
 export default AuditLogModel;

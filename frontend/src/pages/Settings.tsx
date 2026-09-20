@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { auditLogsApi, authApi, AuditLogItem, UserProfile } from '../services/api';
 import { CyberButton } from '../components/ui/CyberButton';
 import { TextScramble } from '../components/motion/TextScramble';
+import { RoleGate } from '../components/auth/RoleGate';
 import {
   Settings as SettingsIcon,
   Volume2,
@@ -220,8 +221,8 @@ export const Settings: React.FC = () => {
         </div>
       </div>
 
-      {/* Section 2: Cryptographic Audit Log Ledger (ADMIN & OPERATOR) */}
-      {(user?.role === 'ADMIN' || user?.role === 'OPERATOR') && (
+      {/* Section 2: Cryptographic Audit Log Ledger (ADMIN & OPERATOR only) */}
+      <RoleGate permission="AUDIT_READ">
         <div className="p-6 rounded-[18px] bg-white dark:bg-[rgba(11,14,19,0.78)] border border-slate-200 dark:border-white/10 backdrop-blur-[18px] shadow-md dark:shadow-2xl space-y-4">
           <div className="flex items-center justify-between pb-3.5 border-b border-slate-200 dark:border-white/10">
             <div className="flex items-center gap-2">
@@ -274,10 +275,21 @@ export const Settings: React.FC = () => {
                         </span>
                       </td>
                       <td className="py-2.5 px-3 text-teal-700 dark:text-[#2DD4BF] font-semibold whitespace-nowrap">
-                        {log.entityType} {log.entityId ? `#${log.entityId.slice(-6)}` : ''}
+                        <div className="flex items-center gap-1.5">
+                          <span>{log.entityType} {log.entityId ? `#${log.entityId.slice(-6)}` : ''}</span>
+                          {log.simulationId && (
+                            <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                              SIM
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-2.5 px-3 text-slate-500 text-[11px] truncate max-w-xs">
-                        {log.metadata ? JSON.stringify(log.metadata) : '-'}
+                        {log.newValue
+                          ? `New: ${JSON.stringify(log.newValue)}`
+                          : log.metadata
+                          ? JSON.stringify(log.metadata)
+                          : '-'}
                       </td>
                     </tr>
                   ))}
@@ -286,10 +298,10 @@ export const Settings: React.FC = () => {
             </div>
           )}
         </div>
-      )}
+      </RoleGate>
 
       {/* Section 3: Admin User Clearance Management (ADMIN only) */}
-      {user?.role === 'ADMIN' && (
+      <RoleGate permission="USER_MANAGE">
         <div className="p-6 rounded-[18px] bg-white dark:bg-[rgba(11,14,19,0.78)] border border-slate-200 dark:border-white/10 backdrop-blur-[18px] shadow-md dark:shadow-2xl space-y-4">
           <div className="flex items-center justify-between pb-3.5 border-b border-slate-200 dark:border-white/10">
             <div className="flex items-center gap-2">
@@ -330,7 +342,7 @@ export const Settings: React.FC = () => {
                     <td className="py-2.5 px-3">
                       <select
                         value={cadet.role}
-                        disabled={cadet.id === user.id}
+                        disabled={cadet.id === user?.id}
                         onChange={(e) => handleRoleChange(cadet.id, e.target.value)}
                         aria-label={`Role for ${cadet.name}`}
                         className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white text-xs font-mono focus:outline-none focus:border-teal-500 dark:focus:border-[#2DD4BF]"
@@ -353,7 +365,7 @@ export const Settings: React.FC = () => {
                       </span>
                     </td>
                     <td className="py-2.5 px-3 text-right">
-                      {cadet.id !== user.id && (
+                      {cadet.id !== user?.id && (
                         <button
                           type="button"
                           onClick={() => handleStatusToggle(cadet.id, cadet.isActive)}
@@ -373,7 +385,7 @@ export const Settings: React.FC = () => {
             </table>
           </div>
         </div>
-      )}
+      </RoleGate>
 
       {/* Section 4: Operational Preferences Form */}
       <form onSubmit={handleSave} className="space-y-6">

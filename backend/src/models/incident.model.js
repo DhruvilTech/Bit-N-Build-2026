@@ -33,6 +33,21 @@ const timelineEventSchema = new mongoose.Schema(
         'AI_OVERRIDE',
         'AI_REVIEW',
         'INCIDENTS_MERGED',
+        'AI_ANALYSIS_STARTED',
+        'AI_ANALYSIS_COMPLETED',
+        'INCIDENT_CLASSIFIED',
+        'SEVERITY_UPDATED',
+        'PRIORITY_UPDATED',
+        'DUPLICATE_DETECTED',
+        'INCIDENT_MERGED',
+        'RESOURCE_RECOMMENDED',
+        'RESOURCE_DISPATCHED',
+        'RESOURCE_EN_ROUTE',
+        'RESOURCE_DELAYED',
+        'ALERT_CREATED',
+        'ESCALATION_CREATED',
+        'RESOURCE_ARRIVED',
+        'RESOURCE_RELEASED',
       ],
       required: true,
     },
@@ -97,6 +112,7 @@ const incidentSchema = new mongoose.Schema(
       latitude: { type: Number, required: true, min: -90, max: 90 },
       longitude: { type: Number, required: true, min: -180, max: 180 },
       address: { type: String, required: true },
+      city: { type: String, trim: true, default: 'Bangalore' },
       geometry: {
         type: {
           type: String,
@@ -108,6 +124,12 @@ const incidentSchema = new mongoose.Schema(
           required: true,
         },
       },
+    },
+    city: {
+      type: String,
+      trim: true,
+      index: true,
+      default: 'Bangalore',
     },
     severity: {
       type: String,
@@ -186,6 +208,16 @@ const incidentSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    isSimulation: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    simulationId: {
+      type: String,
+      default: null,
+      index: true,
+    },
     resolvedAt: {
       type: Date,
       default: null,
@@ -198,6 +230,7 @@ const incidentSchema = new mongoose.Schema(
           enum: ['FIRE', 'FLOOD', 'ROAD_ACCIDENT', 'INDUSTRIAL_ACCIDENT', 'MEDICAL_EMERGENCY', 'EARTHQUAKE', 'OTHER'],
           default: null,
         },
+        value: { type: String, default: null },
         confidence: { type: Number, min: 0, max: 1, default: null },
       },
       severityRating: {
@@ -206,6 +239,7 @@ const incidentSchema = new mongoose.Schema(
           enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
           default: null,
         },
+        value: { type: String, default: null },
         confidence: { type: Number, min: 0, max: 1, default: null },
       },
       priorityRating: {
@@ -214,8 +248,13 @@ const incidentSchema = new mongoose.Schema(
           enum: ['P1', 'P2', 'P3', 'P4'],
           default: null,
         },
+        value: { type: String, default: null },
         reason: { type: String, default: null },
       },
+      priorityReason: { type: String, default: null },
+      reason: { type: String, default: null },
+      recommendations: [{ type: String }],
+      riskFactors: [{ type: String }],
       location: {
         latitude: { type: Number, default: null },
         longitude: { type: Number, default: null },
@@ -377,12 +416,32 @@ const incidentSchema = new mongoose.Schema(
   }
 );
 
+incidentSchema.pre('save', function (next) {
+  if (!this.city) {
+    const addr = (this.location?.address || '').toLowerCase();
+    const lat = this.location?.latitude;
+    if (addr.includes('bangalore') || addr.includes('bengaluru') || (lat && lat >= 12.5 && lat <= 13.5)) {
+      this.city = 'Bangalore';
+    } else if (addr.includes('mumbai') || addr.includes('thane') || (lat && lat >= 18.5 && lat <= 19.5)) {
+      this.city = 'Mumbai';
+    } else {
+      this.city = 'Delhi NCR';
+    }
+  }
+  if (this.location && !this.location.city) {
+    this.location.city = this.city;
+  }
+  next();
+});
+
 // Indexes for high-speed queries & geospatial lookups
 incidentSchema.index({ 'location.geometry': '2dsphere' });
 incidentSchema.index({ severity: 1, priority: 1, status: 1, type: 1, source: 1 });
 incidentSchema.index({ createdAt: -1 });
 incidentSchema.index({ duplicateOf: 1 });
 incidentSchema.index({ status: 1, createdAt: -1 });
+incidentSchema.index({ status: 1, severity: 1, createdAt: -1 });
+incidentSchema.index({ city: 1, status: 1 });
 
 export const IncidentModel = mongoose.model('Incident', incidentSchema);
 export default IncidentModel;

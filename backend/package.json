@@ -8,6 +8,7 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "seed": "node src/seed/seed.js",
+    "seed:synthetic": "node src/seed/syntheticSeed.js",
     "test": "node --test src/test/*.test.js",
     "test:postman": "npx newman run test.json"
   },

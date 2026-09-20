@@ -35,7 +35,7 @@ import {
 } from 'lucide-react';
 
 import { soundFx } from '../utils/audio';
-import { aiApi, AiSummaryResult, escalationsApi, EscalationItem } from '../services/api';
+import { aiApi, AiSummaryResult, escalationsApi, EscalationItem, incidentsApi } from '../services/api';
 import { AiOverrideModal } from '../components/operations/AiOverrideModal';
 import { AddReportModal } from '../components/operations/AddReportModal';
 import { AiExplainabilityCard } from '../components/operations/AiExplainabilityCard';
@@ -94,6 +94,44 @@ export const IncidentDetails: React.FC = () => {
   // Phase 16: Escalation State
   const [incidentEscalations, setIncidentEscalations] = useState<EscalationItem[]>([]);
   const [isActingOnEscalation, setIsActingOnEscalation] = useState<boolean>(false);
+
+  // Phase 37: Real-time Incident Timeline State
+  const [timelineEvents, setTimelineEvents] = useState<any[]>(incident?.timeline || []);
+  const [isLoadingTimeline, setIsLoadingTimeline] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!incident?.id) return;
+    setIsLoadingTimeline(true);
+    incidentsApi
+      .getTimeline(incident.id)
+      .then((tl: any) => {
+        if (Array.isArray(tl) && tl.length > 0) {
+          setTimelineEvents(
+            tl.map((item: any, idx: number) => ({
+              id: item.timelineId || `TL-${idx + 1}`,
+              time: item.timestamp ? new Date(item.timestamp).toLocaleTimeString().slice(0, 8) : 'Just now',
+              title: item.event ? item.event.replace(/_/g, ' ') : item.newStatus || 'Status Milestone',
+              description: item.description || item.reason || 'Event logged in operational timeline.',
+              completed: true,
+              event: item.event,
+              reason: item.reason,
+            }))
+          );
+        } else if (incident.timeline && incident.timeline.length > 0) {
+          setTimelineEvents(incident.timeline);
+        }
+      })
+      .catch(() => {
+        if (incident.timeline) setTimelineEvents(incident.timeline);
+      })
+      .finally(() => setIsLoadingTimeline(false));
+  }, [incident?.id, incident?.timeline]);
+
+  const formatConfidence = (val?: number | null): string => {
+    if (val === undefined || val === null || isNaN(val)) return '85%';
+    if (val > 1) return `${Math.round(val)}%`;
+    return `${Math.round(val * 100)}%`;
+  };
 
   const handleGenerateSummary = async () => {
     if (!incident?.id) return;

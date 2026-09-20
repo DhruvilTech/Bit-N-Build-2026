@@ -1,5 +1,7 @@
 import mongoose from 'mongoose';
 import { IncidentModel } from '../models/incident.model.js';
+import { AssignmentModel } from '../models/assignment.model.js';
+import { ResourceModel } from '../models/resource.model.js';
 import { recordAuditLog } from './auditLog.service.js';
 import { NotFoundError, ValidationError, ForbiddenError } from '../utils/errors.js';
 import {
@@ -16,6 +18,9 @@ import {
   emitIncidentReviewRequired,
   emitIncidentReviewed,
   emitIncidentOverridden,
+  emitIncidentTimeline,
+  emitIncidentAutoDispatched,
+  emitIncidentDispatchCancelled,
 } from '../utils/socket.js';
 import { recordTimelineEvent, getUnifiedIncidentTimeline } from './timeline.service.js';
 import {
@@ -25,9 +30,190 @@ import {
   clusterIncidentsWithAi,
   analyzeIncidentPipeline,
 } from './ai.service.js';
+import { generateRecommendations } from './recommendation.service.js';
+import { assignResourcesToIncident } from './assignment.service.js';
 import NotificationService from './notification.service.js';
 import EscalationService from './escalation.service.js';
 import { evaluateCriticalIncidentAlert } from './alert.service.js';
+
+/**
+ * Appends a verified milestone event to an incident's progressive timeline
+ * and broadcasts it in real-time over Socket.IO.
+ */
+export const appendTimelineEvent = async (incidentId, eventData) => {
+  try {
+    const incident = await IncidentModel.findOne({
+      $or: [
+        { incidentId },
+        { _id: mongoose.isValidObjectId(incidentId) ? incidentId : null },
+      ].filter(Boolean),
+    });
+    if (!incident) return null;
+
+    const timelineEntry = {
+      timelineId: `TL-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+      event: eventData.event || 'FIELD_UPDATE',
+      previousStatus: eventData.previousStatus || incident.status,
+      newStatus: eventData.newStatus || incident.status,
+      changedBy: eventData.changedBy || { userId: 'SYSTEM', name: 'System Operator', role: 'SYSTEM' },
+      timestamp: eventData.timestamp || new Date(),
+      reason: eventData.reason || null,
+      description: eventData.description || eventData.title || 'Timeline milestone recorded',
+    };
+
+    incident.timeline.push(timelineEntry);
+    await incident.save();
+
+    emitIncidentTimeline(incident.incidentId, timelineEntry);
+    return timelineEntry;
+  } catch (err) {
+    console.error(`[Timeline Error] Failed to append event to #${incidentId}:`, err.message);
+    return null;
+  }
+};
+
+/**
+ * Autonomously selects optimal city-scoped emergency resources and dispatches them to an incident.
+ * Emits real-time notification with instant operator override/cancel capability.
+ */
+export const autoDispatchIncidentResources = async (incidentId, operator = null) => {
+  const incident = await getIncidentById(incidentId);
+
+  // If already assigned/responding or in terminal status, skip
+  if (['ASSIGNED', 'RESPONDING', 'ON_SCENE', 'RESOLVED', 'CANCELLED'].includes(incident.status)) {
+    return {
+      success: false,
+      message: `Incident #${incident.incidentId} is already in status '${incident.status}'.`,
+      incident,
+    };
+  }
+
+  // Generate recommendations scoped by city and requirements
+  const recommendationResult = await generateRecommendations(incident.incidentId, {
+    strategy: 'BALANCED',
+    limit: 2,
+    refresh: true,
+  });
+
+  const topRecs = recommendationResult.recommendations || [];
+  if (topRecs.length === 0) {
+    return {
+      success: false,
+      message: `No available resources found in ${incident.city || 'area'} matching operational requirements.`,
+      incident,
+      recommendations: [],
+    };
+  }
+
+  // Pick the top 1 or 2 resources
+  const resourceIdsToAssign = topRecs.slice(0, 2).map((r) => r.resourceId);
+
+  const assignResult = await assignResourcesToIncident(
+    incident.incidentId,
+    {
+      resourceIds: resourceIdsToAssign,
+      notes: `AI Autonomous Rapid Dispatch (${incident.city || 'City Metro'} Fleet)`,
+    },
+    operator || { id: 'AI-SYSTEM', name: 'AI Autonomous Dispatcher', role: 'SYSTEM' }
+  );
+
+  const autoDispatchPayload = {
+    incidentId: incident.incidentId,
+    title: incident.title,
+    city: incident.city || 'Bangalore',
+    severity: incident.severity,
+    priority: incident.priority,
+    type: incident.type,
+    assignedResources: resourceIdsToAssign,
+    recommendations: topRecs,
+    assignments: assignResult.assignments,
+    canCancel: true,
+    autoDispatchedAt: new Date().toISOString(),
+  };
+
+  emitIncidentAutoDispatched(autoDispatchPayload);
+
+  return {
+    success: true,
+    message: `AI successfully auto-dispatched ${resourceIdsToAssign.length} resource(s) from ${incident.city || 'Metro'} fleet.`,
+    ...autoDispatchPayload,
+  };
+};
+
+/**
+ * Cancels active resource dispatch on an incident, revoking assignments and returning
+ * units to AVAILABLE status with full timeline recording.
+ */
+export const cancelIncidentDispatch = async (incidentId, operator = null, reason = 'Auto-dispatch cancelled by operator') => {
+  const incident = await getIncidentById(incidentId);
+
+  // Find active assignments for this incident
+  const activeAssignments = await AssignmentModel.find({
+    incidentId: incident.incidentId,
+    status: { $in: ['ASSIGNED', 'DISPATCHED', 'EN_ROUTE'] },
+  });
+
+  const recalledResourceIds = [];
+
+  for (const asn of activeAssignments) {
+    recalledResourceIds.push(asn.resourceId);
+    await ResourceModel.updateOne(
+      { resourceId: asn.resourceId },
+      {
+        $set: {
+          status: 'AVAILABLE',
+          availability: true,
+          currentAssignment: null,
+          destinationLocation: null,
+        },
+      }
+    );
+
+    asn.status = 'CANCELLED';
+    asn.cancelledAt = new Date();
+    asn.notes = `${asn.notes} | ${reason}`;
+    await asn.save();
+  }
+
+  // Revert incident assignedResources
+  const prevStatus = incident.status;
+  incident.assignedResources = [];
+  if (['ASSIGNED', 'RESPONDING'].includes(incident.status)) {
+    incident.status = 'ACKNOWLEDGED';
+  }
+
+  const timelineEntry = {
+    timelineId: `TL-${Date.now()}-DISPCANCEL`,
+    event: 'FIELD_UPDATE',
+    previousStatus: prevStatus,
+    newStatus: incident.status,
+    changedBy: operator
+      ? { userId: String(operator.id || operator._id), name: operator.name, role: operator.role }
+      : { userId: 'OPERATOR-MANUAL', name: 'Duty Operator', role: 'OPERATOR' },
+    timestamp: new Date(),
+    reason,
+    description: `Resource dispatch cancelled by operator. Recalled units: ${recalledResourceIds.join(', ') || 'none'}.`,
+  };
+
+  incident.timeline.push(timelineEntry);
+  await incident.save();
+
+  emitIncidentDispatchCancelled({
+    incidentId: incident.incidentId,
+    recalledResources: recalledResourceIds,
+    reason,
+  });
+  emitIncidentTimeline(incident.incidentId, timelineEntry);
+  emitIncidentStatusChanged(incident);
+
+  return {
+    success: true,
+    incidentId: incident.incidentId,
+    recalledResources: recalledResourceIds,
+    message: `Dispatch cancelled successfully. ${recalledResourceIds.length} unit(s) recalled and returned to available staging.`,
+    status: incident.status,
+  };
+};
 
 // Safe Status Lifecycle Transition Rules
 export const VALID_STATUS_TRANSITIONS = {
@@ -171,6 +357,8 @@ export const createIncident = async (data, user = null) => {
     status: initialStatus,
     source: data.source || 'EMERGENCY_CALL',
     reportedBy,
+    isSimulation: Boolean(data.isSimulation),
+    simulationId: data.simulationId || null,
     location: {
       latitude: data.location.latitude,
       longitude: data.location.longitude,
@@ -276,6 +464,8 @@ export const updateIncident = async (id, data, user = null) => {
       }).catch((e) => console.warn('[Notification] Delay alert note:', e.message));
     }
   }
+  if (data.isSimulation !== undefined) incident.isSimulation = Boolean(data.isSimulation);
+  if (data.simulationId !== undefined) incident.simulationId = data.simulationId;
   if (data.metadata) {
     incident.metadata = { ...incident.metadata, ...data.metadata };
   }
@@ -498,8 +688,20 @@ export const runAiAnalysisOnIncident = async (incidentDoc, user = null) => {
       status: 'PROCESSING',
       error: null,
     };
+    const startEvent = {
+      timelineId: `TL-${Date.now()}-AISTART`,
+      event: 'AI_ANALYSIS_STARTED',
+      previousStatus: incidentDoc.status,
+      newStatus: incidentDoc.status,
+      changedBy: { userId: 'AI-SYSTEM', name: 'PS-9 AI Engine', role: 'SYSTEM' },
+      timestamp: new Date(),
+      reason: 'AI classification and triage pipeline started',
+      description: 'AI model commenced semantic and severity analysis',
+    };
+    incidentDoc.timeline.push(startEvent);
     await incidentDoc.save();
     emitIncidentAiProcessing(incidentDoc);
+    emitIncidentTimeline(incidentDoc.incidentId, startEvent);
 
     // Phase 34: Record timeline event for AI analysis start
     recordTimelineEvent({
@@ -546,9 +748,22 @@ export const runAiAnalysisOnIncident = async (incidentDoc, user = null) => {
 
       incidentDoc.aiAnalysis = {
         // Phase 1 Canonical Contract Fields
-        classification: aiData.classification,
-        severityRating: aiData.severity,
-        priorityRating: aiData.priority,
+        classification: {
+          ...aiData.classification,
+          value: aiData.classification.type,
+        },
+        severityRating: {
+          ...aiData.severity,
+          value: aiData.severity.level,
+        },
+        priorityRating: {
+          ...aiData.priority,
+          value: aiData.priority.level,
+        },
+        priorityReason: aiData.priority.reason,
+        reason: aiData.priority.reason || `AI classified as ${aiData.classification.type}`,
+        recommendations: aiData.tactical?.recommendedUnits || [],
+        riskFactors: aiData.tactical?.hazards || [],
         location: aiData.location,
         duplicate: aiData.duplicate,
         signals: aiData.signals || [],
@@ -618,17 +833,30 @@ export const runAiAnalysisOnIncident = async (incidentDoc, user = null) => {
       incidentDoc.severity = aiData.severity.level;
       incidentDoc.priority = aiData.priority.level;
 
-      // Add timeline entry for AI pipeline analysis
-      incidentDoc.timeline.push({
-        timelineId: `TL-${Date.now()}-AI`,
-        event: 'FIELD_UPDATE',
+      // Add timeline entries for AI pipeline analysis
+      const aiCompletedEvent = {
+        timelineId: `TL-${Date.now()}-AICOMP`,
+        event: 'AI_ANALYSIS_COMPLETED',
         previousStatus: incidentDoc.status,
         newStatus: incidentDoc.status,
         changedBy: { userId: 'AI-SYSTEM', name: 'PS-9 AI Engine', role: 'SYSTEM' },
         timestamp: new Date(),
         reason: 'Unified AI incident pipeline analysis completed',
         description: `AI classified incident as ${aiData.classification.type} (${aiData.severity.level}, ${aiData.priority.level}) with ${Math.round(aiData.classification.confidence * 100)}% confidence`,
-      });
+      };
+      incidentDoc.timeline.push(aiCompletedEvent);
+
+      const classifiedEvent = {
+        timelineId: `TL-${Date.now()}-AICLASS`,
+        event: 'INCIDENT_CLASSIFIED',
+        previousStatus: incidentDoc.status,
+        newStatus: incidentDoc.status,
+        changedBy: { userId: 'AI-SYSTEM', name: 'PS-9 AI Engine', role: 'SYSTEM' },
+        timestamp: new Date(),
+        reason: `Classified as ${aiData.classification.type}`,
+        description: `Incident classified as ${aiData.classification.type} with ${Math.round(aiData.classification.confidence * 100)}% confidence`,
+      };
+      incidentDoc.timeline.push(classifiedEvent);
 
       // Handle duplicate detection results
       if (aiData.duplicate && aiData.duplicate.isDuplicate && aiData.duplicate.relatedIncidentId) {
@@ -648,16 +876,17 @@ export const runAiAnalysisOnIncident = async (incidentDoc, user = null) => {
           error: null,
         };
 
-        incidentDoc.timeline.push({
+        const dupEvent = {
           timelineId: `TL-${Date.now()}-DUP`,
-          event: 'FIELD_UPDATE',
+          event: 'DUPLICATE_DETECTED',
           previousStatus: incidentDoc.status,
           newStatus: incidentDoc.status,
           changedBy: { userId: 'AI-SYSTEM', name: 'PS-9 AI Engine', role: 'SYSTEM' },
           timestamp: new Date(),
           reason: 'Duplicate incident report detected by AI pipeline',
           description: `Potential duplicate of #${aiData.duplicate.relatedIncidentId} (${Math.round(aiData.duplicate.similarity * 100)}% match)`,
-        });
+        };
+        incidentDoc.timeline.push(dupEvent);
       }
 
       await incidentDoc.save();
@@ -693,6 +922,7 @@ export const runAiAnalysisOnIncident = async (incidentDoc, user = null) => {
 
       // Emit specific events
       emitIncidentAiAnalyzed(incidentDoc);
+      emitIncidentTimeline(incidentDoc.incidentId, aiCompletedEvent);
       if (aiData.requiresHumanReview) {
         emitIncidentReviewRequired(incidentDoc);
       }

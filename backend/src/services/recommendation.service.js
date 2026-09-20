@@ -7,6 +7,7 @@
 
 import { ResourceModel } from '../models/resource.model.js';
 import { IncidentModel } from '../models/incident.model.js';
+import { FacilityModel } from '../models/facility.model.js';
 import { RecommendationModel } from '../models/recommendation.model.js';
 import {
   extractIncidentRequirements,
@@ -165,6 +166,7 @@ export const generateRecommendations = async (
   const requirements = extractIncidentRequirements(incident);
   const incLat = incident.location?.latitude;
   const incLng = incident.location?.longitude;
+  const incCity = incident.city || incident.location?.city || '';
 
   // 4. Fetch available resources (exclude assigned/busy/offline and already assigned to this incident)
   const query = {
@@ -177,6 +179,7 @@ export const generateRecommendations = async (
   if (availableResources.length === 0) {
     const emptyResult = {
       incidentId,
+      city: incCity,
       strategy,
       requiredCapabilities: requirements.required,
       recommendations: [],
@@ -200,12 +203,18 @@ export const generateRecommendations = async (
     return emptyResult;
   }
 
-  // 5. Evaluate each resource against requirements & location
+  // 5. Evaluate each resource against requirements & location (scoped by City and Proximity)
   const scoredRecommendations = [];
 
   for (const res of availableResources) {
     const resLat = res.location?.latitude;
     const resLng = res.location?.longitude;
+    const resCity = res.city || '';
+
+    // Enforce city scoping: do not match resources across different cities
+    if (incCity && resCity && incCity.toLowerCase() !== resCity.toLowerCase()) {
+      continue;
+    }
 
     const distanceKm = calculateDistanceKm(incLat, incLng, resLat, resLng);
     if (distanceKm > maxDistanceKm) {
@@ -239,6 +248,7 @@ export const generateRecommendations = async (
       resourceId: res.resourceId,
       name: res.name,
       type: res.type,
+      city: res.city || incCity || 'Bangalore',
       capabilityMatch: matchResult.capabilityMatch,
       distanceKm,
       estimatedArrivalMinutes: etaMinutes,
@@ -263,9 +273,58 @@ export const generateRecommendations = async (
 
   const topRecommendations = scoredRecommendations.slice(0, limit);
 
+  // 6.1 If incident requires medical response or hospital transport, evaluate hospital capacity
+  let recommendedHospital = null;
+  const isMedical =
+    incident.type === 'MEDICAL_EMERGENCY' ||
+    requirements.required.some((r) => /medic|ambulance|triage|burn/i.test(r));
+
+  if (isMedical) {
+    try {
+      const hospitals = await FacilityModel.find({
+        type: 'HOSPITAL',
+        status: { $ne: 'DIVERTING' },
+        availableCapacity: { $gt: 0 },
+      }).lean();
+
+      if (hospitals.length > 0) {
+        const scoredHospitals = hospitals.map((h) => {
+          const dist = calculateDistanceKm(incLat, incLng, h.location?.latitude, h.location?.longitude);
+          const icuDept = (h.departments || []).find((d) => /icu|intensive/i.test(d.name));
+          const availableIcu = icuDept?.availableCapacity || Math.round((h.availableCapacity || 0) * 0.2);
+          const occupied = Math.max(0, (h.capacity || 0) - (h.availableCapacity || 0));
+          const occupancyRate = h.capacity ? Math.round((occupied / h.capacity) * 100) : 0;
+
+          // Score hospital: distance + available ICU capacity
+          const hospitalScore = Math.max(0, 100 - dist * 3) + Math.min(30, availableIcu * 3);
+
+          return {
+            facilityId: h.facilityId,
+            name: h.name,
+            totalBeds: h.capacity,
+            availableBeds: h.availableCapacity,
+            availableIcuBeds: availableIcu,
+            occupancyPercentage: occupancyRate,
+            distanceKm: dist,
+            address: h.location?.address || 'Metro Sector',
+            status: h.status || 'OPERATIONAL',
+            score: hospitalScore,
+          };
+        });
+
+        scoredHospitals.sort((a, b) => b.score - a.score);
+        recommendedHospital = scoredHospitals[0];
+      }
+    } catch (hospErr) {
+      console.warn('[Recommendation Engine] Hospital capacity evaluation note:', hospErr.message);
+    }
+  }
+
   const explanation =
     topRecommendations.length > 0
-      ? `Successfully recommended ${topRecommendations.length} resource(s) based on ${requirements.explanation || 'incident profile'}`
+      ? `Successfully recommended ${topRecommendations.length} resource(s) based on ${requirements.explanation || 'incident profile'}${
+          recommendedHospital ? ` • Nearest receiving trauma center: ${recommendedHospital.name} (${recommendedHospital.availableBeds} beds available, ${recommendedHospital.distanceKm}km)` : ''
+        }`
       : `No available resources matched the required capabilities (${requirements.required.join(', ')}) within ${maxDistanceKm}km.`;
 
   // 7. Persist recommendation
@@ -278,6 +337,9 @@ export const generateRecommendations = async (
     totalAvailable: availableResources.length,
     totalRecommended: topRecommendations.length,
     explanation,
+    metadata: {
+      recommendedHospital,
+    },
     generatedAt: new Date(),
   });
 
@@ -286,14 +348,17 @@ export const generateRecommendations = async (
     recommendationId: recDoc.recommendationId,
     incidentId,
     recommendations: topRecommendations,
+    recommendedHospital,
     strategy,
   });
 
   return {
     incidentId,
+    city: incCity || 'Bangalore',
     strategy,
     requiredCapabilities: requirements.required,
     recommendations: topRecommendations,
+    recommendedHospital,
     totalAvailable: availableResources.length,
     totalRecommended: topRecommendations.length,
     explanation,

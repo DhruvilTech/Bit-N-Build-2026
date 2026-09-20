@@ -19,6 +19,8 @@ import {
   overrideIncidentService,
   addReportToIncidentService,
   getRelatedIncidentsService,
+  autoDispatchIncidentResources,
+  cancelIncidentDispatch,
 } from '../services/incident.service.js';
 import { buildIncidentExplainability } from '../services/explainability.service.js';
 import { successResponse, errorResponse } from '../utils/response.js';
@@ -336,6 +338,27 @@ export const fetchRelatedIncidents = async (req, res, next) => {
     next(error);
   }
 };
+
+export const autoDispatchIncident = async (req, res, next) => {
+  try {
+    const result = await autoDispatchIncidentResources(req.params.id, req.user);
+    const status = result.success ? 200 : 400;
+    return successResponse(res, result.message, result, status);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const cancelIncidentDispatchController = async (req, res, next) => {
+  try {
+    const { reason } = req.body || {};
+    const result = await cancelIncidentDispatch(req.params.id, req.user, reason);
+    return successResponse(res, result.message, result, 200);
+  } catch (error) {
+    next(error);
+  }
+};
+
 
 
 

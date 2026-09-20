@@ -29,14 +29,35 @@ interface CreateIncidentModalProps {
   onCreated?: (newIncident: any) => void;
 }
 
-const PRESET_LOCATIONS = [
-  { name: 'Vadodara Central / Downtown (Gujarat)', lat: 22.3072, lng: 73.1812, addr: 'Downtown Vadodara, Gujarat' },
-  { name: 'Vishwamitri River Basin (Vadodara)', lat: 22.3105, lng: 73.1800, addr: 'Vishwamitri River Basin, Vadodara, Gujarat' },
-  { name: 'Apex Petrochemical Complex (Zone 3)', lat: 28.6289, lng: 77.2065, addr: 'Sector 4 Industrial Gate, Zone 3' },
-  { name: 'Docklands Maritime Container Terminal', lat: 28.6410, lng: 77.2340, addr: 'Docklands Cargo Terminal Bay 14, Port Zone' },
-  { name: 'Central Connaught Commercial Ring', lat: 28.6328, lng: 77.2197, addr: 'Connaught Circle Block B, Central Market' },
-  { name: 'South Highway Express Corridor Km 28', lat: 28.5720, lng: 77.1620, addr: 'NH-48 Expressway Gateway Km 28' },
-  { name: 'Riverbank North Elevated Colony', lat: 28.6600, lng: 77.2010, addr: 'Riverbank North Embankment Gate 3' },
+interface PresetLocation {
+  name: string;
+  lat: number;
+  lng: number;
+  addr: string;
+  city: 'Bangalore' | 'Delhi NCR' | 'Mumbai';
+}
+
+const PRESET_LOCATIONS: PresetLocation[] = [
+  // Bangalore Presets (Resource Clustered)
+  { name: 'MG Road Central Core', lat: 12.9716, lng: 77.5946, addr: 'MG Road Central Station, Bangalore', city: 'Bangalore' },
+  { name: 'Indiranagar 100ft Road', lat: 12.9784, lng: 77.6408, addr: 'Indiranagar 100ft Road Station, Bangalore', city: 'Bangalore' },
+  { name: 'Whitefield ITPL Corridor', lat: 12.9698, lng: 77.7500, addr: 'Whitefield ITPL Command Post, Bangalore', city: 'Bangalore' },
+  { name: 'Electronic City Phase 1', lat: 12.8399, lng: 77.6770, addr: 'Electronic City Phase 1 Depot, Bangalore', city: 'Bangalore' },
+  { name: 'Hebbal Flyover Junction', lat: 13.0358, lng: 77.5970, addr: 'Hebbal Flyover Quick-Response Post, Bangalore', city: 'Bangalore' },
+
+  // Delhi NCR Presets (Resource Clustered)
+  { name: 'Connaught Place Core', lat: 28.6328, lng: 77.2197, addr: 'Connaught Place Central Radial, Block C, Delhi NCR', city: 'Delhi NCR' },
+  { name: 'Okhla Industrial Phase III', lat: 28.5284, lng: 77.2789, addr: 'Okhla Industrial Area Phase III, Factory Lane, Delhi NCR', city: 'Delhi NCR' },
+  { name: 'Barakhamba High-Rise', lat: 28.6315, lng: 77.2280, addr: 'Barakhamba Road High-Rise Corridor, Delhi NCR', city: 'Delhi NCR' },
+  { name: 'NH-48 Overpass km 18', lat: 28.5020, lng: 77.0890, addr: 'NH-48 Overpass Flyover km 18 Interchange, Delhi NCR', city: 'Delhi NCR' },
+  { name: 'Dwarka Expressway Sec 21', lat: 28.5520, lng: 77.0580, addr: 'Dwarka Expressway Sector 21 Junction, Delhi NCR', city: 'Delhi NCR' },
+
+  // Mumbai Presets (Resource Clustered)
+  { name: 'Bandra Kurla Complex (BKC)', lat: 19.0664, lng: 72.8687, addr: 'Bandra Kurla Complex (BKC) Central Post, Mumbai', city: 'Mumbai' },
+  { name: 'Andheri West SV Road', lat: 19.1197, lng: 72.8464, addr: 'Andheri West SV Road Station, Mumbai', city: 'Mumbai' },
+  { name: 'Nariman Point Marine Drive', lat: 18.9256, lng: 72.8242, addr: 'Nariman Point Marine Drive Depot, Mumbai', city: 'Mumbai' },
+  { name: 'Powai Hiranandani Base', lat: 19.1176, lng: 72.9060, addr: 'Powai Hiranandani Rapid Response Post, Mumbai', city: 'Mumbai' },
+  { name: 'Kurla CST Road Center', lat: 19.0688, lng: 72.8800, addr: 'Kurla CST Road Emergency Center, Mumbai', city: 'Mumbai' },
 ];
 
 export const CreateIncidentModal: React.FC<CreateIncidentModalProps> = ({ isOpen, onClose, onCreated }) => {
@@ -51,6 +72,8 @@ export const CreateIncidentModal: React.FC<CreateIncidentModalProps> = ({ isOpen
   const [latitude, setLatitude] = useState<number | ''>('');
   const [longitude, setLongitude] = useState<number | ''>('');
   const [address, setAddress] = useState<string>('');
+  const [city, setCity] = useState<string>('Bangalore');
+  const [presetCityFilter, setPresetCityFilter] = useState<'ALL' | 'Bangalore' | 'Delhi NCR' | 'Mumbai'>('ALL');
   const [detectedLocationInfo, setDetectedLocationInfo] = useState<{
     found: boolean;
     address?: string;
@@ -137,11 +160,12 @@ export const CreateIncidentModal: React.FC<CreateIncidentModalProps> = ({ isOpen
     }
   };
 
-  const applyPreset = (preset: (typeof PRESET_LOCATIONS)[0]) => {
+  const applyPreset = (preset: PresetLocation) => {
     soundFx.playClick();
     setLatitude(preset.lat);
     setLongitude(preset.lng);
     setAddress(preset.addr);
+    setCity(preset.city);
     setDetectedLocationInfo(null);
   };
 
@@ -191,10 +215,12 @@ export const CreateIncidentModal: React.FC<CreateIncidentModalProps> = ({ isOpen
         description: description.trim(),
         severity,
         priority,
+        city: city || undefined,
         location: {
           latitude: Number(latitude),
           longitude: Number(longitude),
           address: address.trim(),
+          city: city || undefined,
         },
         metadata,
       };
@@ -608,19 +634,49 @@ export const CreateIncidentModal: React.FC<CreateIncidentModalProps> = ({ isOpen
                 </div>
               )}
 
-              {/* Quick Presets */}
-              <div className="flex flex-wrap gap-1.5">
-                <span className="text-[10px] text-slate-500 py-1">Metro Presets:</span>
-                {PRESET_LOCATIONS.map((p, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => applyPreset(p)}
-                    className="px-2 py-0.5 rounded-md bg-slate-200 dark:bg-white/5 hover:bg-teal-500/20 text-[10px] text-slate-700 dark:text-slate-300 hover:text-teal-700 dark:hover:text-[#2DD4BF] border border-transparent hover:border-teal-500/30 transition-all truncate max-w-xs cursor-pointer"
-                  >
-                    {p.name.split(' (')[0]}
-                  </button>
-                ))}
+              {/* Quick Presets with City Filters */}
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-1.5">
+                  <span className="text-[10px] text-slate-500 font-mono">Resource Metro Shortcuts:</span>
+                  <div className="flex items-center gap-1 bg-slate-200 dark:bg-white/5 p-0.5 rounded-lg font-mono text-[9px]">
+                    {(['ALL', 'Bangalore', 'Delhi NCR', 'Mumbai'] as const).map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => setPresetCityFilter(c)}
+                        className={`px-2 py-0.5 rounded transition-all ${
+                          presetCityFilter === c
+                            ? 'bg-[#2DD4BF] text-slate-950 font-bold shadow-sm'
+                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                        }`}
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5">
+                  {PRESET_LOCATIONS
+                    .filter((p) => presetCityFilter === 'ALL' || p.city === presetCityFilter)
+                    .map((p, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => applyPreset(p)}
+                        className={`px-2 py-1 rounded-md text-[10px] border transition-all flex items-center gap-1 cursor-pointer ${
+                          address === p.addr
+                            ? 'bg-[#2DD4BF]/20 border-[#2DD4BF] text-teal-800 dark:text-[#2DD4BF] font-bold'
+                            : 'bg-slate-200 dark:bg-white/5 hover:bg-teal-500/20 text-slate-700 dark:text-slate-300 hover:text-teal-700 dark:hover:text-[#2DD4BF] border-transparent hover:border-teal-500/30'
+                        }`}
+                      >
+                        <span className="text-[9px] px-1 rounded bg-black/20 font-mono text-slate-500 dark:text-slate-400">
+                          {p.city.slice(0, 3).toUpperCase()}
+                        </span>
+                        <span>{p.name}</span>
+                      </button>
+                    ))}
+                </div>
               </div>
 
               <div>

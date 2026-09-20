@@ -18,7 +18,18 @@ import { CyberButton } from '../ui/CyberButton';
 import { GlowButton } from '../ui/GlowButton';
 import { EmergenXLogo } from '../ui/EmergenXLogo';
 import { SystemHealthIndicator } from '../dashboard/SystemHealthIndicator';
+import { RoleGate } from '../auth/RoleGate';
 import { motion } from 'framer-motion';
+
+// Role-specific avatar gradient colours for visual identity
+const ROLE_AVATAR_GRADIENT: Record<string, string> = {
+  ADMIN: 'from-red-600 to-rose-700',
+  OPERATOR: 'from-orange-500 to-amber-600',
+  FIELD_COORDINATOR: 'from-teal-600 to-cyan-600',
+  MEDICAL_COORDINATOR: 'from-pink-600 to-rose-500',
+  RESPONDER: 'from-blue-600 to-indigo-600',
+  VIEWER: 'from-slate-500 to-slate-600',
+};
 
 interface HeaderProps {
   onToggleSidebar?: () => void;
@@ -104,17 +115,19 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
         {/* Phase 31 & 35.1: Real-Time System Health Indicator */}
         <SystemHealthIndicator />
 
-        {/* SIMULATE EMERGENCY CTA BUTTON */}
-        <CyberButton
-          variant="critical"
-          size="sm"
-          pulse={true}
-          onClick={() => setIsSimulatorModalOpen(true)}
-          icon={<Flame className="w-3.5 h-3.5" />}
-          className="text-xs font-bold"
-        >
-          <span className="hidden sm:inline">SIMULATE</span> EMERGENCY
-        </CyberButton>
+        {/* SIMULATE EMERGENCY CTA BUTTON — ADMIN & OPERATOR only */}
+        <RoleGate permission="SIMULATION_START">
+          <CyberButton
+            variant="critical"
+            size="sm"
+            pulse={true}
+            onClick={() => setIsSimulatorModalOpen(true)}
+            icon={<Flame className="w-3.5 h-3.5" />}
+            className="text-xs font-bold"
+          >
+            <span className="hidden sm:inline">SIMULATE</span> EMERGENCY
+          </CyberButton>
+        </RoleGate>
 
         {/* Sound Toggle */}
         <button
@@ -159,7 +172,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
 
         {/* Operator Profile & Logout */}
         <div className="flex items-center gap-2.5 pl-2 border-l border-slate-200 dark:border-white/10">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-600 to-blue-600 border border-cyan-400/50 flex items-center justify-center text-white font-bold text-xs font-mono shadow-sm">
+          <div className={`w-8 h-8 rounded-lg bg-gradient-to-tr ${ROLE_AVATAR_GRADIENT[user?.role || 'OPERATOR'] ?? 'from-cyan-600 to-blue-600'} border border-white/20 flex items-center justify-center text-white font-bold text-xs font-mono shadow-sm`}>
             {user?.name ? user.name.slice(0, 2).toUpperCase() : 'OP'}
           </div>
           <div className="text-left font-mono hidden md:block">

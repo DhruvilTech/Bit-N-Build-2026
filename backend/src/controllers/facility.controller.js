@@ -7,8 +7,18 @@ import {
   updateEmergencyStatus,
   findNearbyFacilities,
   deleteFacility,
+  getFacilitiesCapacity,
 } from '../services/facility.service.js';
 import { successResponse } from '../utils/response.js';
+
+export const getCapacity = async (req, res, next) => {
+  try {
+    const data = await getFacilitiesCapacity();
+    return successResponse(res, 'Hospital capacities retrieved successfully', data, 200);
+  } catch (error) {
+    next(error);
+  }
+};
 
 export const getAllFacilities = async (req, res, next) => {
   try {

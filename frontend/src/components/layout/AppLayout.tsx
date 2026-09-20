@@ -4,6 +4,7 @@ import { Header } from './Header';
 import { Sidebar } from './Sidebar';
 import { NotificationsDrawer } from './NotificationsDrawer';
 import { EmergencySimulatorModal } from '../ui/EmergencySimulatorModal';
+import { AutoDispatchModal } from '../ui/AutoDispatchModal';
 import { SplitCursor } from '../ui/SplitCursor';
 import { RadarBackground } from '../ui/RadarBackground';
 import { CursorGrid } from '../ui/CursorGrid';
@@ -76,6 +77,7 @@ export const AppLayout: React.FC = () => {
       {/* Global Modals & Drawers */}
       <EmergencySimulatorModal />
       <NotificationsDrawer />
+      <AutoDispatchModal />
     </div>
   );
 };

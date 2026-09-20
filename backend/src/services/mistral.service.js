@@ -146,6 +146,169 @@ OPERATIONAL INSTRUCTIONS:
 
     return null;
   }
+  /**
+   * Executes a controlled tool-calling chat loop via Mistral API
+   */
+  static async executeToolCallingChat({ message, tools = [], toolExecutor, history = [] }) {
+    const apiKey = (env.MISTRAL_API_KEY || '').trim();
+    if (!apiKey) return null;
+
+    const systemPrompt = `You are EmergenX Chief Incident Commander AI, an elite tactical emergency operations assistant.
+You have access to controlled backend tools that retrieve verified real-time database state from the operations center.
+RULES:
+1. When asked about critical incidents, available resources, delays, hospital capacities, or shortages, you MUST call the appropriate controlled tool(s) to obtain verified data.
+2. NEVER invent incident IDs, resource IDs, hospital capacities, or arrival times. If a tool returns zero items or empty lists, state that clearly.
+3. Ground your final response strictly in the verified tool output. Distinguish verified database facts from tactical operational advice.
+4. Format incident IDs, resource numbers, and hospital names in bold markdown (e.g. **#INC-1042**, **Medic-1**, **City Hospital**).
+5. Maintain a professional, crisp, tactical tone suitable for an Emergency Operations Center.`;
+
+    const messages = [{ role: 'system', content: systemPrompt }];
+
+    for (const turn of (history || []).slice(-4)) {
+      const role = turn.sender === 'ai' ? 'assistant' : 'user';
+      if (turn.text) {
+        messages.push({ role, content: turn.text });
+      }
+    }
+
+    messages.push({ role: 'user', content: message });
+
+    const models = [env.MISTRAL_MODEL || 'ministral-8b-latest', env.MISTRAL_FALLBACK_MODEL || 'ministral-3b-latest'];
+
+    for (const model of models) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
+
+        // Step 1: Initial call with tools
+        const payload = {
+          model,
+          messages,
+          temperature: 0.2,
+          max_tokens: 800,
+        };
+
+        if (tools && tools.length > 0) {
+          payload.tools = tools;
+          payload.tool_choice = 'auto';
+        }
+
+        const res = await fetch(this.MISTRAL_URL, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeout);
+
+        if (!res.ok) {
+          console.warn(`[Mistral Tool Call] Model ${model} returned status ${res.status}`);
+          continue;
+        }
+
+        const body = await res.json();
+        const choice = body?.choices?.[0];
+        const assistantMessage = choice?.message;
+
+        if (!assistantMessage) continue;
+
+        // If Mistral requested tool calls
+        if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0 && typeof toolExecutor === 'function') {
+          const toolExecutions = [];
+          const toolMessages = [...messages, assistantMessage];
+
+          for (const call of assistantMessage.tool_calls) {
+            const toolName = call.function?.name;
+            let toolArgs = {};
+            try {
+              toolArgs = call.function?.arguments ? JSON.parse(call.function.arguments) : {};
+            } catch (pErr) {
+              toolArgs = {};
+            }
+
+            try {
+              const toolResult = await toolExecutor(toolName, toolArgs);
+              toolExecutions.push({
+                tool: toolName,
+                arguments: toolArgs,
+                result: toolResult,
+                success: true,
+              });
+
+              toolMessages.push({
+                role: 'tool',
+                name: toolName,
+                tool_call_id: call.id,
+                content: JSON.stringify(toolResult),
+              });
+            } catch (execErr) {
+              toolExecutions.push({
+                tool: toolName,
+                arguments: toolArgs,
+                error: execErr.message,
+                success: false,
+              });
+
+              toolMessages.push({
+                role: 'tool',
+                name: toolName,
+                tool_call_id: call.id,
+                content: JSON.stringify({ error: execErr.message }),
+              });
+            }
+          }
+
+          // Step 2: Second call to Mistral with tool results for grounded synthesis
+          const secondController = new AbortController();
+          const secondTimeout = setTimeout(() => secondController.abort(), 15000);
+
+          const secondRes = await fetch(this.MISTRAL_URL, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model,
+              messages: toolMessages,
+              temperature: 0.2,
+              max_tokens: 800,
+            }),
+            signal: secondController.signal,
+          });
+
+          clearTimeout(secondTimeout);
+
+          if (secondRes.ok) {
+            const secondBody = await secondRes.json();
+            const finalAnswer = secondBody?.choices?.[0]?.message?.content;
+            if (finalAnswer) {
+              return {
+                answer: finalAnswer.trim(),
+                toolExecutions,
+              };
+            }
+          }
+        }
+
+        // Direct answer without tool calls
+        if (assistantMessage.content) {
+          return {
+            answer: assistantMessage.content.trim(),
+            toolExecutions: [],
+          };
+        }
+      } catch (err) {
+        console.warn(`[Mistral Tool Call] Failed with model ${model}: ${err.message}`);
+      }
+    }
+
+    return null;
+  }
 }
 
 export default MistralService;

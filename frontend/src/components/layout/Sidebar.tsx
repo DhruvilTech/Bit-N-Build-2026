@@ -36,7 +36,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setMobileOpen,
 }) => {
   const { stats, theme } = useEmergency();
-  const { user, logout } = useAuth();
+  const { user, logout, hasPermission } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -46,23 +46,42 @@ export const Sidebar: React.FC<SidebarProps> = ({
     navigate('/login');
   };
 
-  const navItems = [
-    { label: 'Command Center', icon: LayoutDashboard, path: '/command-center' },
+  // Full nav item list — each item declares what permission is required to see it.
+  // Items without requiredPermission are always shown (e.g. Command Center is universal).
+  const allNavItems = [
+    {
+      label: 'Command Center',
+      icon: LayoutDashboard,
+      path: '/command-center',
+      requiredPermission: 'INCIDENT_READ', // all authenticated roles have INCIDENT_READ
+    },
     {
       label: 'Live Incidents',
       icon: ShieldAlert,
       path: '/incidents',
       badge: stats.totalIncidents,
       badgeColor: 'bg-[#2DD4BF]/15 text-[#2DD4BF] border-[#2DD4BF]/30',
+      requiredPermission: 'INCIDENT_READ',
     },
-    { label: 'GIS Operations', icon: MapPin, path: '/map' },
-    { label: 'Resources', icon: Truck, path: '/resources' },
+    {
+      label: 'GIS Operations',
+      icon: MapPin,
+      path: '/map',
+      requiredPermission: 'INCIDENT_READ',
+    },
+    {
+      label: 'Resources',
+      icon: Truck,
+      path: '/resources',
+      requiredPermission: 'RESOURCE_READ',
+    },
     {
       label: 'Response Teams',
       icon: Users,
       path: '/teams',
       badge: stats.activeTeams,
       badgeColor: 'bg-[#3B82F6]/15 text-[#60A5FA] border-[#3B82F6]/30',
+      requiredPermission: 'TEAM_READ',
     },
     {
       label: 'Alerts & Escalation',
@@ -70,13 +89,44 @@ export const Sidebar: React.FC<SidebarProps> = ({
       path: '/alerts',
       badge: stats.criticalIncidents,
       badgeColor: 'bg-[#FB4A4A]/15 text-[#FB4A4A] border-[#FB4A4A]/30',
+      requiredPermission: 'ESCALATION_READ',
     },
-    { label: 'AI Response Copilot', icon: Bot, path: '/assistant' },
-    { label: 'Analytics', icon: BarChart3, path: '/analytics' },
-    { label: 'Notifications', icon: Bell, path: '/notifications' },
-    { label: 'Settings', icon: Settings, path: '/settings' },
-    { label: 'Component Library', icon: Component, path: '/components' },
+    {
+      label: 'AI Response Copilot',
+      icon: Bot,
+      path: '/assistant',
+      requiredPermission: 'AI_CHAT',
+    },
+    {
+      label: 'Analytics',
+      icon: BarChart3,
+      path: '/analytics',
+      requiredPermission: 'ANALYTICS_READ',
+    },
+    {
+      label: 'Notifications',
+      icon: Bell,
+      path: '/notifications',
+      requiredPermission: 'NOTIFICATION_READ',
+    },
+    {
+      label: 'Settings',
+      icon: Settings,
+      path: '/settings',
+      requiredPermission: 'INCIDENT_READ', // everyone can see settings (their profile)
+    },
+    {
+      label: 'Component Library',
+      icon: Component,
+      path: '/components',
+      requiredPermission: 'SYSTEM_MANAGE', // ADMIN only
+    },
   ];
+
+  // Filter nav items to only those the current user has permission for
+  const navItems = allNavItems.filter((item) =>
+    !item.requiredPermission || hasPermission(item.requiredPermission)
+  );
 
   return (
     <>

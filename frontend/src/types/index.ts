@@ -61,10 +61,27 @@ export interface IncidentAiAnalysis {
   explainability?: any;
   classification?: {
     type: string;
+    value?: string;
     confidence: number;
     subcategory?: string;
     secondaryCategories?: string[];
   };
+  severityRating?: {
+    level?: IncidentSeverity;
+    value?: IncidentSeverity;
+    confidence?: number;
+    score?: number;
+  };
+  priorityRating?: {
+    level?: IncidentPriority;
+    value?: IncidentPriority;
+    score?: number;
+    slaMinutes?: number;
+    reason?: string;
+  };
+  reason?: string;
+  recommendations?: string[];
+  riskFactors?: string[];
   severityAnalysis?: {
     level: IncidentSeverity;
     confidence: number;
@@ -347,6 +364,7 @@ export interface LiveResource {
   capabilities: string[];
   capacity: number;
   currentAssignment?: string | null;
+  assignedIncidentId?: string | null;
   availability: boolean;
   distanceKm?: number;
   etaMinutes?: number;
