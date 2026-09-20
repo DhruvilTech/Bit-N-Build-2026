@@ -87,6 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const result = await authApi.login(credentials);
       setUser(result.user);
       setTokenState(result.token);
+      window.dispatchEvent(new Event('ps9:auth-change'));
       return result.user;
     } catch (err: any) {
       const msg = err.message || 'Authentication failed';
@@ -112,6 +113,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const result = await authApi.register(data);
       setUser(result.user);
       setTokenState(result.token);
+      window.dispatchEvent(new Event('ps9:auth-change'));
       return result.user;
     } catch (err: any) {
       const msg = err.message || 'Registration failed';
@@ -130,6 +132,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setTokenState(null);
       setIsLoading(false);
+      window.dispatchEvent(new Event('ps9:auth-change'));
     }
   }, []);
 

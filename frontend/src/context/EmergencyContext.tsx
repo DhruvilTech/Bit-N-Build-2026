@@ -7,6 +7,9 @@ import {
   AlertItem,
   NotificationItem,
   IncidentStatus,
+  Station,
+  RouteData,
+  LiveResource,
 } from '../types';
 import {
   INITIAL_INCIDENTS,
@@ -26,6 +29,9 @@ import {
   notificationsApi,
   escalationsApi,
   EscalationItem,
+  stationsApi,
+  routesApi,
+  simulationApi,
   getToken,
 } from '../services/api';
 import {
@@ -83,6 +89,20 @@ interface EmergencyContextType {
   resolveEscalation: (id: string, notes?: string) => Promise<any>;
   isLiveBackend: boolean;
   syncWithBackend: () => Promise<void>;
+  stations: Station[];
+  liveResources: LiveResource[];
+  activeRoutes: Record<string, RouteData>;
+  isSimulationMode: boolean;
+  toggleSimulationMode: (enabled?: boolean) => Promise<any>;
+  focusLocation: { lat: number; lng: number } | null;
+  setFocusLocation: (loc: { lat: number; lng: number } | null) => void;
+  startResourceSimulation: (
+    resourceId: string,
+    destination: { latitude: number; longitude: number },
+    incidentId?: string
+  ) => Promise<void>;
+  returnResourceToStation: (resourceId: string) => Promise<void>;
+  dispatchIncidentSimulation: (incidentId: string) => Promise<void>;
   stats: {
     totalIncidents: number;
     criticalIncidents: number;
@@ -123,6 +143,11 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [isCreateIncidentModalOpen, setIsCreateIncidentModalOpen] = useState<boolean>(false);
   const [isNotificationsDrawerOpen, setIsNotificationsDrawerOpen] = useState<boolean>(false);
   const [isLiveBackend, setIsLiveBackend] = useState<boolean>(false);
+  const [stations, setStations] = useState<Station[]>([]);
+  const [liveResources, setLiveResources] = useState<LiveResource[]>([]);
+  const [activeRoutes, setActiveRoutes] = useState<Record<string, RouteData>>({});
+  const [isSimulationMode, setIsSimulationMode] = useState<boolean>(false);
+  const [focusLocation, setFocusLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   // Socket.IO Real-Time Mesh Integration
   useEffect(() => {
@@ -269,6 +294,56 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         ]);
       });
 
+      // GPS Tracking & Route events
+      socket.on('resource:locationUpdated', (payload: any) => {
+        const { resourceId, currentLocation, status, distanceKm, etaMinutes } = payload;
+        setLiveResources((prev) =>
+          prev.map((r) => {
+            if (r.resourceId === resourceId) {
+              return {
+                ...r,
+                currentLocation: currentLocation || r.currentLocation,
+                location: currentLocation || r.location,
+                status: status || r.status,
+                distanceKm: distanceKm !== undefined ? distanceKm : r.distanceKm,
+                etaMinutes: etaMinutes !== undefined ? etaMinutes : r.etaMinutes,
+              };
+            }
+            return r;
+          })
+        );
+      });
+
+      socket.on('resource:arrived', (payload: any) => {
+        soundFx.playDispatch();
+        const { resourceId, incidentId, status } = payload;
+        setLiveResources((prev) =>
+          prev.map((r) => {
+            if (r.resourceId === resourceId) {
+              return {
+                ...r,
+                status: status || 'ON_SCENE',
+                etaMinutes: 0,
+                distanceKm: 0,
+              };
+            }
+            return r;
+          })
+        );
+        setNotifications((prev) => [
+          {
+            id: `NOTIF-ARRIVE-${Date.now()}`,
+            category: 'Teams',
+            title: `📍 Resource Arrived: ${resourceId}`,
+            message: `Resource has arrived on-scene${incidentId ? ` at incident #${incidentId}` : ''}. Status: ON_SCENE`,
+            timestamp: new Date().toTimeString().slice(0, 5),
+            read: false,
+            incidentId,
+          },
+          ...prev,
+        ]);
+      });
+
       socket.on('incident:reviewed', (payload: any) => {
         soundFx.playClick();
         const raw = payload.incident || payload;
@@ -366,6 +441,65 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           );
         }
       });
+
+      socket.on('route:created', (payload: any) => {
+        const { resourceId, assignmentId, route } = payload;
+        if (route && (resourceId || assignmentId)) {
+          const key = resourceId || assignmentId;
+          setActiveRoutes((prev) => ({
+            ...prev,
+            [key]: route,
+          }));
+        }
+      });
+
+      socket.on('resource:assigned', (payload: any) => {
+        const { resourceId, status, assignmentId } = payload;
+        setLiveResources((prev) =>
+          prev.map((r) =>
+            r.resourceId === resourceId
+              ? {
+                  ...r,
+                  status: status || 'ASSIGNED',
+                  currentAssignment: assignmentId || r.currentAssignment,
+                  availability: false,
+                }
+              : r
+          )
+        );
+      });
+
+      socket.on('resource:released', (payload: any) => {
+        const { resourceId, status } = payload;
+        setLiveResources((prev) =>
+          prev.map((r) =>
+            r.resourceId === resourceId
+              ? {
+                  ...r,
+                  status: status || 'AVAILABLE',
+                  currentAssignment: null,
+                  availability: true,
+                  etaMinutes: undefined,
+                  distanceKm: undefined,
+                }
+              : r
+          )
+        );
+      });
+
+      socket.on('station:created', (payload: any) => {
+        if (payload?.station) {
+          setStations((prev) => [...prev, payload.station]);
+        }
+      });
+
+      socket.on('station:updated', (payload: any) => {
+        if (payload?.station) {
+          setStations((prev) =>
+            prev.map((s) => (s.stationId === payload.station.stationId ? payload.station : s))
+          );
+        }
+      });
     } catch (err: any) {
       console.warn('Socket connection deferred:', err.message);
     }
@@ -381,11 +515,13 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (!token) return;
 
     try {
-      const [incidentsRes, teamsRes, facilitiesRes, resourcesRes, notifsRes, escalationsRes] = await Promise.allSettled([
+      const [incidentsRes, teamsRes, facilitiesRes, resourcesRes, stationsRes, simRes, notifsRes, escalationsRes] = await Promise.allSettled([
         incidentsApi.getAll(),
         teamsApi.getAll(),
         facilitiesApi.getAll(),
         resourcesApi.getAll(),
+        stationsApi.getAll(),
+        simulationApi.getStatus(),
         notificationsApi.getAll(),
         escalationsApi.getActive(),
       ]);
@@ -408,6 +544,15 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
       if (resourcesRes.status === 'fulfilled' && Array.isArray(resourcesRes.value) && resourcesRes.value.length > 0) {
         setEquipment(adaptBackendResources(resourcesRes.value));
+        setLiveResources(resourcesRes.value);
+      }
+
+      if (stationsRes.status === 'fulfilled' && Array.isArray(stationsRes.value) && stationsRes.value.length > 0) {
+        setStations(stationsRes.value);
+      }
+
+      if (simRes.status === 'fulfilled' && simRes.value?.isSimulationMode !== undefined) {
+        setIsSimulationMode(simRes.value.isSimulationMode);
       }
 
       if (notifsRes.status === 'fulfilled' && notifsRes.value?.notifications) {
@@ -443,6 +588,17 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   useEffect(() => {
     syncWithBackend();
+
+    const handleAuthChange = () => {
+      syncWithBackend();
+    };
+
+    window.addEventListener('ps9:auth-change', handleAuthChange);
+    window.addEventListener('storage', handleAuthChange);
+    return () => {
+      window.removeEventListener('ps9:auth-change', handleAuthChange);
+      window.removeEventListener('storage', handleAuthChange);
+    };
   }, [syncWithBackend]);
 
   // Live Digital Clock
@@ -612,7 +768,10 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       })
     );
 
-    // Sync with backend asynchronously
+    // Sync with backend asynchronously (Phase 8 Multi-Resource Assignment & Phase 4 Team Assignment)
+    incidentsApi.assignResources(incidentId, { resourceIds: [teamId], notes: `Dispatched unit ${teamId} via command center` }).catch((err) => {
+      console.warn('Backend incidentsApi assignResources note:', err.message);
+    });
     teamsApi.assign(teamId, { incidentId }).catch((err) => {
       console.warn('Backend dispatch sync note:', err.message);
     });
@@ -1090,6 +1249,68 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return escalations.filter((e) => e.status === 'PENDING' || e.status === 'ACKNOWLEDGED');
   }, [escalations]);
 
+  const toggleSimulationMode = useCallback(async (enabled?: boolean) => {
+    try {
+      const nextState = enabled !== undefined ? enabled : !isSimulationMode;
+      const res = await simulationApi.setMode(nextState);
+      setIsSimulationMode(nextState);
+      if (nextState) {
+        soundFx.playDispatch();
+      }
+      return res;
+    } catch (err: any) {
+      console.warn('Failed to toggle simulation mode:', err.message);
+    }
+  }, [isSimulationMode]);
+
+  const startResourceSimulation = useCallback(
+    async (
+      resourceId: string,
+      destination: { latitude: number; longitude: number },
+      incidentId?: string
+    ) => {
+      try {
+        const res = await simulationApi.startResourceRoute(resourceId, destination, incidentId);
+        if (res?.data?.route) {
+          setActiveRoutes((prev) => ({
+            ...prev,
+            [resourceId]: res.data.route,
+          }));
+        }
+      } catch (err: any) {
+        console.warn('Failed to start resource simulation:', err.message);
+      }
+    },
+    []
+  );
+
+  const returnResourceToStation = useCallback(async (resourceId: string) => {
+    try {
+      const res = await simulationApi.returnResource(resourceId);
+      if (res?.data?.route) {
+        setActiveRoutes((prev) => ({
+          ...prev,
+          [resourceId]: res.data.route,
+        }));
+      }
+    } catch (err: any) {
+      console.warn('Failed to return resource to station:', err.message);
+    }
+  }, []);
+
+  const dispatchIncidentSimulation = useCallback(
+    async (incidentId: string) => {
+      try {
+        soundFx.playDispatch();
+        await simulationApi.dispatchIncident(incidentId);
+        await syncWithBackend();
+      } catch (err: any) {
+        console.warn('Failed to auto-dispatch incident:', err.message);
+      }
+    },
+    [syncWithBackend]
+  );
+
   const value = {
     incidents,
     activeIncidentId,
@@ -1135,6 +1356,16 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     resolveEscalation,
     isLiveBackend,
     syncWithBackend,
+    stations,
+    liveResources,
+    activeRoutes,
+    isSimulationMode,
+    toggleSimulationMode,
+    focusLocation,
+    setFocusLocation,
+    startResourceSimulation,
+    returnResourceToStation,
+    dispatchIncidentSimulation,
     stats,
   };
 
