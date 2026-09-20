@@ -1,8 +1,16 @@
 import mongoose from 'mongoose';
 import { ResourceModel } from '../models/resource.model.js';
 import { IncidentModel } from '../models/incident.model.js';
+import { AssignmentModel } from '../models/assignment.model.js';
 import { recordAuditLog } from './auditLog.service.js';
-import { NotFoundError, BadRequestError, ConflictError } from '../utils/errors.js';
+import { NotFoundError, BadRequestError, ConflictError, ValidationError } from '../utils/errors.js';
+import { calculateDistanceKm, calculateEtaMinutes } from './recommendation.service.js';
+import {
+  emitResourceLocationUpdated,
+  emitResourceArrived,
+  emitAssignmentUpdated,
+  emitResponseStatusChanged,
+} from '../utils/socket.js';
 
 export const getResources = async (filters = {}, pagination = {}) => {
   const query = {};
@@ -313,3 +321,133 @@ export const deleteResource = async (id, user = null) => {
 
   return { deleted: true, resourceId: resource.resourceId };
 };
+
+/**
+ * Updates a resource's live GPS coordinates, recalculates distance/ETA,
+ * detects arrival when near destination, and broadcasts real-time socket events.
+ */
+export const updateResourceLocation = async (id, { latitude, longitude, status }, user = null) => {
+  const lat = Number(latitude);
+  const lng = Number(longitude);
+
+  if (isNaN(lat) || lat < -90 || lat > 90) {
+    throw new ValidationError('Valid latitude (-90 to 90) is required.');
+  }
+  if (isNaN(lng) || lng < -180 || lng > 180) {
+    throw new ValidationError('Valid longitude (-180 to 180) is required.');
+  }
+
+  const resource = await getResourceById(id);
+
+  // Update live coordinates
+  resource.currentLocation = {
+    latitude: lat,
+    longitude: lng,
+    address: resource.currentLocation?.address || resource.location?.address || 'Live GPS Coordinates',
+    geometry: {
+      type: 'Point',
+      coordinates: [lng, lat],
+    },
+  };
+  resource.locationUpdatedAt = new Date();
+
+  if (status && status !== resource.status) {
+    resource.status = status;
+  }
+
+  let remainingDistanceKm = null;
+  let remainingEtaMinutes = null;
+  let activeAssignment = null;
+
+  // If resource has an active assignment and destination, compute remaining distance & ETA
+  if (resource.currentAssignment) {
+    activeAssignment = await AssignmentModel.findOne({
+      resourceId: resource.resourceId,
+      incidentId: resource.currentAssignment,
+      status: { $in: ['ASSIGNED', 'DISPATCHED', 'EN_ROUTE', 'RETURNING'] },
+    }).sort({ createdAt: -1 });
+
+    const destLat = resource.destinationLocation?.latitude || activeAssignment?.route?.destination?.latitude;
+    const destLng = resource.destinationLocation?.longitude || activeAssignment?.route?.destination?.longitude;
+
+    if (destLat !== undefined && destLng !== undefined && destLat !== null && destLng !== null) {
+      remainingDistanceKm = calculateDistanceKm(lat, lng, destLat, destLng);
+      remainingEtaMinutes = calculateEtaMinutes(remainingDistanceKm);
+
+      // Arrival Detection: proximity threshold <= 80 meters (0.08 km)
+      if (
+        (resource.status === 'EN_ROUTE' || resource.status === 'DISPATCHED') &&
+        remainingDistanceKm <= 0.08
+      ) {
+        const arrivalTime = new Date();
+        resource.status = 'ON_SCENE';
+        remainingEtaMinutes = 0;
+
+        if (activeAssignment) {
+          activeAssignment.status = 'ON_SCENE';
+          activeAssignment.arrivedAt = arrivalTime;
+
+          const startTime = activeAssignment.dispatchedAt || activeAssignment.assignedAt;
+          const responseDurationMs = arrivalTime.getTime() - new Date(startTime).getTime();
+          const responseTimeMins = Math.max(0, Math.round((responseDurationMs / (1000 * 60)) * 10) / 10);
+          activeAssignment.actualArrivalMinutes = responseTimeMins;
+          activeAssignment.responseTimeMinutes = responseTimeMins;
+
+          if (activeAssignment.estimatedArrivalMinutes) {
+            activeAssignment.delayMinutes = Math.max(
+              0,
+              Math.round((responseTimeMins - activeAssignment.estimatedArrivalMinutes) * 10) / 10
+            );
+          }
+
+          activeAssignment.timeline.push({
+            status: 'ON_SCENE',
+            timestamp: arrivalTime,
+            changedBy: user ? { userId: user.id || user._id, name: user.name, role: user.role } : { name: 'GPS Proximity' },
+            note: 'Automatic arrival detected (proximity <= 80m)',
+          });
+
+          await activeAssignment.save();
+
+          emitAssignmentUpdated(activeAssignment);
+          emitResponseStatusChanged(activeAssignment);
+        }
+
+        emitResourceArrived({
+          resourceId: resource.resourceId,
+          incidentId: resource.currentAssignment,
+          arrivedAt: arrivalTime,
+          responseTimeMinutes: activeAssignment?.responseTimeMinutes,
+          delayMinutes: activeAssignment?.delayMinutes,
+        });
+      }
+    }
+  }
+
+  await resource.save();
+
+  // Broadcast real-time live GPS update
+  emitResourceLocationUpdated({
+    resourceId: resource.resourceId,
+    incidentId: resource.currentAssignment,
+    latitude: lat,
+    longitude: lng,
+    status: resource.status,
+    etaMinutes: remainingEtaMinutes,
+    distanceRemainingKm: remainingDistanceKm,
+    timestamp: resource.locationUpdatedAt.toISOString(),
+  });
+
+  return {
+    resourceId: resource.resourceId,
+    currentLocation: resource.currentLocation,
+    status: resource.status,
+    destinationLocation: resource.destinationLocation,
+    distanceKm: remainingDistanceKm,
+    etaMinutes: remainingEtaMinutes,
+    remainingDistanceKm,
+    remainingEtaMinutes,
+    locationUpdatedAt: resource.locationUpdatedAt,
+  };
+};
+

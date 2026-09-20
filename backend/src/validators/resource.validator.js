@@ -18,7 +18,17 @@ const resourceTypeEnum = z.enum([
   'OTHER',
 ]);
 
-const resourceStatusEnum = z.enum(['AVAILABLE', 'ASSIGNED', 'BUSY', 'OFFLINE']);
+const resourceStatusEnum = z.enum([
+  'AVAILABLE',
+  'ASSIGNED',
+  'DISPATCHED',
+  'EN_ROUTE',
+  'ON_SCENE',
+  'COMPLETED',
+  'RETURNING',
+  'BUSY',
+  'OFFLINE',
+]);
 
 export const createResourceSchema = z.object({
   body: z.object({
@@ -92,3 +102,12 @@ export const nearbyResourcesSchema = z.object({
     capability: z.string().trim().optional(),
   }),
 });
+
+export const updateResourceLocationSchema = z.object({
+  body: z.object({
+    latitude: z.number().min(-90).max(90),
+    longitude: z.number().min(-180).max(180),
+    status: resourceStatusEnum.optional(),
+  }),
+});
+

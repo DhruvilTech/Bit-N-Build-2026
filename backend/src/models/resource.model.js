@@ -76,9 +76,64 @@ const resourceSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['AVAILABLE', 'ASSIGNED', 'BUSY', 'OFFLINE'],
+      enum: [
+        'AVAILABLE',
+        'ASSIGNED',
+        'DISPATCHED',
+        'EN_ROUTE',
+        'ON_SCENE',
+        'COMPLETED',
+        'RETURNING',
+        'BUSY',
+        'OFFLINE',
+      ],
       default: 'AVAILABLE',
       index: true,
+    },
+    stationId: {
+      type: String,
+      default: null,
+      trim: true,
+      index: true,
+    },
+    homeLocation: {
+      latitude: { type: Number },
+      longitude: { type: Number },
+      address: { type: String },
+      geometry: {
+        type: {
+          type: String,
+          enum: ['Point'],
+          default: 'Point',
+        },
+        coordinates: {
+          type: [Number], // [longitude, latitude]
+        },
+      },
+    },
+    currentLocation: {
+      latitude: { type: Number },
+      longitude: { type: Number },
+      address: { type: String },
+      geometry: {
+        type: {
+          type: String,
+          enum: ['Point'],
+          default: 'Point',
+        },
+        coordinates: {
+          type: [Number], // [longitude, latitude]
+        },
+      },
+    },
+    destinationLocation: {
+      latitude: { type: Number, default: null },
+      longitude: { type: Number, default: null },
+      address: { type: String, default: null },
+    },
+    locationUpdatedAt: {
+      type: Date,
+      default: Date.now,
     },
     location: {
       latitude: { type: Number, required: true },
@@ -135,6 +190,42 @@ const resourceSchema = new mongoose.Schema(
 );
 
 resourceSchema.pre('save', function (next) {
+  // Sync currentLocation with legacy location
+  if (this.currentLocation && this.currentLocation.latitude !== undefined) {
+    this.location = {
+      latitude: this.currentLocation.latitude,
+      longitude: this.currentLocation.longitude,
+      address: this.currentLocation.address || this.location?.address || '',
+      geometry: {
+        type: 'Point',
+        coordinates: [this.currentLocation.longitude, this.currentLocation.latitude],
+      },
+    };
+  } else if (this.location && this.location.latitude !== undefined) {
+    this.currentLocation = {
+      latitude: this.location.latitude,
+      longitude: this.location.longitude,
+      address: this.location.address || '',
+      geometry: {
+        type: 'Point',
+        coordinates: [this.location.longitude, this.location.latitude],
+      },
+    };
+  }
+
+  // Default homeLocation to initial location if not set
+  if (!this.homeLocation || !this.homeLocation.latitude) {
+    this.homeLocation = {
+      latitude: this.location.latitude,
+      longitude: this.location.longitude,
+      address: this.location.address || '',
+      geometry: {
+        type: 'Point',
+        coordinates: [this.location.longitude, this.location.latitude],
+      },
+    };
+  }
+
   this.availability = this.status === 'AVAILABLE' && !this.currentAssignment;
   next();
 });

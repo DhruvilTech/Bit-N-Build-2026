@@ -39,6 +39,16 @@ import {
   overrideIncidentSchema,
   addReportSchema,
 } from '../validators/aiPipeline.validator.js';
+import {
+  getIncidentRecommendations,
+  createIncidentAssignments,
+  getIncidentAssignments,
+  getIncidentResponseMetrics,
+} from '../controllers/assignment.controller.js';
+import {
+  getRecommendationsSchema,
+  createAssignmentsSchema,
+} from '../validators/assignment.validator.js';
 
 const router = Router();
 
@@ -226,6 +236,40 @@ router.get(
   '/:id/escalations',
   authenticate,
   getIncidentEscalations
+);
+
+// 15. Resource Recommendations for Incident (Phase 6)
+router.get(
+  '/:id/recommendations',
+  authenticate,
+  authorize('ADMIN', 'OPERATOR', 'FIELD_COORDINATOR', 'MEDICAL_COORDINATOR'),
+  validate(getRecommendationsSchema),
+  getIncidentRecommendations
+);
+
+// 16. Multi-Resource Assignment & Dispatch to Incident (Phase 8)
+router.post(
+  '/:id/assignments',
+  authenticate,
+  authorize('ADMIN', 'OPERATOR'),
+  validate(createAssignmentsSchema),
+  createIncidentAssignments
+);
+
+// 17. Get Incident Resource Assignments & Tracking (Phases 8 & 10)
+router.get(
+  '/:id/assignments',
+  authenticate,
+  authorize('ADMIN', 'OPERATOR', 'FIELD_COORDINATOR', 'MEDICAL_COORDINATOR'),
+  getIncidentAssignments
+);
+
+// 18. Incident Response Timeline & SLA Metrics (Phase 10)
+router.get(
+  '/:id/response-metrics',
+  authenticate,
+  authorize('ADMIN', 'OPERATOR', 'FIELD_COORDINATOR', 'MEDICAL_COORDINATOR'),
+  getIncidentResponseMetrics
 );
 
 export default router;

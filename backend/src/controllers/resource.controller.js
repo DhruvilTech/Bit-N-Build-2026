@@ -8,6 +8,7 @@ import {
   releaseResource,
   findNearbyResources,
   deleteResource,
+  updateResourceLocation,
 } from '../services/resource.service.js';
 import { successResponse } from '../utils/response.js';
 
@@ -129,6 +130,20 @@ export const removeResource = async (req, res, next) => {
   try {
     const result = await deleteResource(req.params.id, req.user);
     return successResponse(res, 'Resource deleted successfully', result, 200);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateLocation = async (req, res, next) => {
+  try {
+    const { latitude, longitude, status } = req.body;
+    const result = await updateResourceLocation(
+      req.params.id,
+      { latitude, longitude, status },
+      req.user
+    );
+    return successResponse(res, `Resource #${req.params.id} GPS location updated`, result, 200);
   } catch (error) {
     next(error);
   }

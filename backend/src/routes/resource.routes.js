@@ -9,6 +9,7 @@ import {
   release,
   getNearby,
   removeResource,
+  updateLocation,
 } from '../controllers/resource.controller.js';
 import { validate } from '../middleware/validate.middleware.js';
 import { authenticate, authorize } from '../middleware/auth.middleware.js';
@@ -19,6 +20,7 @@ import {
   assignResourceSchema,
   releaseResourceSchema,
   nearbyResourcesSchema,
+  updateResourceLocationSchema,
 } from '../validators/resource.validator.js';
 
 const router = Router();
@@ -54,6 +56,14 @@ router.patch(
   authorize('ADMIN', 'OPERATOR', 'FIELD_COORDINATOR'),
   validate(updateResourceStatusSchema),
   updateStatus
+);
+
+router.patch(
+  '/:id/location',
+  authenticate,
+  authorize('ADMIN', 'OPERATOR', 'FIELD_COORDINATOR'),
+  validate(updateResourceLocationSchema),
+  updateLocation
 );
 
 router.post(
