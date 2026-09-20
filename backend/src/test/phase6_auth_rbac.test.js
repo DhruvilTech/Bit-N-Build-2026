@@ -137,6 +137,12 @@ const runTests = async () => {
     console.log('\n--- [2] RBAC ENFORCEMENT & PERMISSIONS ---');
 
     // 2.1 Operator Can Dispatch Teams & Assign Resources
+    // Ensure clean state before dispatch test
+    await fetch(`${baseUrl}/teams/TEAM-FT01/release`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${operatorToken}` },
+    });
+
     const opAssignTeam = await fetch(`${baseUrl}/teams/TEAM-FT01/assign`, {
       method: 'POST',
       headers: {
