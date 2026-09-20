@@ -219,8 +219,8 @@ const generateSyntheticData = async () => {
   await ResponseTeamModel.insertMany(teams);
   console.log(`✓ Seeded ${teams.length} Response Teams across Bangalore, Delhi NCR, and Mumbai.`);
 
-  // 3. Generate 180 Heavy & Tactical Resources (60 per city)
-  console.log('[3/7] Generating 180 City-Scoped Resources (60 per city: Ambulances, Fire Engines, Police, Hazmat)...');
+  // 3. Generate 441 Heavy & Tactical Resources (147 per city)
+  console.log('[3/7] Generating 441 City-Scoped Resources (147 per city: 50 Ambulances, 42 Fire Engines, 20 Police, 25 Rescue, 10 Hazmat)...');
   const resources = [];
   let globalResIndex = 1;
 
@@ -228,11 +228,11 @@ const generateSyntheticData = async () => {
     const cityConfig = CITIES[cityName];
     const cityPrefix = cityName.slice(0, 3).toUpperCase();
 
-    // 25 Ambulances per city
-    for (let a = 1; a <= 25; a++) {
+    // 50 Ambulances per city (45 available, 5 assigned/en_route)
+    for (let a = 1; a <= 50; a++) {
       const geo = randomGeoForCity(cityName);
       const loc = cityConfig.locations[a % cityConfig.locations.length];
-      const status = a <= 20 ? 'AVAILABLE' : a <= 23 ? 'ASSIGNED' : 'EN_ROUTE';
+      const status = a <= 45 ? 'AVAILABLE' : a <= 48 ? 'ASSIGNED' : 'EN_ROUTE';
       resources.push({
         resourceId: `RES-${cityPrefix}-AMB-${String(a).padStart(2, '0')}`,
         name: `${cityName} Advanced Life Support Ambulance #${a}`,
@@ -253,11 +253,11 @@ const generateSyntheticData = async () => {
       });
     }
 
-    // 15 Fire Vehicles per city
-    for (let f = 1; f <= 15; f++) {
+    // 42 Fire Vehicles per city (38 available, 4 assigned/en_route)
+    for (let f = 1; f <= 42; f++) {
       const geo = randomGeoForCity(cityName);
       const loc = cityConfig.locations[f % cityConfig.locations.length];
-      const status = f <= 12 ? 'AVAILABLE' : 'ASSIGNED';
+      const status = f <= 38 ? 'AVAILABLE' : f <= 41 ? 'ASSIGNED' : 'EN_ROUTE';
       resources.push({
         resourceId: `RES-${cityPrefix}-FIRE-${String(f).padStart(2, '0')}`,
         name: `${cityName} Heavy Water Tender #${f}`,
@@ -278,11 +278,11 @@ const generateSyntheticData = async () => {
       });
     }
 
-    // 10 Police Interceptors per city
-    for (let p = 1; p <= 10; p++) {
+    // 20 Police Interceptors per city (18 available, 2 assigned)
+    for (let p = 1; p <= 20; p++) {
       const geo = randomGeoForCity(cityName);
       const loc = cityConfig.locations[p % cityConfig.locations.length];
-      const status = p <= 8 ? 'AVAILABLE' : 'ASSIGNED';
+      const status = p <= 18 ? 'AVAILABLE' : 'ASSIGNED';
       resources.push({
         resourceId: `RES-${cityPrefix}-POL-${String(p).padStart(2, '0')}`,
         name: `${cityName} Highway Patrol Interceptor #${p}`,
@@ -303,11 +303,11 @@ const generateSyntheticData = async () => {
       });
     }
 
-    // 6 Rescue Equipment per city
-    for (let r = 1; r <= 6; r++) {
+    // 25 Rescue Equipment per city (23 available, 2 assigned -> slight deficit of -5 for realistic shortage alert testing)
+    for (let r = 1; r <= 25; r++) {
       const geo = randomGeoForCity(cityName);
       const loc = cityConfig.locations[r % cityConfig.locations.length];
-      const status = r <= 5 ? 'AVAILABLE' : 'ASSIGNED';
+      const status = r <= 23 ? 'AVAILABLE' : 'ASSIGNED';
       resources.push({
         resourceId: `RES-${cityPrefix}-RSC-${String(r).padStart(2, '0')}`,
         name: `${cityName} Heavy Hydraulic Extrication Rig #${r}`,
@@ -328,11 +328,11 @@ const generateSyntheticData = async () => {
       });
     }
 
-    // 4 Hazmat Units per city
-    for (let h = 1; h <= 4; h++) {
+    // 10 Hazmat Units per city (8 available, 2 assigned)
+    for (let h = 1; h <= 10; h++) {
       const geo = randomGeoForCity(cityName);
       const loc = cityConfig.locations[h % cityConfig.locations.length];
-      const status = h <= 3 ? 'AVAILABLE' : 'ASSIGNED';
+      const status = h <= 8 ? 'AVAILABLE' : 'ASSIGNED';
       resources.push({
         resourceId: `RES-${cityPrefix}-HAZ-${String(h).padStart(2, '0')}`,
         name: `${cityName} Chemical Decontamination & Hazmat Unit #${h}`,
