@@ -35,10 +35,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   mobileOpen,
   setMobileOpen,
 }) => {
-  const { stats, theme } = useEmergency();
+  const { stats, alerts, theme } = useEmergency();
   const { user, logout, hasPermission } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
+  const activeAlertsCount = alerts.filter((a) => !a.acknowledged).length;
 
   const handleLogout = async () => {
     soundFx.playClick();
@@ -87,7 +89,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'Alerts & Escalation',
       icon: AlertTriangle,
       path: '/alerts',
-      badge: stats.criticalIncidents,
+      badge: activeAlertsCount,
       badgeColor: 'bg-[#FB4A4A]/15 text-[#FB4A4A] border-[#FB4A4A]/30',
       requiredPermission: 'ESCALATION_READ',
     },

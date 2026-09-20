@@ -18,6 +18,27 @@ export const initSocketServer = (httpServer, clientOrigin = '*') => {
   ioInstance.on('connection', (socket) => {
     console.log(`[Socket.IO] Client connected: ${socket.id}`);
 
+    // Derive identity from handshake auth if token provided
+    try {
+      const token = socket.handshake?.auth?.token || socket.handshake?.headers?.authorization?.replace(/^Bearer\s+/i, '');
+      if (token) {
+        import('jsonwebtoken').then(({ default: jwt }) => {
+          const secret = process.env.JWT_SECRET || 'emergenx_jwt_secret_dev_2026';
+          try {
+            const decoded = jwt.verify(token, secret);
+            const authUserId = decoded._id || decoded.userId || decoded.id;
+            const authRole = decoded.role;
+            if (authUserId) socket.join(`user:${authUserId}`);
+            if (authRole) socket.join(`role:${authRole}`);
+          } catch {
+            // Token verification failed, continue with unauthenticated socket
+          }
+        }).catch(() => {});
+      }
+    } catch {
+      // ignore
+    }
+
     // Join room based on user role or id
     socket.on('join', ({ userId, role } = {}) => {
       if (userId) {
@@ -430,14 +451,35 @@ export const emitResourceLocationUpdated = (locationData) => {
  */
 export const emitNotificationNew = (notification) => {
   if (ioInstance) {
-    if (notification.userId) {
-      ioInstance.to(`user:${notification.userId}`).emit('notification:new', notification);
+    const payload = {
+      id: notification.notificationId || notification._id?.toString(),
+      notificationId: notification.notificationId,
+      recipient: notification.recipient || notification.userId || null,
+      userId: notification.userId || notification.recipient || null,
+      targetRole: notification.targetRole || 'ALL',
+      type: notification.type,
+      title: notification.title,
+      message: notification.message,
+      severity: notification.severity || 'MEDIUM',
+      priority: notification.priority || 'MEDIUM',
+      entityType: notification.entityType || 'SYSTEM',
+      entityId: notification.entityId || null,
+      incidentId: notification.incidentId || null,
+      alertId: notification.alertId || null,
+      assignmentId: notification.assignmentId || null,
+      createdAt: notification.createdAt || new Date().toISOString(),
+      isRead: Boolean(notification.isRead),
+      metadata: notification.metadata || {},
+    };
+
+    if (payload.userId) {
+      ioInstance.to(`user:${payload.userId}`).emit('notification:new', payload);
     }
-    if (notification.targetRole && notification.targetRole !== 'ALL') {
-      ioInstance.to(`role:${notification.targetRole}`).emit('notification:new', notification);
+    if (payload.targetRole && payload.targetRole !== 'ALL') {
+      ioInstance.to(`role:${payload.targetRole}`).emit('notification:new', payload);
     }
-    ioInstance.to('operations').emit('notification:new', notification);
-    ioInstance.emit('notification:new', notification); // Global fallback
+    ioInstance.to('operations').emit('notification:new', payload);
+    ioInstance.emit('notification:new', payload); // Global fallback
   }
 };
 
@@ -458,6 +500,7 @@ export const emitNotificationRead = (data) => {
     if (data.userId) {
       ioInstance.to(`user:${data.userId}`).emit('notification:read', data);
     }
+    ioInstance.to('operations').emit('notification:read', data);
     ioInstance.emit('notification:read', data);
   }
 };

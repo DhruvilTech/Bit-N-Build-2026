@@ -1,8 +1,9 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Bell, CheckCheck, AlertTriangle, Users, Database, ShieldAlert } from 'lucide-react';
+import { X, Bell, CheckCheck, AlertTriangle, Users, Database, ShieldAlert, Trash2, ArrowRight } from 'lucide-react';
 import { useEmergency } from '../../context/EmergencyContext';
 import { useNavigate } from 'react-router-dom';
+import { NotificationItem } from '../../types';
 
 export const NotificationsDrawer: React.FC = () => {
   const {
@@ -11,6 +12,7 @@ export const NotificationsDrawer: React.FC = () => {
     notifications,
     markNotificationAsRead,
     markAllNotificationsAsRead,
+    deleteNotification,
     setActiveIncidentId,
   } = useEmergency();
   const navigate = useNavigate();
@@ -30,14 +32,27 @@ export const NotificationsDrawer: React.FC = () => {
     }
   };
 
-  const handleNotificationClick = (incidentId?: string, notifId?: string) => {
-    if (notifId) markNotificationAsRead(notifId);
-    if (incidentId) {
-      setActiveIncidentId(incidentId);
+  const handleNotificationClick = (item: NotificationItem) => {
+    if (item.id) markNotificationAsRead(item.id);
+    if (item.incidentId) {
+      setActiveIncidentId(item.incidentId);
       setIsNotificationsDrawerOpen(false);
-      navigate(`/incidents/${incidentId}`);
+      navigate(`/incidents/${item.incidentId}`);
+    } else if (item.alertId) {
+      setIsNotificationsDrawerOpen(false);
+      navigate('/alerts');
+    } else if (item.resourceId) {
+      setIsNotificationsDrawerOpen(false);
+      navigate('/resources');
     }
   };
+
+  const handleDelete = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    deleteNotification(id);
+  };
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
     <AnimatePresence>
@@ -65,7 +80,7 @@ export const NotificationsDrawer: React.FC = () => {
                 <div>
                   <h3 className="font-display font-bold text-white text-base">DISPATCH ALERTS</h3>
                   <p className="text-xs text-slate-400 font-mono">
-                    {notifications.filter((n) => !n.read).length} UNREAD BROADCASTS
+                    {unreadCount} UNREAD BROADCASTS
                   </p>
                 </div>
               </div>
@@ -89,15 +104,17 @@ export const NotificationsDrawer: React.FC = () => {
             {/* Notification List */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {notifications.length === 0 ? (
-                <div className="text-center py-12 text-slate-500 font-mono text-sm">
-                  No active system alerts.
+                <div className="text-center py-16 text-slate-500 font-mono text-sm">
+                  <Bell className="w-8 h-8 mx-auto mb-2 text-slate-600 opacity-40" />
+                  No notifications.<br />
+                  <span className="text-xs text-slate-600">You're all caught up.</span>
                 </div>
               ) : (
                 notifications.map((item) => (
                   <div
                     key={item.id}
-                    onClick={() => handleNotificationClick(item.incidentId, item.id)}
-                    className={`p-3.5 rounded-xl border transition-all cursor-pointer ${
+                    onClick={() => handleNotificationClick(item)}
+                    className={`group relative p-3.5 rounded-xl border transition-all cursor-pointer ${
                       !item.read
                         ? 'bg-[#0B1018] border-[#2DD4BF]/35 shadow-[0_0_15px_rgba(45,212,191,0.08)]'
                         : 'bg-white/[0.02] border-white/5 hover:bg-white/5'
@@ -123,12 +140,36 @@ export const NotificationsDrawer: React.FC = () => {
                         <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">
                           {item.message}
                         </p>
-                        {item.incidentId && (
-                          <div className="mt-2 flex items-center gap-1.5 text-[11px] font-mono text-[#2DD4BF] font-semibold">
-                            <span>Open #{item.incidentId}</span>
-                            <span>&rarr;</span>
+                        <div className="mt-2 flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            {item.severity && (
+                              <span
+                                className={`text-[9px] font-mono px-1.5 py-0.5 rounded font-bold ${
+                                  item.severity === 'CRITICAL'
+                                    ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                                    : item.severity === 'HIGH'
+                                    ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                                    : 'bg-slate-500/20 text-slate-300'
+                                }`}
+                              >
+                                {item.severity}
+                              </span>
+                            )}
+                            {item.incidentId && (
+                              <span className="text-[11px] font-mono text-[#2DD4BF] font-semibold flex items-center gap-1">
+                                <span>#{item.incidentId}</span>
+                                <ArrowRight className="w-3 h-3" />
+                              </span>
+                            )}
                           </div>
-                        )}
+                          <button
+                            onClick={(e) => handleDelete(e, item.id)}
+                            title="Delete notification"
+                            className="opacity-0 group-hover:opacity-100 p-1 text-slate-500 hover:text-red-400 transition-all rounded hover:bg-white/5"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -155,3 +196,4 @@ export const NotificationsDrawer: React.FC = () => {
     </AnimatePresence>
   );
 };
+

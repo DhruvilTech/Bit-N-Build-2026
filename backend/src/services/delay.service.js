@@ -2,6 +2,7 @@ import { AssignmentModel } from '../models/assignment.model.js';
 import { emitResponseDelayed } from '../utils/socket.js';
 import { evaluateResponseDelayAlert } from './alert.service.js';
 import { recordAuditLog } from './auditLog.service.js';
+import NotificationService from './notification.service.js';
 
 /**
  * Check if a single assignment is delayed past its SLA and trigger delay notifications
@@ -43,6 +44,22 @@ export const checkAssignmentDelay = async (assignment, now = new Date()) => {
 
       // Trigger Alert Engine
       await evaluateResponseDelayAlert(assignment, delayMinutes);
+
+      // Operational Event Notification
+      NotificationService.dispatchEventNotification('RESPONSE_DELAY', {
+        title: `RESPONSE DELAY: ${assignment.teamId || assignment.resourceId || 'Unit'}`,
+        message: `Transit delay detected for Incident #${assignment.incidentId}. Exceeded expected ETA by +${delayMinutes} min.`,
+        entityType: 'RESOURCE',
+        entityId: assignment.resourceId || assignment.teamId,
+        incidentId: assignment.incidentId,
+        assignmentId: assignment.assignmentId,
+        metadata: {
+          incidentId: assignment.incidentId,
+          assignmentId: assignment.assignmentId,
+          delayMinutes,
+        },
+        cooldownSeconds: 120,
+      }).catch((e) => console.warn('[Notification] Response delay dispatch note:', e.message));
 
       // Audit Log
       await recordAuditLog({

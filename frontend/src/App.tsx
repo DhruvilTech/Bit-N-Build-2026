@@ -25,8 +25,8 @@ import { ComponentLibrary } from './pages/ComponentLibrary';
 export function App() {
   return (
     <AuthProvider>
-      <EmergencyProvider>
-        <BrowserRouter>
+      <BrowserRouter>
+        <EmergencyProvider>
           <Routes>
             {/* Public Intro Experience */}
             <Route path="/" element={<Landing />} />
@@ -56,8 +56,8 @@ export function App() {
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/command-center" replace />} />
           </Routes>
-        </BrowserRouter>
-      </EmergencyProvider>
+        </EmergencyProvider>
+      </BrowserRouter>
     </AuthProvider>
   );
 }

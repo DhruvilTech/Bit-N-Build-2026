@@ -9,6 +9,12 @@ const notificationSchema = new mongoose.Schema(
       trim: true,
       index: true,
     },
+    recipient: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+      index: true,
+    },
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
@@ -17,18 +23,43 @@ const notificationSchema = new mongoose.Schema(
     },
     targetRole: {
       type: String,
-      enum: ['OPERATOR', 'FIELD_COORDINATOR', 'MEDICAL_COORDINATOR', 'ADMIN', 'ALL'],
+      enum: ['OPERATOR', 'FIELD_COORDINATOR', 'MEDICAL_COORDINATOR', 'ADMIN', 'RESPONDER', 'ALL'],
       default: 'ALL',
       index: true,
     },
     type: {
       type: String,
       enum: [
+        'INCIDENT_CREATED',
+        'INCIDENT_CRITICAL',
+        'INCIDENT_UPDATED',
+        'INCIDENT_ASSIGNED',
+        'INCIDENT_DISPATCHED',
+        'INCIDENT_RESOLVED',
+        'RESOURCE_ASSIGNED',
+        'RESOURCE_DISPATCHED',
+        'RESOURCE_ARRIVED',
+        'RESOURCE_DELAYED',
+        'RESOURCE_RETURNING',
+        'RESOURCE_AVAILABLE',
+        'TEAM_ASSIGNED',
+        'TEAM_DISPATCHED',
+        'TEAM_ARRIVED',
+        'ALERT_CREATED',
+        'ALERT_ESCALATED',
+        'ALERT_ACKNOWLEDGED',
+        'RESPONSE_DELAY',
+        'ETA_EXCEEDED',
+        'AI_ANALYSIS_COMPLETED',
+        'AI_ANALYSIS_FAILED',
+        'RESOURCE_SHORTAGE',
+        'HOSPITAL_CAPACITY_WARNING',
+        'SYSTEM_WARNING',
+        'SYSTEM_ERROR',
+        // Legacy types preserved for backward compatibility
         'CRITICAL_INCIDENT',
         'RESOURCE_ASSIGNMENT',
-        'RESPONSE_DELAY',
         'ESCALATION',
-        'RESOURCE_SHORTAGE',
         'INCIDENT_UPDATE',
         'SYSTEM',
       ],
@@ -51,15 +82,39 @@ const notificationSchema = new mongoose.Schema(
       default: 'MEDIUM',
       index: true,
     },
+    priority: {
+      type: String,
+      enum: ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO'],
+      default: 'MEDIUM',
+      index: true,
+    },
     entityType: {
       type: String,
-      enum: ['INCIDENT', 'RESOURCE', 'TEAM', 'ESCALATION', 'SYSTEM'],
+      enum: ['INCIDENT', 'RESOURCE', 'TEAM', 'ALERT', 'ESCALATION', 'FACILITY', 'SYSTEM'],
       default: 'SYSTEM',
     },
     entityId: {
       type: String,
       default: null,
       trim: true,
+    },
+    incidentId: {
+      type: String,
+      default: null,
+      trim: true,
+      index: true,
+    },
+    alertId: {
+      type: String,
+      default: null,
+      trim: true,
+      index: true,
+    },
+    assignmentId: {
+      type: String,
+      default: null,
+      trim: true,
+      index: true,
     },
     isRead: {
       type: Boolean,
@@ -76,6 +131,10 @@ const notificationSchema = new mongoose.Schema(
         readAt: { type: Date, default: Date.now },
       },
     ],
+    expiresAt: {
+      type: Date,
+      default: null,
+    },
     metadata: {
       type: mongoose.Schema.Types.Mixed,
       default: {},
@@ -88,7 +147,10 @@ const notificationSchema = new mongoose.Schema(
 
 // High-performance compound indexes for notification queries
 notificationSchema.index({ userId: 1, isRead: 1, createdAt: -1 });
+notificationSchema.index({ recipient: 1, isRead: 1, createdAt: -1 });
 notificationSchema.index({ targetRole: 1, createdAt: -1 });
+notificationSchema.index({ type: 1, entityId: 1, createdAt: -1 });
+notificationSchema.index({ incidentId: 1, createdAt: -1 });
 notificationSchema.index({ createdAt: -1 });
 
 const Notification = mongoose.model('Notification', notificationSchema);

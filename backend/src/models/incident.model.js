@@ -17,7 +17,10 @@ const incidentReportSchema = new mongoose.Schema(
 
 const timelineEventSchema = new mongoose.Schema(
   {
-    timelineId: { type: String, required: true },
+    timelineId: {
+      type: String,
+      default: () => `TL-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+    },
     event: {
       type: String,
       enum: [
@@ -46,6 +49,7 @@ const timelineEventSchema = new mongoose.Schema(
         'RESOURCE_DELAYED',
         'ALERT_CREATED',
         'ESCALATION_CREATED',
+        'ESCALATED',
         'RESOURCE_ARRIVED',
         'RESOURCE_RELEASED',
       ],

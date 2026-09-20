@@ -3,6 +3,7 @@ import { scanActiveAssignmentsForDelays } from './delay.service.js';
 import {
   evaluateUnassignedCriticalAlerts,
   evaluateEscalationRequiredAlerts,
+  cleanupStaleAlerts,
 } from './alert.service.js';
 
 let schedulerInterval = null;
@@ -36,6 +37,9 @@ export const runSchedulerTick = async () => {
 
     // 3. Evaluate P1 escalation alerts (Phase 15 Alert Rule 5)
     await evaluateEscalationRequiredAlerts();
+
+    // 4. Stale & duplicate alert reconciliation
+    await cleanupStaleAlerts();
 
     schedulerStats.lastSuccessAt = new Date();
     schedulerStats.consecutiveFailures = 0;

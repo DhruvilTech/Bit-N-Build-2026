@@ -11,6 +11,7 @@ import {
   RouteData,
   LiveResource,
 } from '../types';
+export type { AlertItem, NotificationItem };
 import {
   INITIAL_INCIDENTS,
   INITIAL_TEAMS,
@@ -46,6 +47,7 @@ import {
 } from '../utils/adapters';
 import { io } from 'socket.io-client';
 import { CreateIncidentModal } from '../components/operations/CreateIncidentModal';
+import { NotificationToast } from '../components/notifications/NotificationToast';
 
 interface EmergencyContextType {
   incidents: Incident[];
@@ -80,7 +82,7 @@ interface EmergencyContextType {
   simulateEmergency: (scenarioId: string) => void;
   dispatchTeamToIncident: (teamId: string, incidentId: string) => void;
   acknowledgeAlert: (alertId: string) => void;
-  escalateIncident: (incidentId: string) => void;
+  escalateIncident: (incidentId: string, alertId?: string) => Promise<boolean>;
   resolveIncident: (incidentId: string) => void;
   updateIncidentStatus: (incidentId: string, status: string, reason?: string) => Promise<void>;
   createIncident: (data: any) => Promise<any>;
@@ -92,6 +94,9 @@ interface EmergencyContextType {
   getRelatedIncidents: (id: string) => Promise<any>;
   markNotificationAsRead: (id: string) => void;
   markAllNotificationsAsRead: () => void;
+  deleteNotification: (id: string) => Promise<void>;
+  activeToast: NotificationItem | null;
+  dismissToast: () => void;
   acknowledgeEscalation: (id: string) => Promise<any>;
   resolveEscalation: (id: string, notes?: string) => Promise<any>;
   isLiveBackend: boolean;
@@ -170,6 +175,8 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [focusLocation, setFocusLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [activeSimulation, setActiveSimulation] = useState<SimulationState | null>(null);
   const [autoDispatchModalData, setAutoDispatchModalData] = useState<AutoDispatchModalData | null>(null);
+  const [activeToast, setActiveToast] = useState<NotificationItem | null>(null);
+  const dismissToast = useCallback(() => setActiveToast(null), []);
   const socketRef = React.useRef<any>(null);
 
   // Socket.IO Real-Time Mesh Integration
@@ -507,22 +514,57 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
       // Phase 17 & 18: Notification Real-Time Sync
       socket.on('notification:new', (payload: any) => {
-        soundFx.playDispatch();
         let cat: 'Critical' | 'Teams' | 'Resources' | 'System' = 'System';
-        if (payload.type === 'CRITICAL_INCIDENT' || payload.type === 'ESCALATION') cat = 'Critical';
-        else if (payload.type === 'RESOURCE_ASSIGNMENT') cat = 'Teams';
-        else if (payload.type === 'RESOURCE_SHORTAGE') cat = 'Resources';
+        if (
+          payload.type === 'CRITICAL_INCIDENT' ||
+          payload.type === 'INCIDENT_CRITICAL' ||
+          payload.type === 'ESCALATION' ||
+          payload.type === 'ALERT_ESCALATED' ||
+          payload.severity === 'CRITICAL' ||
+          payload.priority === 'CRITICAL'
+        ) {
+          cat = 'Critical';
+          soundFx.playEmergencyAlert();
+        } else if (
+          payload.type === 'RESOURCE_ASSIGNMENT' ||
+          payload.type === 'RESOURCE_ASSIGNED' ||
+          payload.type === 'RESOURCE_DISPATCHED' ||
+          payload.type === 'RESOURCE_ARRIVED' ||
+          payload.type === 'RESPONSE_DELAY' ||
+          payload.type === 'ETA_EXCEEDED' ||
+          payload.type === 'TEAM_ASSIGNED' ||
+          payload.type === 'TEAM_DISPATCHED'
+        ) {
+          cat = 'Teams';
+          soundFx.playDispatch();
+        } else if (
+          payload.type === 'RESOURCE_SHORTAGE' ||
+          payload.type === 'HOSPITAL_CAPACITY_WARNING'
+        ) {
+          cat = 'Resources';
+          soundFx.playDispatch();
+        } else {
+          soundFx.playClick();
+        }
 
         const item: NotificationItem = {
-          id: payload.notificationId || payload._id || `NTF-${Date.now()}`,
+          id: payload.notificationId || payload._id || payload.id || `NTF-${Date.now()}`,
           category: cat,
           title: payload.title,
           message: payload.message,
           timestamp: new Date(payload.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           read: false,
-          incidentId: payload.entityId || payload.metadata?.incidentId,
+          incidentId: payload.incidentId || (payload.entityType === 'INCIDENT' ? payload.entityId : payload.metadata?.incidentId),
+          alertId: payload.alertId || (payload.entityType === 'ALERT' ? payload.entityId : undefined),
+          assignmentId: payload.assignmentId || (payload.entityType === 'ASSIGNMENT' ? payload.entityId : undefined),
+          resourceId: payload.entityType === 'RESOURCE' ? payload.entityId : undefined,
+          severity: payload.severity,
+          priority: payload.priority,
+          type: payload.type,
         };
+
         setNotifications((prev) => [item, ...prev.filter((n) => n.id !== item.id)]);
+        setActiveToast(item);
       });
 
       socket.on('notification:read', (payload: any) => {
@@ -867,11 +909,34 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       }
 
       if (notifsRes.status === 'fulfilled' && notifsRes.value?.notifications) {
-        const adaptedNotifs: NotificationItem[] = notifsRes.value.notifications.map((n) => {
+        const adaptedNotifs: NotificationItem[] = notifsRes.value.notifications.map((n: any) => {
           let cat: 'Critical' | 'Teams' | 'Resources' | 'System' = 'System';
-          if (n.type === 'CRITICAL_INCIDENT' || n.type === 'ESCALATION') cat = 'Critical';
-          else if (n.type === 'RESOURCE_ASSIGNMENT') cat = 'Teams';
-          else if (n.type === 'RESOURCE_SHORTAGE') cat = 'Resources';
+          if (
+            n.type === 'CRITICAL_INCIDENT' ||
+            n.type === 'INCIDENT_CRITICAL' ||
+            n.type === 'ESCALATION' ||
+            n.type === 'ALERT_ESCALATED' ||
+            n.severity === 'CRITICAL' ||
+            n.priority === 'CRITICAL'
+          ) {
+            cat = 'Critical';
+          } else if (
+            n.type === 'RESOURCE_ASSIGNMENT' ||
+            n.type === 'RESOURCE_ASSIGNED' ||
+            n.type === 'RESOURCE_DISPATCHED' ||
+            n.type === 'RESOURCE_ARRIVED' ||
+            n.type === 'RESPONSE_DELAY' ||
+            n.type === 'ETA_EXCEEDED' ||
+            n.type === 'TEAM_ASSIGNED' ||
+            n.type === 'TEAM_DISPATCHED'
+          ) {
+            cat = 'Teams';
+          } else if (
+            n.type === 'RESOURCE_SHORTAGE' ||
+            n.type === 'HOSPITAL_CAPACITY_WARNING'
+          ) {
+            cat = 'Resources';
+          }
 
           return {
             id: n.notificationId || n._id || `NTF-${Date.now()}`,
@@ -880,7 +945,13 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             message: n.message,
             timestamp: new Date(n.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             read: Boolean(n.isRead),
-            incidentId: n.entityId || n.metadata?.incidentId,
+            incidentId: n.incidentId || (n.entityType === 'INCIDENT' ? n.entityId : n.metadata?.incidentId),
+            alertId: n.alertId || (n.entityType === 'ALERT' ? n.entityId : undefined),
+            assignmentId: n.assignmentId || (n.entityType === 'ASSIGNMENT' ? n.entityId : undefined),
+            resourceId: n.entityType === 'RESOURCE' ? n.entityId : undefined,
+            severity: n.severity,
+            priority: n.priority,
+            type: n.type,
           };
         });
         setNotifications(adaptedNotifs);
@@ -1135,9 +1206,10 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, []);
 
   // Escalate Incident
-  const escalateIncident = useCallback((incidentId: string) => {
+  const escalateIncident = useCallback(async (incidentId: string, alertId?: string): Promise<boolean> => {
     soundFx.playEmergencyAlert();
 
+    // 1. Optimistic Incident state update
     setIncidents((prev) =>
       prev.map((inc) => {
         if (inc.id === incidentId) {
@@ -1162,24 +1234,48 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       })
     );
 
-    // Sync with backend asynchronously
-    incidentsApi.update(incidentId, { priority: 'P1', severity: 'CRITICAL' }).catch((err) => {
-      console.warn('Backend escalate sync note:', err.message);
-    });
+    // 2. Optimistic Alert state update: mark the escalation alert as acknowledged/authorized (NO duplicate spam)
+    setAlerts((prev) =>
+      prev.map((alt) => {
+        if (alt.incidentId === incidentId && (alt.id === alertId || alt.requiresEscalation)) {
+          return {
+            ...alt,
+            acknowledged: true,
+            requiresEscalation: false,
+          };
+        }
+        return alt;
+      })
+    );
 
-    setAlerts((prev) => [
+    // Add a single notification for the command center
+    setNotifications((prev) => [
       {
-        id: `ALT-${Date.now()}`,
+        id: `NOTIF-ESC-${Date.now()}`,
+        category: 'Critical',
+        title: `🚨 Escalation Authorized: #${incidentId}`,
+        message: 'Level-1 Critical Escalation confirmed. Inter-agency mobilization active.',
+        timestamp: new Date().toTimeString().slice(0, 5),
+        read: false,
         incidentId,
-        severity: 'CRITICAL',
-        title: `Incident #${incidentId} Escalated`,
-        message: `High-priority escalation triggered. Priority P1 active.`,
-        timestamp: 'Just now',
-        acknowledged: false,
-        requiresEscalation: false,
       },
       ...prev,
     ]);
+
+    // 3. Sync with backend asynchronously
+    try {
+      await incidentsApi.update(incidentId, { priority: 'P1', severity: 'CRITICAL', status: 'ESCALATED' });
+    } catch (err: any) {
+      console.warn('Backend escalate sync note:', err.message);
+    }
+
+    if (alertId) {
+      alertsApi.acknowledge(alertId, 'Command authorized level-1 critical escalation').catch((err) => {
+        console.warn('Backend alert acknowledge note:', err.message);
+      });
+    }
+
+    return true;
   }, []);
 
   // Resolve Incident
@@ -1489,6 +1585,16 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, []);
 
+  const deleteNotification = useCallback(async (id: string) => {
+    soundFx.playClick();
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    try {
+      await notificationsApi.delete(id);
+    } catch (err: any) {
+      console.warn('Backend deleteNotification note:', err.message);
+    }
+  }, []);
+
   const acknowledgeEscalation = useCallback(async (id: string) => {
     soundFx.playClick();
     const updated = await escalationsApi.acknowledge(id);
@@ -1712,6 +1818,9 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     getRelatedIncidents,
     markNotificationAsRead,
     markAllNotificationsAsRead,
+    deleteNotification,
+    activeToast,
+    dismissToast,
     acknowledgeEscalation,
     resolveEscalation,
     isLiveBackend,
@@ -1737,6 +1846,7 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   return (
     <EmergencyContext.Provider value={value}>
       {children}
+      <NotificationToast notification={activeToast} onDismiss={dismissToast} />
       <CreateIncidentModal
         isOpen={isCreateIncidentModalOpen}
         onClose={() => setIsCreateIncidentModalOpen(false)}
