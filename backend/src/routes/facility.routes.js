@@ -8,6 +8,7 @@ import {
   updateFacilityEmergencyStatus,
   getNearby,
   removeFacility,
+  getCapacity,
 } from '../controllers/facility.controller.js';
 import { validate } from '../middleware/validate.middleware.js';
 import { authenticate, authorize } from '../middleware/auth.middleware.js';
@@ -22,6 +23,13 @@ import {
 const router = Router();
 
 // 1. Collection & Proximity routes
+router.get(
+  '/capacity',
+  authenticate,
+  authorize('ADMIN', 'OPERATOR', 'FIELD_COORDINATOR', 'MEDICAL_COORDINATOR'),
+  getCapacity
+);
+
 router.get(
   '/',
   authenticate,

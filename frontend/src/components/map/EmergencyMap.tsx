@@ -16,6 +16,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { LiveResource, Station, RouteData } from '../../types';
+import { analyticsApi, HeatmapPoint } from '../../services/api';
 
 interface EmergencyMapProps {
   height?: string;
@@ -35,9 +36,11 @@ export const EmergencyMap: React.FC<EmergencyMapProps> = ({
   const resourcesLayerRef = useRef<L.LayerGroup | null>(null);
   const routesLayerRef = useRef<L.LayerGroup | null>(null);
   const perimeterLayerRef = useRef<L.LayerGroup | null>(null);
+  const heatmapLayerRef = useRef<L.LayerGroup | null>(null);
 
   // Cache for smooth resource marker updates
   const resourceMarkersRef = useRef<Map<string, L.Marker>>(new Map());
+  const [heatmapPoints, setHeatmapPoints] = useState<HeatmapPoint[]>([]);
 
   const {
     incidents,
@@ -88,12 +91,14 @@ export const EmergencyMap: React.FC<EmergencyMapProps> = ({
     const resourcesLayer = L.layerGroup().addTo(map);
     const routesLayer = L.layerGroup().addTo(map);
     const perimeterLayer = L.layerGroup().addTo(map);
+    const heatmapLayer = L.layerGroup().addTo(map);
 
     layerGroupRef.current = layerGroup;
     stationsLayerRef.current = stationsLayer;
     resourcesLayerRef.current = resourcesLayer;
     routesLayerRef.current = routesLayer;
     perimeterLayerRef.current = perimeterLayer;
+    heatmapLayerRef.current = heatmapLayer;
     mapInstanceRef.current = map;
 
     setTimeout(() => {
@@ -106,6 +111,59 @@ export const EmergencyMap: React.FC<EmergencyMapProps> = ({
       resourceMarkersRef.current.clear();
     };
   }, []);
+
+  // Fetch Real Heatmap Density Points from Backend (Phase 23)
+  useEffect(() => {
+    let isMounted = true;
+    const fetchHeatmap = async () => {
+      try {
+        const points = await analyticsApi.getHeatmap();
+        if (isMounted) setHeatmapPoints(points);
+      } catch (err) {
+        console.warn('[Map] Could not fetch real heatmap points:', err);
+      }
+    };
+    fetchHeatmap();
+    return () => {
+      isMounted = false;
+    };
+  }, [incidents]);
+
+  // Render Real Heatmap Density Layer
+  useEffect(() => {
+    const heatmapLayer = heatmapLayerRef.current;
+    if (!heatmapLayer) return;
+
+    heatmapLayer.clearLayers();
+
+    if (showHeatmap && heatmapPoints.length > 0) {
+      heatmapPoints.forEach((point) => {
+        const isCrit = point.severity === 'CRITICAL';
+        const isHigh = point.severity === 'HIGH';
+        const color = isCrit ? '#FB4A4A' : isHigh ? '#F5A623' : '#2DD4BF';
+        const radius = 400 + point.weight * 600;
+        const opacity = 0.12 + point.weight * 0.25;
+
+        const circle = L.circle([point.lat, point.lng], {
+          radius,
+          color,
+          fillColor: color,
+          fillOpacity: opacity,
+          weight: isCrit ? 1.5 : 1.0,
+          dashArray: isCrit ? '4, 4' : undefined,
+        });
+
+        circle.bindTooltip(`
+          <div style="font-family: monospace; font-size: 11px; padding: 2px;">
+            <b style="color: ${color}">${point.title}</b><br/>
+            [${point.severity}] Weight: ${point.weight}
+          </div>
+        `, { sticky: true });
+
+        heatmapLayer.addLayer(circle);
+      });
+    }
+  }, [showHeatmap, heatmapPoints]);
 
   // 2. Update Tile Layer on Theme Change
   useEffect(() => {
