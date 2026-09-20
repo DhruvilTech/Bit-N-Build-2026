@@ -63,6 +63,31 @@ export const createAlert = async ({
     return { alert: existingAlert, isNew: false };
   }
 
+  // Cross-alert deduplication:
+  // If incident already has an active ESCALATION_REQUIRED alert, do not generate a lower-priority UNASSIGNED_CRITICAL alert
+  if (type === 'UNASSIGNED_CRITICAL' && incidentId) {
+    const activeEscalation = await AlertModel.findOne({
+      incidentId,
+      type: 'ESCALATION_REQUIRED',
+      status: { $in: ['ACTIVE', 'ACKNOWLEDGED'] },
+    });
+    if (activeEscalation) {
+      return { alert: activeEscalation, isNew: false };
+    }
+  }
+
+  // If generating an ESCALATION_REQUIRED alert, supersede/auto-resolve any existing UNASSIGNED_CRITICAL alerts for this incident
+  if (type === 'ESCALATION_REQUIRED' && incidentId) {
+    await AlertModel.updateMany(
+      { incidentId, type: 'UNASSIGNED_CRITICAL', status: 'ACTIVE' },
+      {
+        status: 'RESOLVED',
+        resolvedAt: new Date(),
+        'metadata.resolutionNote': 'Superseded by Escalation Required alert',
+      }
+    );
+  }
+
   // 2. Generate unique alert ID
   const alertId = `ALT-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -193,17 +218,26 @@ export const evaluateResourceShortageAlert = async (incident, requiredCount = 1,
  * Triggered when a P1 incident has no active assignment
  */
 export const evaluateUnassignedCriticalAlerts = async () => {
+  // Exclude incidents that are resolved, cancelled, already escalated, or already actively responding
   const p1Incidents = await IncidentModel.find({
     priority: 'P1',
-    status: { $nin: ['RESOLVED', 'CANCELLED'] },
+    status: { $nin: ['RESOLVED', 'CANCELLED', 'ESCALATED', 'RESPONDING', 'ON_SCENE'] },
   });
 
   const alertsGenerated = [];
 
   for (const incident of p1Incidents) {
+    // Check if incident already has an active escalation alert
+    const activeEscalation = await AlertModel.findOne({
+      incidentId: incident.incidentId,
+      type: 'ESCALATION_REQUIRED',
+      status: { $in: ['ACTIVE', 'ACKNOWLEDGED'] },
+    });
+    if (activeEscalation) continue;
+
     const activeAssignment = await AssignmentModel.findOne({
       incidentId: incident.incidentId,
-      status: { $in: ['ASSIGNED', 'DISPATCHED', 'EN_ROUTE', 'ARRIVED'] },
+      status: { $in: ['ASSIGNED', 'DISPATCHED', 'EN_ROUTE', 'ARRIVED', 'ON_SCENE'] },
     });
 
     if (!activeAssignment) {
@@ -234,9 +268,10 @@ export const evaluateEscalationRequiredAlerts = async () => {
   const thresholdMinutes = env.P1_ESCALATION_THRESHOLD_MINUTES || 15;
   const cutoffTime = new Date(Date.now() - thresholdMinutes * 60 * 1000);
 
+  // Exclude incidents that are already resolved, cancelled, or escalated
   const escalatedIncidents = await IncidentModel.find({
     priority: 'P1',
-    status: { $nin: ['RESOLVED', 'CANCELLED'] },
+    status: { $nin: ['RESOLVED', 'CANCELLED', 'ESCALATED'] },
     createdAt: { $lte: cutoffTime },
   });
 
@@ -262,6 +297,105 @@ export const evaluateEscalationRequiredAlerts = async () => {
 
   return alertsGenerated;
 };
+
+/**
+ * Background Maintenance: Cleanup stale alerts for resolved, cancelled, or already escalated/responding incidents
+ */
+export const cleanupStaleAlerts = async () => {
+  if (mongoose.connection.readyState !== 1) return { resolvedCount: 0 };
+  try {
+    let resolvedCount = 0;
+
+    // 1. Auto-resolve any active/acknowledged alerts for RESOLVED or CANCELLED incidents
+    const closedIncidents = await IncidentModel.find({
+      status: { $in: ['RESOLVED', 'CANCELLED'] },
+    }).select('incidentId status').lean();
+    const closedIds = closedIncidents.map((i) => i.incidentId).filter(Boolean);
+
+    if (closedIds.length > 0) {
+      const staleAlerts = await AlertModel.find({
+        incidentId: { $in: closedIds },
+        status: { $in: ['ACTIVE', 'ACKNOWLEDGED'] },
+      });
+
+      if (staleAlerts.length > 0) {
+        await AlertModel.updateMany(
+          { incidentId: { $in: closedIds }, status: { $in: ['ACTIVE', 'ACKNOWLEDGED'] } },
+          {
+            status: 'RESOLVED',
+            resolvedAt: new Date(),
+            'metadata.autoResolvedReason': 'Incident resolved/cancelled',
+          }
+        );
+        staleAlerts.forEach((alt) => emitAlertResolved(alt));
+        resolvedCount += staleAlerts.length;
+      }
+    }
+
+    // 2. Auto-resolve UNASSIGNED_CRITICAL alerts for incidents with active assignments or responding/escalated status
+    const assignedOrActiveIncidents = await IncidentModel.find({
+      status: { $in: ['RESPONDING', 'ASSIGNED', 'ON_SCENE', 'ESCALATED'] },
+    }).select('incidentId status').lean();
+    const activeAssignedIds = assignedOrActiveIncidents.map((i) => i.incidentId).filter(Boolean);
+
+    if (activeAssignedIds.length > 0) {
+      const supersededUnassigned = await AlertModel.find({
+        incidentId: { $in: activeAssignedIds },
+        type: 'UNASSIGNED_CRITICAL',
+        status: 'ACTIVE',
+      });
+
+      if (supersededUnassigned.length > 0) {
+        await AlertModel.updateMany(
+          { incidentId: { $in: activeAssignedIds }, type: 'UNASSIGNED_CRITICAL', status: 'ACTIVE' },
+          {
+            status: 'RESOLVED',
+            resolvedAt: new Date(),
+            'metadata.autoResolvedReason': 'Units assigned / incident in progress',
+          }
+        );
+        supersededUnassigned.forEach((alt) => emitAlertResolved(alt));
+        resolvedCount += supersededUnassigned.length;
+      }
+    }
+
+    // 3. Auto-acknowledge/resolve ESCALATION_REQUIRED alerts for incidents whose status is already ESCALATED
+    const escalatedIncidents = await IncidentModel.find({
+      status: 'ESCALATED',
+    }).select('incidentId status').lean();
+    const escalatedIds = escalatedIncidents.map((i) => i.incidentId).filter(Boolean);
+
+    if (escalatedIds.length > 0) {
+      const alreadyEscalatedAlerts = await AlertModel.find({
+        incidentId: { $in: escalatedIds },
+        type: 'ESCALATION_REQUIRED',
+        status: 'ACTIVE',
+      });
+
+      if (alreadyEscalatedAlerts.length > 0) {
+        await AlertModel.updateMany(
+          { incidentId: { $in: escalatedIds }, type: 'ESCALATION_REQUIRED', status: 'ACTIVE' },
+          {
+            status: 'ACKNOWLEDGED',
+            acknowledgedAt: new Date(),
+            'metadata.autoAcknowledgedReason': 'Incident escalation already authorized',
+          }
+        );
+        alreadyEscalatedAlerts.forEach((alt) => {
+          alt.status = 'ACKNOWLEDGED';
+          emitAlertAcknowledged(alt);
+        });
+        resolvedCount += alreadyEscalatedAlerts.length;
+      }
+    }
+
+    return { resolvedCount };
+  } catch (err) {
+    console.warn('[AlertService] Stale alerts cleanup note:', err.message);
+    return { resolvedCount: 0 };
+  }
+};
+
 
 /**
  * Query Alerts with filters and pagination

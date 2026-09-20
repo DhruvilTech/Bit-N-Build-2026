@@ -3,6 +3,7 @@ import { scanActiveAssignmentsForDelays } from './delay.service.js';
 import {
   evaluateUnassignedCriticalAlerts,
   evaluateEscalationRequiredAlerts,
+  cleanupStaleAlerts,
 } from './alert.service.js';
 
 let schedulerInterval = null;
@@ -26,6 +27,9 @@ export const runSchedulerTick = async () => {
 
     // 3. Evaluate P1 escalation alerts (Phase 15 Alert Rule 5)
     await evaluateEscalationRequiredAlerts();
+
+    // 4. Stale & duplicate alert reconciliation
+    await cleanupStaleAlerts();
   } catch (error) {
     console.error('[Scheduler] Error during scheduled maintenance cycle:', error.message);
   } finally {

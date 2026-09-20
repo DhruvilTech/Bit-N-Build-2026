@@ -11,6 +11,7 @@ import {
   RouteData,
   LiveResource,
 } from '../types';
+export type { AlertItem, NotificationItem };
 import {
   INITIAL_INCIDENTS,
   INITIAL_TEAMS,
@@ -80,7 +81,7 @@ interface EmergencyContextType {
   simulateEmergency: (scenarioId: string) => void;
   dispatchTeamToIncident: (teamId: string, incidentId: string) => void;
   acknowledgeAlert: (alertId: string) => void;
-  escalateIncident: (incidentId: string) => void;
+  escalateIncident: (incidentId: string, alertId?: string) => Promise<boolean>;
   resolveIncident: (incidentId: string) => void;
   updateIncidentStatus: (incidentId: string, status: string, reason?: string) => Promise<void>;
   createIncident: (data: any) => Promise<any>;
@@ -1063,9 +1064,10 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, []);
 
   // Escalate Incident
-  const escalateIncident = useCallback((incidentId: string) => {
+  const escalateIncident = useCallback(async (incidentId: string, alertId?: string): Promise<boolean> => {
     soundFx.playEmergencyAlert();
 
+    // 1. Optimistic Incident state update
     setIncidents((prev) =>
       prev.map((inc) => {
         if (inc.id === incidentId) {
@@ -1090,24 +1092,48 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       })
     );
 
-    // Sync with backend asynchronously
-    incidentsApi.update(incidentId, { priority: 'P1', severity: 'CRITICAL' }).catch((err) => {
-      console.warn('Backend escalate sync note:', err.message);
-    });
+    // 2. Optimistic Alert state update: mark the escalation alert as acknowledged/authorized (NO duplicate spam)
+    setAlerts((prev) =>
+      prev.map((alt) => {
+        if (alt.incidentId === incidentId && (alt.id === alertId || alt.requiresEscalation)) {
+          return {
+            ...alt,
+            acknowledged: true,
+            requiresEscalation: false,
+          };
+        }
+        return alt;
+      })
+    );
 
-    setAlerts((prev) => [
+    // Add a single notification for the command center
+    setNotifications((prev) => [
       {
-        id: `ALT-${Date.now()}`,
+        id: `NOTIF-ESC-${Date.now()}`,
+        category: 'Critical',
+        title: `🚨 Escalation Authorized: #${incidentId}`,
+        message: 'Level-1 Critical Escalation confirmed. Inter-agency mobilization active.',
+        timestamp: new Date().toTimeString().slice(0, 5),
+        read: false,
         incidentId,
-        severity: 'CRITICAL',
-        title: `Incident #${incidentId} Escalated`,
-        message: `High-priority escalation triggered. Priority P1 active.`,
-        timestamp: 'Just now',
-        acknowledged: false,
-        requiresEscalation: false,
       },
       ...prev,
     ]);
+
+    // 3. Sync with backend asynchronously
+    try {
+      await incidentsApi.update(incidentId, { priority: 'P1', severity: 'CRITICAL', status: 'ESCALATED' });
+    } catch (err: any) {
+      console.warn('Backend escalate sync note:', err.message);
+    }
+
+    if (alertId) {
+      alertsApi.acknowledge(alertId, 'Command authorized level-1 critical escalation').catch((err) => {
+        console.warn('Backend alert acknowledge note:', err.message);
+      });
+    }
+
+    return true;
   }, []);
 
   // Resolve Incident

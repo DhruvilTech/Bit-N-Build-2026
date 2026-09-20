@@ -2,12 +2,15 @@ import mongoose from 'mongoose';
 import { IncidentModel } from '../models/incident.model.js';
 import { AssignmentModel } from '../models/assignment.model.js';
 import { ResourceModel } from '../models/resource.model.js';
+import { AlertModel } from '../models/alert.model.js';
 import { recordAuditLog } from './auditLog.service.js';
 import { NotFoundError, ValidationError, ForbiddenError } from '../utils/errors.js';
 import {
   emitIncidentNew,
   emitIncidentUpdated,
   emitIncidentStatusChanged,
+  emitAlertResolved,
+  emitAlertAcknowledged,
   emitIncidentAiProcessing,
   emitIncidentAiAnalyzed,
   emitIncidentAiFailed,
@@ -538,6 +541,58 @@ export const updateIncidentStatus = async (id, newStatus, reason = null, user = 
   });
 
   await incident.save();
+
+  // Alert Lifecycle Synchronization:
+  // When incident is resolved or cancelled, resolve all active and acknowledged alerts
+  if (newStatus === 'RESOLVED' || newStatus === 'CANCELLED') {
+    try {
+      const activeAlerts = await AlertModel.find({
+        incidentId: incident.incidentId,
+        status: { $in: ['ACTIVE', 'ACKNOWLEDGED'] },
+      });
+      if (activeAlerts.length > 0) {
+        await AlertModel.updateMany(
+          { incidentId: incident.incidentId, status: { $in: ['ACTIVE', 'ACKNOWLEDGED'] } },
+          {
+            status: 'RESOLVED',
+            resolvedAt: new Date(),
+            'metadata.autoResolvedReason': `Incident transitioned to ${newStatus}`,
+          }
+        );
+        activeAlerts.forEach((alt) => {
+          alt.status = 'RESOLVED';
+          emitAlertResolved(alt);
+        });
+      }
+    } catch (alertErr) {
+      console.warn('[IncidentService] Alert auto-resolve on incident close note:', alertErr.message);
+    }
+  } else if (newStatus === 'ESCALATED') {
+    // When incident is escalated, acknowledge/resolve any pending escalation required alerts
+    try {
+      const pendingAlerts = await AlertModel.find({
+        incidentId: incident.incidentId,
+        type: { $in: ['ESCALATION_REQUIRED', 'UNASSIGNED_CRITICAL'] },
+        status: 'ACTIVE',
+      });
+      if (pendingAlerts.length > 0) {
+        await AlertModel.updateMany(
+          { incidentId: incident.incidentId, type: { $in: ['ESCALATION_REQUIRED', 'UNASSIGNED_CRITICAL'] }, status: 'ACTIVE' },
+          {
+            status: 'ACKNOWLEDGED',
+            acknowledgedAt: new Date(),
+            'metadata.autoAcknowledgedReason': 'Incident escalated by command',
+          }
+        );
+        pendingAlerts.forEach((alt) => {
+          alt.status = 'ACKNOWLEDGED';
+          emitAlertAcknowledged(alt);
+        });
+      }
+    } catch (alertErr) {
+      console.warn('[IncidentService] Alert auto-acknowledge on escalation note:', alertErr.message);
+    }
+  }
 
   await recordAuditLog({
     user,
