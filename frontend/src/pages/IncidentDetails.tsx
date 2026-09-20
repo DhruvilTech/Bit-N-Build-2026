@@ -107,6 +107,25 @@ export const IncidentDetails: React.FC = () => {
     }
   };
 
+  const renderBoldText = (text: string) => {
+    if (!text) return null;
+    const parts = text.split(/(\*\*[^*]+\*\*)/g);
+    return (
+      <>
+        {parts.map((part, idx) => {
+          if (part.startsWith('**') && part.endsWith('**')) {
+            return (
+              <strong key={idx} className="font-semibold text-slate-900 dark:text-white">
+                {part.slice(2, -2)}
+              </strong>
+            );
+          }
+          return <span key={idx}>{part}</span>;
+        })}
+      </>
+    );
+  };
+
   const handleAcknowledge = async (escId: string) => {
     setIsActingOnEscalation(true);
     try {
@@ -745,7 +764,7 @@ export const IncidentDetails: React.FC = () => {
                     </span>
                   </h3>
                   <p className="text-[10px] font-mono text-slate-500">
-                    SCOPED OPERATIONAL DATA • ZERO SENSITIVE LEAKS
+                    MISTRAL AI SYNTHESIZED • SCOPED TELEMETRY • ZERO SENSITIVE LEAKS
                   </p>
                 </div>
               </div>
@@ -770,7 +789,7 @@ export const IncidentDetails: React.FC = () => {
 
             {!summaryData && !isLoadingSummary && !summaryError && (
               <div className="py-6 text-center font-mono text-xs text-slate-500 space-y-2">
-                <p>Click "Generate" to synthesize a real-time 6-factor emergency briefing.</p>
+                <p>Click "Generate" to synthesize a real-time 6-factor emergency briefing via Mistral AI.</p>
                 <button
                   onClick={handleGenerateSummary}
                   className="px-3 py-1.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-[#A78BFA] border border-purple-500/30 font-semibold inline-flex items-center gap-1.5 transition-colors"
@@ -784,7 +803,7 @@ export const IncidentDetails: React.FC = () => {
             {isLoadingSummary && (
               <div className="py-8 flex flex-col items-center justify-center text-center space-y-2 font-mono text-xs text-purple-700 dark:text-[#A78BFA]">
                 <RefreshCw className="w-6 h-6 animate-spin text-purple-500" />
-                <span>Aggregating incident context and calculating response posture...</span>
+                <span>Extracting live telemetry and prompting Mistral Neural Commander...</span>
               </div>
             )}
 
@@ -796,7 +815,7 @@ export const IncidentDetails: React.FC = () => {
                     SITUATION:
                   </span>
                   <p className="font-sans text-xs text-slate-800 dark:text-slate-200 leading-relaxed">
-                    {summaryData.situation}
+                    {renderBoldText(summaryData.situation)}
                   </p>
                 </div>
 
@@ -810,7 +829,7 @@ export const IncidentDetails: React.FC = () => {
                       {summaryData.currentResponse.map((item, idx) => (
                         <li key={idx} className="flex items-start gap-1">
                           <span>•</span>
-                          <span>{item}</span>
+                          <span>{renderBoldText(item)}</span>
                         </li>
                       ))}
                     </ul>
@@ -824,7 +843,7 @@ export const IncidentDetails: React.FC = () => {
                       {summaryData.delays.map((item, idx) => (
                         <li key={idx} className="flex items-start gap-1">
                           <span>•</span>
-                          <span>{item}</span>
+                          <span>{renderBoldText(item)}</span>
                         </li>
                       ))}
                     </ul>
@@ -841,7 +860,7 @@ export const IncidentDetails: React.FC = () => {
                       {summaryData.resourceStatus.map((item, idx) => (
                         <li key={idx} className="flex items-start gap-1">
                           <span>•</span>
-                          <span>{item}</span>
+                          <span>{renderBoldText(item)}</span>
                         </li>
                       ))}
                     </ul>
@@ -855,7 +874,7 @@ export const IncidentDetails: React.FC = () => {
                       {summaryData.risks.map((item, idx) => (
                         <li key={idx} className="flex items-start gap-1">
                           <span>•</span>
-                          <span>{item}</span>
+                          <span>{renderBoldText(item)}</span>
                         </li>
                       ))}
                     </ul>
@@ -871,7 +890,7 @@ export const IncidentDetails: React.FC = () => {
                     {summaryData.recommendedActions.map((action, idx) => (
                       <div key={idx} className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
                         <CheckCircle2 className="w-3.5 h-3.5 text-purple-600 dark:text-[#A78BFA] flex-shrink-0" />
-                        <span>{action}</span>
+                        <span>{renderBoldText(action)}</span>
                       </div>
                     ))}
                   </div>

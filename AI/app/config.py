@@ -55,6 +55,20 @@ class Settings(BaseSettings):
         description="Directory for trained model artifacts (relative to AI root)",
     )
 
+    # Mistral LLM Configuration
+    MISTRAL_API_KEY: str = Field(
+        default="",
+        description="Mistral AI API Key for Emergency Summaries and Operational Command Copilot",
+    )
+    MISTRAL_MODEL: str = Field(
+        default="ministral-8b-latest",
+        description="Primary Mistral model identifier",
+    )
+    MISTRAL_FALLBACK_MODEL: str = Field(
+        default="ministral-3b-latest",
+        description="Fallback Mistral model identifier if primary is rate limited",
+    )
+
     @property
     def cors_origins(self) -> List[str]:
         if not self.ALLOWED_ORIGINS:

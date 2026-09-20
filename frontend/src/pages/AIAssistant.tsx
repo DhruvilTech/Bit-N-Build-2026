@@ -128,6 +128,58 @@ export const AIAssistant: React.FC = () => {
     ]);
   };
 
+  const renderFormattedContent = (content: string) => {
+    const lines = content.split('\n');
+    return (
+      <div className="space-y-1.5 font-sans leading-relaxed text-xs">
+        {lines.map((line, idx) => {
+          const trimmed = line.trim();
+          if (!trimmed) return <div key={idx} className="h-1" />;
+
+          // Headers
+          if (trimmed.startsWith('### ') || trimmed.startsWith('## ') || (/^\*\*[^*]+\*\*$/.test(trimmed) && trimmed.length < 60)) {
+            const headerText = trimmed.replace(/^#+\s*/, '').replace(/^\*\*|\*\*$/g, '');
+            return (
+              <div key={idx} className="font-mono font-bold text-xs uppercase text-purple-700 dark:text-[#A78BFA] tracking-wide pt-1">
+                {headerText}
+              </div>
+            );
+          }
+
+          // Horizontal divider
+          if (trimmed === '---' || trimmed === '***') {
+            return <div key={idx} className="my-2 border-t border-slate-200 dark:border-white/10" />;
+          }
+
+          const isBullet = trimmed.startsWith('•') || trimmed.startsWith('- ') || trimmed.startsWith('* ');
+          const isNumbered = /^\d+\.\s/.test(trimmed);
+          const cleanText = isBullet ? trimmed.replace(/^[•\-\*]\s*/, '') : trimmed;
+
+          // Split by bold segments
+          const parts = cleanText.split(/(\*\*[^*]+\*\*)/g);
+
+          return (
+            <div key={idx} className={`${isBullet || isNumbered ? 'pl-2 flex items-start gap-1.5' : ''}`}>
+              {isBullet && <span className="text-[#7C5CFC] font-bold select-none">•</span>}
+              <div className="flex-1">
+                {parts.map((part, pIdx) => {
+                  if (part.startsWith('**') && part.endsWith('**')) {
+                    return (
+                      <strong key={pIdx} className="font-bold text-slate-900 dark:text-white">
+                        {part.slice(2, -2)}
+                      </strong>
+                    );
+                  }
+                  return <span key={pIdx}>{part}</span>;
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -155,7 +207,7 @@ export const AIAssistant: React.FC = () => {
           </button>
           <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#7C5CFC]/15 border border-[#7C5CFC]/40 text-purple-700 dark:text-[#A78BFA] font-semibold">
             <span className="w-1.5 h-1.5 rounded-full bg-[#7C5CFC] animate-pulse" />
-            ONLINE // FAST-FAIL AI
+            ONLINE // MISTRAL NEURAL COPILOT
           </span>
         </div>
       </div>
@@ -194,7 +246,7 @@ export const AIAssistant: React.FC = () => {
                 >
                   <div className="flex items-center justify-between gap-4 mb-1 font-mono text-[10px] text-slate-500 dark:text-slate-400">
                     <span className="flex items-center gap-1.5 font-bold">
-                      {msg.sender === 'user' ? 'OPERATOR' : 'RESPONSE AI'}
+                      {msg.sender === 'user' ? 'OPERATOR' : 'MISTRAL COPILOT'}
                       {msg.intent && (
                         <span className="px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-700 dark:text-[#A78BFA] text-[9px] font-mono">
                           {msg.intent}
@@ -203,7 +255,7 @@ export const AIAssistant: React.FC = () => {
                     </span>
                     <span>{msg.timestamp}</span>
                   </div>
-                  <div>{msg.text}</div>
+                  <div>{renderFormattedContent(msg.text)}</div>
 
                   {/* Interactive Structured Entity References */}
                   {msg.data && msg.data.length > 0 && (

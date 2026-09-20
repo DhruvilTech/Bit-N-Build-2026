@@ -5,6 +5,7 @@ import { FacilityModel } from '../models/facility.model.js';
 import Escalation from '../models/escalation.model.js';
 import { env } from '../config/env.js';
 import { recordAuditLog } from './auditLog.service.js';
+import { MistralService } from './mistral.service.js';
 
 export class AiCommandService {
   /**
@@ -216,8 +217,46 @@ export class AiCommandService {
         return { data: [], source: 'Incident Registry' };
       }
 
-      default:
-        return { data: [], source: 'Operational Knowledge Base' };
+      default: {
+        const [activeIncidents, ambulances, facilities, escalations] = await Promise.all([
+          IncidentModel.find({ status: { $nin: ['RESOLVED', 'CANCELLED'] } })
+            .select('incidentId title type severity priority status location.address delayDetected')
+            .sort({ priority: 1, createdAt: -1 })
+            .limit(6)
+            .lean(),
+          ResourceModel.find({ type: { $in: ['AMBULANCE', 'VEHICLE'] }, status: 'AVAILABLE' })
+            .select('resourceId name type status location.address')
+            .limit(5)
+            .lean(),
+          FacilityModel.find({ type: 'HOSPITAL' })
+            .select('name availableBeds totalBeds divertStatus')
+            .limit(4)
+            .lean(),
+          Escalation.find({ status: { $in: ['PENDING', 'ACKNOWLEDGED'] } })
+            .select('escalationId incidentId level reason status')
+            .limit(5)
+            .lean(),
+        ]);
+        return {
+          data: activeIncidents.map((i) => ({
+            id: i.incidentId || String(i._id),
+            title: i.title,
+            type: i.type,
+            priority: i.priority,
+            severity: i.severity,
+            status: i.status,
+            location: i.location?.address || 'Metro Sector',
+            delayed: i.delayDetected,
+          })),
+          operationalOverview: {
+            activeIncidentsCount: activeIncidents.length,
+            availableAmbulances: ambulances.map((a) => `${a.name} (${a.resourceId}) at ${a.location?.address || 'Staging'}`),
+            hospitalBedsSummary: facilities.map((f) => `${f.name}: ${f.availableBeds}/${f.totalBeds} beds (Divert: ${f.divertStatus ? 'YES' : 'NO'})`),
+            activeEscalations: escalations.map((e) => `Level ${e.level} on #${e.incidentId}: ${e.reason}`),
+          },
+          source: 'EmergenX Multi-Domain Telemetry Mesh',
+        };
+      }
     }
   }
 
@@ -320,10 +359,15 @@ export class AiCommandService {
     let answer = null;
     const aiBaseUrl = env.AI_SERVICE_URL || 'http://localhost:8000';
 
-    // Attempt calling AI service with minimal context
+    // Context payload to supply to LLM (structured data + operational overview if present)
+    const contextPayload = context.operationalOverview
+      ? { entities: context.data, overview: context.operationalOverview }
+      : context.data;
+
+    // 1. Attempt calling Python AI service with context
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 6000);
+      const timeout = setTimeout(() => controller.abort(), 12000);
 
       const response = await fetch(`${aiBaseUrl}/api/v1/chat`, {
         method: 'POST',
@@ -331,7 +375,7 @@ export class AiCommandService {
         body: JSON.stringify({
           message,
           intent,
-          context: context.data,
+          context: contextPayload,
           history: history.slice(-4), // Last 4 messages only to keep prompt small
         }),
         signal: controller.signal,
@@ -346,9 +390,22 @@ export class AiCommandService {
         }
       }
     } catch (aiErr) {
-      console.warn(`[AI Chat] Python service unavailable (${aiErr.message}), falling back to deterministic answer synthesis.`);
+      console.warn(`[AI Chat] Python service call failed (${aiErr.message}), trying direct Mistral service.`);
     }
 
+    // 2. Direct Mistral LLM fallback if Python service didn't respond
+    if (!answer) {
+      try {
+        answer = await MistralService.generateChatResponse(message, contextPayload, history);
+        if (answer) {
+          console.info('[AI Chat] Successfully generated answer via Node MistralService.');
+        }
+      } catch (directErr) {
+        console.warn(`[AI Chat] Direct Mistral call failed: ${directErr.message}`);
+      }
+    }
+
+    // 3. Final fail-safe deterministic answer synthesis
     if (!answer) {
       answer = this.synthesizeAnswer(intent, context, message);
     }

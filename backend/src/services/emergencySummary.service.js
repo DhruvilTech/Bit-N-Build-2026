@@ -6,6 +6,7 @@ import Escalation from '../models/escalation.model.js';
 import { env } from '../config/env.js';
 import { emitAiSummaryGenerated } from '../utils/socket.js';
 import { recordAuditLog } from './auditLog.service.js';
+import { MistralService } from './mistral.service.js';
 
 export class EmergencySummaryService {
   /**
@@ -166,7 +167,7 @@ export class EmergencySummaryService {
 
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 8000);
+      const timeout = setTimeout(() => controller.abort(), 12000);
 
       const response = await fetch(`${aiBaseUrl}/api/v1/incident-summary`, {
         method: 'POST',
@@ -184,10 +185,22 @@ export class EmergencySummaryService {
         }
       }
     } catch (aiErr) {
-      console.warn(`[AI Summary] Python microservice call failed (${aiErr.message}), switching to deterministic engine.`);
+      console.warn(`[AI Summary] Python microservice call failed (${aiErr.message}), trying direct Mistral service.`);
     }
 
-    // Use robust fallback if AI service was unavailable or invalid
+    // Direct Mistral LLM fallback if Python microservice didn't respond
+    if (!summary) {
+      try {
+        summary = await MistralService.generateIncidentSummary(context);
+        if (summary) {
+          console.info(`[AI Summary] Successfully synthesized real AI summary directly via Node MistralService.`);
+        }
+      } catch (directErr) {
+        console.warn(`[AI Summary] Direct Mistral synthesis failed: ${directErr.message}`);
+      }
+    }
+
+    // Final fail-safe deterministic fallback
     if (!summary) {
       summary = this.generateDeterministicSummary(context);
     }

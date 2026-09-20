@@ -14,6 +14,9 @@ export const env = {
   AI_RETRY_COUNT: parseInt(process.env.AI_RETRY_COUNT || '2', 10),
   HUMAN_REVIEW_THRESHOLD: parseFloat(process.env.HUMAN_REVIEW_THRESHOLD || '0.70'),
   DUPLICATE_SIMILARITY_THRESHOLD: parseFloat(process.env.DUPLICATE_SIMILARITY_THRESHOLD || '0.75'),
+  MISTRAL_API_KEY: process.env.MISTRAL_API_KEY || '',
+  MISTRAL_MODEL: process.env.MISTRAL_MODEL || 'ministral-8b-latest',
+  MISTRAL_FALLBACK_MODEL: process.env.MISTRAL_FALLBACK_MODEL || 'ministral-3b-latest',
 };
 
 if (!env.MONGODB_URI) {
