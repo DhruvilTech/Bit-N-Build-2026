@@ -243,3 +243,199 @@ export interface EmergencyScenario {
   lng: number;
   recommendedTeamTypes: TeamType[];
 }
+
+export type AssignmentStatus =
+  | 'ASSIGNED'
+  | 'DISPATCHED'
+  | 'EN_ROUTE'
+  | 'ON_SCENE'
+  | 'COMPLETED'
+  | 'RETURNING'
+  | 'CANCELLED';
+
+export type StationType =
+  | 'FIRE_STATION'
+  | 'AMBULANCE_BASE'
+  | 'POLICE_STATION'
+  | 'RESCUE_BASE'
+  | 'DISASTER_RESPONSE_CENTER'
+  | 'OTHER';
+
+export interface Station {
+  id?: string;
+  _id?: string;
+  stationId: string;
+  name: string;
+  type: StationType;
+  address: string;
+  location: {
+    latitude: number;
+    longitude: number;
+    address: string;
+    geometry?: {
+      type: string;
+      coordinates: [number, number];
+    };
+  };
+  status: 'ACTIVE' | 'MAINTENANCE' | 'OFFLINE';
+  capacity: number;
+  assignedResources?: string[];
+  contactNumber?: string;
+}
+
+export interface RouteData {
+  distanceKm: number;
+  durationMinutes: number;
+  geometry: [number, number][]; // [[longitude, latitude]]
+  origin?: {
+    latitude: number;
+    longitude: number;
+    address?: string;
+  };
+  destination?: {
+    latitude: number;
+    longitude: number;
+    address?: string;
+  };
+}
+
+export interface LiveResource {
+  id?: string;
+  _id?: string;
+  resourceId: string;
+  name: string;
+  type: string;
+  status:
+    | 'AVAILABLE'
+    | 'ASSIGNED'
+    | 'DISPATCHED'
+    | 'EN_ROUTE'
+    | 'ON_SCENE'
+    | 'COMPLETED'
+    | 'RETURNING'
+    | 'BUSY'
+    | 'OFFLINE';
+  stationId?: string;
+  homeLocation?: {
+    latitude: number;
+    longitude: number;
+    address?: string;
+  };
+  currentLocation?: {
+    latitude: number;
+    longitude: number;
+    address?: string;
+  };
+  destinationLocation?: {
+    latitude?: number;
+    longitude?: number;
+    address?: string;
+  };
+  locationUpdatedAt?: string;
+  location: {
+    latitude: number;
+    longitude: number;
+    address?: string;
+  };
+  capabilities: string[];
+  capacity: number;
+  currentAssignment?: string | null;
+  availability: boolean;
+  distanceKm?: number;
+  etaMinutes?: number;
+}
+
+export interface LiveLocationUpdate {
+  resourceId: string;
+  currentLocation: {
+    latitude: number;
+    longitude: number;
+    address?: string;
+  };
+  status: string;
+  distanceKm?: number;
+  etaMinutes?: number;
+  timestamp: string;
+}
+
+export interface ResourceRecommendation {
+  resourceId: string;
+  name: string;
+  type: string;
+  capabilityMatch: number;
+  distanceKm: number;
+  estimatedArrivalMinutes: number;
+  score: number;
+  reason: string;
+  matchedCapabilities?: string[];
+  missingCapabilities?: string[];
+  currentLocation?: {
+    latitude?: number;
+    longitude?: number;
+    address?: string;
+  };
+  capacity?: number;
+}
+
+export interface ResourceAssignment {
+  id?: string;
+  assignmentId: string;
+  incidentId: string;
+  resourceId: string;
+  resourceName: string;
+  resourceType: string;
+  status: AssignmentStatus;
+  assignedBy?: {
+    userId?: string;
+    name?: string;
+    role?: string;
+    email?: string;
+  };
+  notes?: string;
+  capabilities?: string[];
+  assignedAt: string;
+  dispatchedAt?: string | null;
+  enRouteAt?: string | null;
+  arrivedAt?: string | null;
+  completedAt?: string | null;
+  releasedAt?: string | null;
+  cancelledAt?: string | null;
+  estimatedDistanceKm?: number;
+  estimatedArrivalMinutes?: number;
+  actualArrivalMinutes?: number;
+  responseTimeMinutes?: number;
+  responseDurationMinutes?: number;
+  delayMinutes?: number;
+  timeline?: Array<{
+    status: AssignmentStatus;
+    timestamp: string;
+    changedBy?: {
+      userId?: string;
+      name?: string;
+      role?: string;
+    };
+    note?: string;
+  }>;
+}
+
+export interface ResponseMetrics {
+  incidentId: string;
+  metrics: {
+    avgResponseTimeMinutes: number | null;
+    avgDelayMinutes: number;
+    onTimeCount: number;
+    delayedCount: number;
+  };
+  totalAssignments: number;
+  activeAssignments: number;
+  completedAssignments: number;
+  typeBreakdown: Record<
+    string,
+    {
+      count: number;
+      completed: number;
+      avgResponseTime: number | null;
+    }
+  >;
+}
+

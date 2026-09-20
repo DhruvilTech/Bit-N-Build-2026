@@ -183,8 +183,12 @@ export function adaptBackendTeams(backendList: any[]): ResponseTeam[] {
 
   return backendList.map((item, idx) => {
     const id = item.teamId || item._id || `TEAM-${idx + 1}`;
-    const lat = item.location?.latitude ?? item.location?.coordinates?.[1] ?? (40.715 + (idx * 0.004));
-    const lng = item.location?.longitude ?? item.location?.coordinates?.[0] ?? (-74.002 + (idx * 0.004));
+    const lat = item.location?.latitude ?? item.location?.coordinates?.[1] ?? item.location?.geometry?.coordinates?.[1] ?? (28.625 + (idx * 0.005));
+    const lng = item.location?.longitude ?? item.location?.coordinates?.[0] ?? item.location?.geometry?.coordinates?.[0] ?? (77.210 + (idx * 0.005));
+
+    const assignedIncId = typeof item.currentAssignment === 'string'
+      ? item.currentAssignment
+      : item.currentAssignment?.incidentId || undefined;
 
     return {
       id,
@@ -193,17 +197,17 @@ export function adaptBackendTeams(backendList: any[]): ResponseTeam[] {
       status: mapBackendTeamStatus(item.status),
       membersCount: Array.isArray(item.members) ? item.members.length : 4,
       vehicleId: item.vehicleId || `VEH-${id}`,
-      vehicleName: item.vehicleName || `${item.type || 'Field'} Rapid Unit`,
+      vehicleName: item.vehicleName || (Array.isArray(item.capabilities) && item.capabilities.length > 0 ? item.capabilities[0].replace(/_/g, ' ') : `${item.type || 'Field'} Rapid Unit`),
       location: {
-        name: item.location?.address || 'Sector Patrol',
-        zone: item.location?.zone || 'Zone Alpha',
+        name: item.location?.address || 'Sector Patrol Outpost',
+        zone: item.location?.zone || item.location?.address || 'Metro Alpha Sector',
         lat,
         lng,
       },
-      responseTimeEta: item.status === 'DISPATCHED' ? 6 : item.status === 'ON_SCENE' ? 0 : 4,
-      assignedIncidentId: item.currentAssignment?.incidentId,
-      batteryOrFuelLevel: item.batteryOrFuelLevel || 88,
-      contactRadioChannel: item.contactInfo?.radioFrequency || 'TAC-1',
+      responseTimeEta: item.status === 'DISPATCHED' || item.status === 'EN_ROUTE' ? 5 : item.status === 'ON_SCENE' ? 0 : 4,
+      assignedIncidentId: assignedIncId,
+      batteryOrFuelLevel: item.batteryOrFuelLevel ?? item.fuelLevel ?? item.batteryLevel ?? (92 - ((idx * 4) % 20)),
+      contactRadioChannel: item.radioChannel || item.contactInfo?.radioFrequency || (item.contactInfo?.phone ? `CH-${item.contactInfo.phone}` : 'TAC-1'),
     };
   });
 }
@@ -214,11 +218,30 @@ export function adaptBackendFacilities(backendList: any[]): HospitalResource[] {
 
   return backendList.map((item, idx) => {
     const id = item.facilityId || item._id || `FAC-${idx + 1}`;
-    const lat = item.location?.latitude ?? item.location?.coordinates?.[1] ?? (40.72 + (idx * 0.005));
-    const lng = item.location?.longitude ?? item.location?.coordinates?.[0] ?? (-74.01 + (idx * 0.005));
+    const lat = item.location?.latitude ?? item.location?.coordinates?.[1] ?? item.location?.geometry?.coordinates?.[1] ?? (28.62 + (idx * 0.006));
+    const lng = item.location?.longitude ?? item.location?.coordinates?.[0] ?? item.location?.geometry?.coordinates?.[0] ?? (77.20 + (idx * 0.006));
 
     const totalBeds = item.capacity || 100;
     const availableBeds = item.availableCapacity ?? Math.floor(totalBeds * 0.35);
+
+    const icuDept = Array.isArray(item.departments)
+      ? item.departments.find((d: any) => d.name?.toUpperCase().includes('ICU'))
+      : null;
+    const burnDept = Array.isArray(item.departments)
+      ? item.departments.find((d: any) => d.name?.toUpperCase().includes('BURN'))
+      : null;
+
+    const availableIcu = icuDept?.availableCapacity !== undefined
+      ? icuDept.availableCapacity
+      : Math.min(availableBeds, Math.max(1, Math.floor(availableBeds * 0.25)));
+
+    const burnCapacity = burnDept?.capacity !== undefined
+      ? burnDept.capacity
+      : Array.isArray(item.specializations) && item.specializations.some((s: string) => s.includes('HAZMAT') || s.includes('BURN'))
+      ? 24
+      : 8;
+
+    const isDiverting = item.status === 'DIVERTING' || item.emergencyStatus === 'DIVERTING' || item.divertStatus === true;
 
     return {
       id,
@@ -227,11 +250,11 @@ export function adaptBackendFacilities(backendList: any[]): HospitalResource[] {
       lat,
       lng,
       totalBeds,
-      availableIcuBeds: Math.min(availableBeds, Math.max(2, Math.floor(availableBeds * 0.2))),
-      burnUnitCapacity: 12,
-      traumaUnitReady: item.emergencyStatus !== 'CRITICAL',
-      divertStatus: item.emergencyStatus === 'DIVERTING' || item.divertStatus === true,
-      oxygenReservesPct: 92,
+      availableIcuBeds: availableIcu,
+      burnUnitCapacity: burnCapacity,
+      traumaUnitReady: !isDiverting && item.emergencyStatus !== 'CRITICAL',
+      divertStatus: isDiverting,
+      oxygenReservesPct: item.metadata?.oxygenReservePct ?? (isDiverting ? 62 : 94),
     };
   });
 }

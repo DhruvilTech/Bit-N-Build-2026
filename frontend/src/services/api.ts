@@ -392,6 +392,94 @@ export const incidentsApi = {
     });
     return res.data;
   },
+
+  getRecommendations: async (
+    id: string,
+    params?: { strategy?: string; maxDistanceKm?: number; limit?: number; refresh?: boolean }
+  ) => {
+    const query = params ? new URLSearchParams(params as any).toString() : '';
+    const res = await apiRequest<{
+      status: string;
+      data: any;
+    }>(`/incidents/${id}/recommendations${query ? `?${query}` : ''}`);
+    return res.data;
+  },
+
+  assignResources: async (id: string, payload: { resourceIds: string[]; notes?: string }) => {
+    const res = await apiRequest<{
+      status: string;
+      data: any;
+    }>(`/incidents/${id}/assignments`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return res.data;
+  },
+
+  getAssignments: async (id: string) => {
+    const res = await apiRequest<{
+      status: string;
+      data: any;
+    }>(`/incidents/${id}/assignments`);
+    return res.data;
+  },
+
+  getResponseMetrics: async (id: string) => {
+    const res = await apiRequest<{
+      status: string;
+      data: any;
+    }>(`/incidents/${id}/response-metrics`);
+    return res.data;
+  },
+};
+
+// Resource Assignments & Lifecycle Tracking API (Phases 8, 9 & 10)
+export const assignmentsApi = {
+  getById: async (assignmentId: string) => {
+    const res = await apiRequest<{
+      status: string;
+      data: { assignment: any };
+    }>(`/assignments/${assignmentId}`);
+    return res.data?.assignment;
+  },
+
+  updateStatus: async (
+    assignmentId: string,
+    status: 'DISPATCHED' | 'EN_ROUTE' | 'ON_SCENE' | 'COMPLETED' | 'CANCELLED',
+    notes?: string,
+    timestamp?: string
+  ) => {
+    const res = await apiRequest<{
+      status: string;
+      data: { assignment: any };
+    }>(`/assignments/${assignmentId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status, notes, timestamp }),
+    });
+    return res.data?.assignment;
+  },
+
+  release: async (assignmentId: string, notes?: string) => {
+    const res = await apiRequest<{
+      status: string;
+      data: { assignment: any };
+    }>(`/assignments/${assignmentId}/release`, {
+      method: 'POST',
+      body: JSON.stringify({ notes }),
+    });
+    return res.data?.assignment;
+  },
+
+  cancel: async (assignmentId: string, notes?: string) => {
+    const res = await apiRequest<{
+      status: string;
+      data: { assignment: any };
+    }>(`/assignments/${assignmentId}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ notes }),
+    });
+    return res.data?.assignment;
+  },
 };
 
 // Resources API
@@ -439,6 +527,162 @@ export const resourcesApi = {
       body: JSON.stringify({ status }),
     });
     return res.data?.resource || res.data;
+  },
+
+  updateLocation: async (
+    id: string,
+    locationData: { latitude: number; longitude: number; status?: string }
+  ) => {
+    const res = await apiRequest<{
+      status: string;
+      data: any;
+    }>(`/resources/${id}/location`, {
+      method: 'PATCH',
+      body: JSON.stringify(locationData),
+    });
+    return res.data;
+  },
+};
+
+// Stations API (Emergency Bases)
+export const stationsApi = {
+  getAll: async (params?: Record<string, any>) => {
+    const query = params ? new URLSearchParams(params).toString() : '';
+    const res = await apiRequest<{
+      status: string;
+      data: { stations: any[]; count: number };
+    }>(`/stations${query ? `?${query}` : ''}`);
+    return res.data?.stations || [];
+  },
+
+  getById: async (id: string) => {
+    const res = await apiRequest<{
+      status: string;
+      data: { station: any };
+    }>(`/stations/${id}`);
+    return res.data?.station;
+  },
+
+  create: async (data: any) => {
+    const res = await apiRequest<{
+      status: string;
+      data: { station: any };
+    }>('/stations', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return res.data?.station;
+  },
+
+  update: async (id: string, data: any) => {
+    const res = await apiRequest<{
+      status: string;
+      data: { station: any };
+    }>(`/stations/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+    return res.data?.station;
+  },
+
+  delete: async (id: string) => {
+    const res = await apiRequest<{
+      status: string;
+      data: any;
+    }>(`/stations/${id}`, {
+      method: 'DELETE',
+    });
+    return res.data;
+  },
+};
+
+// Routing API
+export const routesApi = {
+  calculate: async (
+    origin: { latitude: number; longitude: number; address?: string },
+    destination: { latitude: number; longitude: number; address?: string }
+  ) => {
+    const res = await apiRequest<{
+      status: string;
+      data: {
+        route: {
+          distanceKm: number;
+          durationMinutes: number;
+          geometry: [number, number][];
+          origin: any;
+          destination: any;
+        };
+      };
+    }>('/routes/calculate', {
+      method: 'POST',
+      body: JSON.stringify({ origin, destination }),
+    });
+    return res.data?.route;
+  },
+};
+
+// Simulation API
+export const simulationApi = {
+  getStatus: async () => {
+    const res = await apiRequest<{
+      status: string;
+      data: {
+        isSimulationMode: boolean;
+        activeMovementsCount: number;
+        activeMovements: any[];
+      };
+    }>('/simulation/status');
+    return res.data;
+  },
+
+  setMode: async (
+    enabled: boolean,
+    stepIntervalSeconds?: number,
+    speedMultiplier?: number
+  ) => {
+    const res = await apiRequest<{
+      status: string;
+      data: any;
+    }>('/simulation/mode', {
+      method: 'POST',
+      body: JSON.stringify({ enabled, stepIntervalSeconds, speedMultiplier }),
+    });
+    return res.data;
+  },
+
+  dispatchIncident: async (incidentId: string) => {
+    const res = await apiRequest<{
+      status: string;
+      data: any;
+    }>(`/simulation/dispatch/${incidentId}`, {
+      method: 'POST',
+    });
+    return res.data;
+  },
+
+  startResourceRoute: async (
+    resourceId: string,
+    destination: { latitude: number; longitude: number; address?: string },
+    incidentId?: string
+  ) => {
+    const res = await apiRequest<{
+      status: string;
+      data: any;
+    }>(`/simulation/start-route/${resourceId}`, {
+      method: 'POST',
+      body: JSON.stringify({ destination, incidentId }),
+    });
+    return res.data;
+  },
+
+  returnResource: async (resourceId: string) => {
+    const res = await apiRequest<{
+      status: string;
+      data: any;
+    }>(`/simulation/return/${resourceId}`, {
+      method: 'POST',
+    });
+    return res.data;
   },
 };
 
