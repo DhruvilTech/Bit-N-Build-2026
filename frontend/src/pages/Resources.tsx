@@ -4,6 +4,7 @@ import { StatusBadge } from '../components/ui/StatusBadge';
 import { CyberButton } from '../components/ui/CyberButton';
 import { CyberHUDCard } from '../components/ui/CyberHUDCard';
 import { TextScramble } from '../components/motion/TextScramble';
+import { RoleGate } from '../components/auth/RoleGate';
 import {
   Truck,
   Users,
@@ -429,25 +430,35 @@ export const Resources: React.FC = () => {
               </p>
             </div>
 
-            {/* Recommendation CTA */}
+            {/* Recommendation CTA — ADMIN/OPERATOR only can dispatch */}
             <div className="flex flex-col sm:flex-row lg:flex-col gap-3 flex-shrink-0">
-              <CyberButton
-                variant="primary"
-                size="lg"
-                disabled={isAssigning || (fallbackTeam?.status === 'EN_ROUTE' && !recommendation)}
-                onClick={handleSmartAssign}
-                icon={
-                  isAssigning ? (
-                    <Cpu className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <CheckCircle2 className="w-4 h-4" />
-                  )
+              <RoleGate
+                permission="RESOURCE_ASSIGN"
+                fallback={
+                  <div className="px-4 py-3 rounded-xl bg-slate-100 dark:bg-white/[0.03] border border-slate-300 dark:border-white/10 text-xs font-mono text-slate-500 dark:text-slate-400 text-center">
+                    <span className="block font-bold text-slate-700 dark:text-slate-300 mb-0.5">VIEW ONLY</span>
+                    Dispatch authority required
+                  </div>
                 }
               >
-                {isAssigning
-                  ? 'DISPATCHING VIA MESH...'
-                  : 'ASSIGN RECOMMENDED TEAM'}
-              </CyberButton>
+                <CyberButton
+                  variant="primary"
+                  size="lg"
+                  disabled={isAssigning || (fallbackTeam?.status === 'EN_ROUTE' && !recommendation)}
+                  onClick={handleSmartAssign}
+                  icon={
+                    isAssigning ? (
+                      <Cpu className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="w-4 h-4" />
+                    )
+                  }
+                >
+                  {isAssigning
+                    ? 'DISPATCHING VIA MESH...'
+                    : 'ASSIGN RECOMMENDED TEAM'}
+                </CyberButton>
+              </RoleGate>
 
               <button
                 onClick={() => navigate('/map')}

@@ -4,6 +4,7 @@ import { StatusBadge } from '../components/ui/StatusBadge';
 import { CyberHUDCard } from '../components/ui/CyberHUDCard';
 import { CyberButton } from '../components/ui/CyberButton';
 import { TextScramble } from '../components/motion/TextScramble';
+import { RoleGate } from '../components/auth/RoleGate';
 import {
   Search,
   ShieldAlert,
@@ -117,14 +118,17 @@ export const Incidents: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <CyberButton
-            variant="primary"
-            size="sm"
-            onClick={() => setIsCreateIncidentModalOpen(true)}
-            icon={<Plus className="w-4 h-4" />}
-          >
-            REPORT INCIDENT
-          </CyberButton>
+          {/* REPORT INCIDENT — only ADMIN & OPERATOR can create incidents */}
+          <RoleGate permission="INCIDENT_CREATE">
+            <CyberButton
+              variant="primary"
+              size="sm"
+              onClick={() => setIsCreateIncidentModalOpen(true)}
+              icon={<Plus className="w-4 h-4" />}
+            >
+              REPORT INCIDENT
+            </CyberButton>
+          </RoleGate>
 
           <div className="flex items-center bg-slate-100 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 rounded-xl p-1">
             <button
@@ -349,25 +353,31 @@ export const Incidents: React.FC = () => {
                         <StatusBadge type="status" value={incident.status} />
                       </td>
                       <td className="p-4 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                          {incident.status !== 'Resolved' && (
-                            <button
-                              onClick={() => resolveIncident(incident.id)}
-                              title="Resolve Incident"
-                              className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-[#34D399] hover:bg-emerald-500/20 border border-emerald-500/30 transition-colors"
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                          {incident.severity !== 'CRITICAL' && (
-                            <button
-                              onClick={() => escalateIncident(incident.id)}
-                              title="Escalate to P1"
-                              className="p-1.5 rounded-lg bg-red-500/10 text-red-600 dark:text-[#FB4A4A] hover:bg-red-500/20 border border-red-500/30 transition-colors"
-                            >
-                              <AlertTriangle className="w-3.5 h-3.5" />
-                            </button>
-                          )}
+                          <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                          {/* Resolve — ADMIN/OPERATOR only */}
+                          <RoleGate permission="INCIDENT_RESOLVE">
+                            {incident.status !== 'Resolved' && (
+                              <button
+                                onClick={() => resolveIncident(incident.id)}
+                                title="Resolve Incident"
+                                className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-[#34D399] hover:bg-emerald-500/20 border border-emerald-500/30 transition-colors"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </RoleGate>
+                          {/* Escalate — ADMIN, OPERATOR, FIELD_COORDINATOR can trigger escalation */}
+                          <RoleGate permission="ESCALATION_TRIGGER">
+                            {incident.severity !== 'CRITICAL' && (
+                              <button
+                                onClick={() => escalateIncident(incident.id)}
+                                title="Escalate to P1"
+                                className="p-1.5 rounded-lg bg-red-500/10 text-red-600 dark:text-[#FB4A4A] hover:bg-red-500/20 border border-red-500/30 transition-colors"
+                              >
+                                <AlertTriangle className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </RoleGate>
                           <button
                             onClick={() => {
                               setActiveIncidentId(incident.id);

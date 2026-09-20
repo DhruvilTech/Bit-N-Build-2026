@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { auditLogsApi, authApi, AuditLogItem, UserProfile } from '../services/api';
 import { CyberButton } from '../components/ui/CyberButton';
 import { TextScramble } from '../components/motion/TextScramble';
+import { RoleGate } from '../components/auth/RoleGate';
 import {
   Settings as SettingsIcon,
   Volume2,
@@ -220,8 +221,8 @@ export const Settings: React.FC = () => {
         </div>
       </div>
 
-      {/* Section 2: Cryptographic Audit Log Ledger (ADMIN & OPERATOR) */}
-      {(user?.role === 'ADMIN' || user?.role === 'OPERATOR') && (
+      {/* Section 2: Cryptographic Audit Log Ledger (ADMIN & OPERATOR only) */}
+      <RoleGate permission="AUDIT_READ">
         <div className="p-6 rounded-[18px] bg-white dark:bg-[rgba(11,14,19,0.78)] border border-slate-200 dark:border-white/10 backdrop-blur-[18px] shadow-md dark:shadow-2xl space-y-4">
           <div className="flex items-center justify-between pb-3.5 border-b border-slate-200 dark:border-white/10">
             <div className="flex items-center gap-2">
@@ -297,10 +298,10 @@ export const Settings: React.FC = () => {
             </div>
           )}
         </div>
-      )}
+      </RoleGate>
 
       {/* Section 3: Admin User Clearance Management (ADMIN only) */}
-      {user?.role === 'ADMIN' && (
+      <RoleGate permission="USER_MANAGE">
         <div className="p-6 rounded-[18px] bg-white dark:bg-[rgba(11,14,19,0.78)] border border-slate-200 dark:border-white/10 backdrop-blur-[18px] shadow-md dark:shadow-2xl space-y-4">
           <div className="flex items-center justify-between pb-3.5 border-b border-slate-200 dark:border-white/10">
             <div className="flex items-center gap-2">
@@ -384,7 +385,7 @@ export const Settings: React.FC = () => {
             </table>
           </div>
         </div>
-      )}
+      </RoleGate>
 
       {/* Section 4: Operational Preferences Form */}
       <form onSubmit={handleSave} className="space-y-6">
