@@ -822,6 +822,7 @@ export const mergeDuplicateIncidentsService = async (
     }
 
     // Mark duplicate incident as cancelled & linked to canonical
+    const prevStatus = dup.status;
     dup.duplicateOf = canonical.incidentId;
     dup.status = 'CANCELLED';
     dup.duplicateAnalysis = {
@@ -831,8 +832,8 @@ export const mergeDuplicateIncidentsService = async (
     };
     dup.timeline.push({
       timelineId: `TL-${Date.now()}-MERGE`,
-      event: 'STATUS_CHANGE',
-      previousStatus: dup.status,
+      event: 'STATUS_CHANGED',
+      previousStatus: prevStatus,
       newStatus: 'CANCELLED',
       changedBy: user
         ? { userId: String(user.id || user._id), name: user.name, role: user.role }
