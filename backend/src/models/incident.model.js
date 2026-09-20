@@ -30,6 +30,9 @@ const timelineEventSchema = new mongoose.Schema(
         'INCIDENT_RESOLVED',
         'INCIDENT_UPDATED',
         'INCIDENT_CANCELLED',
+        'AI_OVERRIDE',
+        'AI_REVIEW',
+        'INCIDENTS_MERGED',
       ],
       required: true,
     },
@@ -161,6 +164,10 @@ const incidentSchema = new mongoose.Schema(
       },
     ],
     reports: [incidentReportSchema],
+    sourceCount: {
+      type: Number,
+      default: 1,
+    },
     duplicateOf: {
       type: mongoose.Schema.Types.Mixed,
       default: null,
@@ -175,6 +182,44 @@ const incidentSchema = new mongoose.Schema(
       default: null,
     },
     aiAnalysis: {
+      // Phase 1 Canonical Contract Fields
+      classification: {
+        type: {
+          type: String,
+          enum: ['FIRE', 'FLOOD', 'ROAD_ACCIDENT', 'INDUSTRIAL_ACCIDENT', 'MEDICAL_EMERGENCY', 'EARTHQUAKE', 'OTHER'],
+          default: null,
+        },
+        confidence: { type: Number, min: 0, max: 1, default: null },
+      },
+      severityRating: {
+        level: {
+          type: String,
+          enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
+          default: null,
+        },
+        confidence: { type: Number, min: 0, max: 1, default: null },
+      },
+      priorityRating: {
+        level: {
+          type: String,
+          enum: ['P1', 'P2', 'P3', 'P4'],
+          default: null,
+        },
+        reason: { type: String, default: null },
+      },
+      location: {
+        latitude: { type: Number, default: null },
+        longitude: { type: Number, default: null },
+        address: { type: String, default: null },
+      },
+      duplicate: {
+        isDuplicate: { type: Boolean, default: false },
+        similarity: { type: Number, min: 0, max: 1, default: 0 },
+        relatedIncidentId: { type: String, default: null },
+      },
+      signals: [{ type: String }],
+
+      // Backward compatibility top-level fields
       incidentType: {
         type: String,
         enum: ['FIRE', 'FLOOD', 'ROAD_ACCIDENT', 'INDUSTRIAL_ACCIDENT', 'MEDICAL_EMERGENCY', 'EARTHQUAKE', 'OTHER'],
@@ -191,7 +236,6 @@ const incidentSchema = new mongoose.Schema(
         default: null,
       },
       confidence: { type: Number, min: 0, max: 1, default: null },
-      signals: [{ type: String }],
       reasoning: {
         incidentType: { type: String, default: null },
         severity: { type: String, default: null },
@@ -218,6 +262,58 @@ const incidentSchema = new mongoose.Schema(
       },
       error: { type: String, default: null },
       analyzedAt: { type: Date, default: null },
+
+      // Phase 3: Human Review Tracking
+      requiresHumanReview: { type: Boolean, default: false, index: true },
+      reviewReason: { type: String, default: null },
+      reviewedBy: {
+        userId: { type: String, default: null },
+        name: { type: String, default: null },
+        role: { type: String, default: null },
+      },
+      reviewedAt: { type: Date, default: null },
+
+      // Phase 4: Original, HumanReview, Final & Overrides Ledger
+      original: {
+        classification: { type: String, default: null },
+        severity: { type: String, default: null },
+        priority: { type: String, default: null },
+      },
+      humanReview: {
+        status: {
+          type: String,
+          enum: ['PENDING', 'CONFIRMED', 'OVERRIDDEN'],
+          default: 'PENDING',
+          index: true,
+        },
+        reviewedBy: {
+          userId: { type: String, default: null },
+          name: { type: String, default: null },
+          role: { type: String, default: null },
+        },
+        reviewedAt: { type: Date, default: null },
+        reason: { type: String, default: null },
+      },
+      final: {
+        classification: { type: String, default: null },
+        severity: { type: String, default: null },
+        priority: { type: String, default: null },
+      },
+      overrides: [
+        {
+          field: { type: String, required: true },
+          originalValue: { type: String, required: true },
+          newValue: { type: String, required: true },
+          reason: { type: String, required: true },
+          overriddenBy: {
+            userId: { type: String, required: true },
+            name: { type: String, default: null },
+            role: { type: String, default: null },
+          },
+          timestamp: { type: Date, default: Date.now },
+        },
+      ],
+
       // Backward compatibility fields
       confidenceScore: { type: Number, min: 0, max: 100 },
       primaryHazard: { type: String },

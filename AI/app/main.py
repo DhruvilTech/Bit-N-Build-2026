@@ -110,6 +110,7 @@ def root():
         "status": "online",
         "docs": "/docs",
         "health": "/health",
+        "analyzeIncidentEndpoint": "/api/v1/analyze-incident",
         "classificationEndpoint": "/api/v1/classify-incident",
         "duplicateCheckEndpoint": "/api/v1/incidents/duplicate-check",
         "findDuplicatesEndpoint": "/api/v1/incidents/find-duplicates",

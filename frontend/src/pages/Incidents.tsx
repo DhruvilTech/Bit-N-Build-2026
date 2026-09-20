@@ -37,7 +37,12 @@ export const Incidents: React.FC = () => {
   const [severityFilter, setSeverityFilter] = useState<string>('ALL');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [sourceFilter, setSourceFilter] = useState<string>('ALL');
+  const [reviewOnlyFilter, setReviewOnlyFilter] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
+
+  const reviewRequiredCount = incidents.filter(
+    (inc) => inc.requiresHumanReview || inc.aiAnalysis?.requiresHumanReview || (inc.aiAnalysis?.confidence !== undefined && inc.aiAnalysis.confidence < 0.70)
+  ).length;
 
   const filteredIncidents = incidents.filter((inc) => {
     const matchesSearch =
@@ -54,7 +59,15 @@ export const Incidents: React.FC = () => {
       sourceFilter === 'ALL' ||
       (inc.source && inc.source.toUpperCase() === sourceFilter.toUpperCase());
 
-    return matchesSearch && matchesSeverity && matchesStatus && matchesSource;
+    const matchesReview =
+      !reviewOnlyFilter ||
+      Boolean(
+        inc.requiresHumanReview ||
+        inc.aiAnalysis?.requiresHumanReview ||
+        (inc.aiAnalysis?.confidence !== undefined && inc.aiAnalysis.confidence < 0.70)
+      );
+
+    return matchesSearch && matchesSeverity && matchesStatus && matchesSource && matchesReview;
   });
 
   const getSourceBadge = (source?: string) => {
@@ -187,6 +200,19 @@ export const Incidents: React.FC = () => {
           <option value="EMERGENCY_CALL">Emergency 911 Call</option>
         </select>
 
+        {/* AI Review Queue Filter Toggle */}
+        <button
+          onClick={() => setReviewOnlyFilter(!reviewOnlyFilter)}
+          className={`px-3 py-2 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            reviewOnlyFilter
+              ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/30'
+              : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30'
+          }`}
+        >
+          <AlertTriangle className="w-3.5 h-3.5" />
+          <span>REVIEW QUEUE ({reviewRequiredCount})</span>
+        </button>
+
         {/* Status Dropdown Filter */}
         <select
           value={statusFilter}
@@ -249,7 +275,19 @@ export const Incidents: React.FC = () => {
                         {getSourceBadge(incident.source)}
                       </td>
                       <td className="p-4">
-                        <div className="text-slate-900 dark:text-white font-semibold">{incident.type}</div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-slate-900 dark:text-white font-semibold">{incident.type}</span>
+                          {incident.sourceCount && incident.sourceCount > 1 ? (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-teal-500/15 text-teal-700 dark:text-[#2DD4BF] font-bold">
+                              {incident.sourceCount} sources
+                            </span>
+                          ) : null}
+                          {incident.duplicateOf && (
+                            <span className="px-1.5 py-0.5 rounded text-[9px] font-mono bg-purple-500/20 text-purple-700 dark:text-purple-300 font-bold">
+                              ⛓️ MERGED
+                            </span>
+                          )}
+                        </div>
                         <div className="text-slate-600 dark:text-slate-400 text-[11px] truncate max-w-xs">
                           {incident.title}
                         </div>
@@ -280,9 +318,11 @@ export const Incidents: React.FC = () => {
                               <span className="font-bold text-purple-600 dark:text-[#A78BFA]">
                                 {Math.round((incident.aiAnalysis.confidence ?? (incident.aiConfidence / 100)) * 100)}%
                               </span>
-                              {incident.aiAnalysis.isLowConfidence && (
-                                <span className="text-amber-500 font-bold text-[9px]">⚠️ LOW</span>
-                              )}
+                              {(incident.requiresHumanReview || incident.aiAnalysis.requiresHumanReview || (incident.aiAnalysis.confidence !== undefined && incident.aiAnalysis.confidence < 0.70)) ? (
+                                <span className="text-amber-600 dark:text-amber-400 font-bold text-[9px] px-1 rounded bg-amber-500/15 border border-amber-500/30">
+                                  ⚠️ REVIEW
+                                </span>
+                              ) : null}
                             </div>
                           </div>
                         ) : (

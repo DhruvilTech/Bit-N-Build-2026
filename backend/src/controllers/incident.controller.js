@@ -14,6 +14,11 @@ import {
   compareIncidentsService,
   clusterActiveIncidentsService,
   mergeDuplicateIncidentsService,
+  getReviewRequiredIncidents,
+  reviewIncidentService,
+  overrideIncidentService,
+  addReportToIncidentService,
+  getRelatedIncidentsService,
 } from '../services/incident.service.js';
 import { successResponse, errorResponse } from '../utils/response.js';
 
@@ -144,12 +149,12 @@ export const getReports = async (req, res, next) => {
 export const triggerAiAnalysis = async (req, res, next) => {
   try {
     const incident = await analyzeIncident(req.params.id, req.user);
-    return successResponse(
-      res,
-      `AI analysis completed for incident #${incident.incidentId}`,
-      { incident, aiAnalysis: incident.aiAnalysis },
-      200
-    );
+    return res.status(200).json({
+      success: true,
+      status: 'ANALYZED',
+      message: `AI analysis completed for incident #${incident.incidentId}`,
+      data: { incident, aiAnalysis: incident.aiAnalysis },
+    });
   } catch (error) {
     next(error);
   }
@@ -246,6 +251,63 @@ export const mergeIncidents = async (req, res, next) => {
     next(error);
   }
 };
+
+export const getReviewRequiredQueue = async (req, res, next) => {
+  try {
+    const { page, limit } = req.query;
+    const result = await getReviewRequiredIncidents({ page, limit });
+    return successResponse(res, 'Review-required incidents retrieved successfully', result, 200);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const reviewIncident = async (req, res, next) => {
+  try {
+    const result = await reviewIncidentService(req.params.id, req.body, req.user);
+    return successResponse(res, result.message, result, 200);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const overrideIncident = async (req, res, next) => {
+  try {
+    const result = await overrideIncidentService(req.params.id, req.body, req.user);
+    return successResponse(res, result.message, result, 200);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const addIncidentReport = async (req, res, next) => {
+  try {
+    const result = await addReportToIncidentService(req.params.id, req.body, req.user);
+    return successResponse(
+      res,
+      `Report attached to incident #${req.params.id} successfully`,
+      result,
+      201
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const fetchRelatedIncidents = async (req, res, next) => {
+  try {
+    const result = await getRelatedIncidentsService(req.params.id);
+    return successResponse(
+      res,
+      `Related reports and incidents for #${req.params.id}`,
+      result,
+      200
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
 
 
 

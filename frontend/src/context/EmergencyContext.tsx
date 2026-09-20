@@ -67,6 +67,11 @@ interface EmergencyContextType {
   updateIncidentStatus: (incidentId: string, status: string, reason?: string) => Promise<void>;
   createIncident: (data: any) => Promise<any>;
   triggerAiAnalysis: (incidentId: string) => Promise<void>;
+  reviewIncident: (id: string, decision: 'CONFIRM' | 'OVERRIDE', reason: string, overrides?: any) => Promise<any>;
+  overrideIncident: (id: string, overrides: any, reason: string) => Promise<any>;
+  addIncidentReport: (id: string, report: { source?: string; text: string; reliability?: number }) => Promise<any>;
+  mergeIncidents: (canonicalId: string, duplicateIds: string[], reason?: string) => Promise<any>;
+  getRelatedIncidents: (id: string) => Promise<any>;
   markNotificationAsRead: (id: string) => void;
   markAllNotificationsAsRead: () => void;
   isLiveBackend: boolean;
@@ -219,6 +224,78 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             return i;
           })
         );
+      });
+
+      socket.on('incident:reviewRequired', (payload: any) => {
+        soundFx.playEmergencyAlert();
+        const incId = payload.incidentId;
+        setIncidents((prev) =>
+          prev.map((i) => {
+            if (i.id === incId) {
+              return {
+                ...i,
+                requiresHumanReview: true,
+                aiAnalysis: {
+                  ...(i.aiAnalysis || { status: 'COMPLETED' }),
+                  requiresHumanReview: true,
+                  reviewReason: payload.reason,
+                },
+              };
+            }
+            return i;
+          })
+        );
+        setNotifications((prev) => [
+          {
+            id: `NOTIF-REV-${Date.now()}`,
+            category: 'Critical',
+            title: `⚠️ Human Review Required: #${incId}`,
+            message: payload.reason || 'AI confidence below threshold. Operator verification required.',
+            timestamp: new Date().toTimeString().slice(0, 5),
+            read: false,
+            incidentId: incId,
+          },
+          ...prev,
+        ]);
+      });
+
+      socket.on('incident:reviewed', (payload: any) => {
+        soundFx.playClick();
+        const raw = payload.incident || payload;
+        const adaptedList = adaptBackendIncidents([raw]);
+        if (adaptedList.length > 0) {
+          const adapted = adaptedList[0];
+          setIncidents((prev) => prev.map((i) => (i.id === adapted.id ? adapted : i)));
+        }
+      });
+
+      socket.on('incident:aiOverridden', (payload: any) => {
+        soundFx.playClick();
+        const raw = payload.incident || payload;
+        const adaptedList = adaptBackendIncidents([raw]);
+        if (adaptedList.length > 0) {
+          const adapted = adaptedList[0];
+          setIncidents((prev) => prev.map((i) => (i.id === adapted.id ? adapted : i)));
+        }
+      });
+
+      socket.on('incident:merged', (payload: any) => {
+        soundFx.playClick();
+        const raw = payload.canonicalIncident || payload.incident || payload;
+        const mergedIds = payload.mergedIncidentIds || [];
+        const adaptedList = adaptBackendIncidents([raw]);
+        if (adaptedList.length > 0) {
+          const adapted = adaptedList[0];
+          setIncidents((prev) =>
+            prev.map((i) => {
+              if (i.id === adapted.id) return adapted;
+              if (mergedIds.includes(i.id)) {
+                return { ...i, status: 'Resolved', rawStatus: 'CANCELLED', duplicateOf: adapted.id };
+              }
+              return i;
+            })
+          );
+        }
       });
     } catch (err: any) {
       console.warn('Socket connection deferred:', err.message);
@@ -621,6 +698,82 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, []);
 
+  const reviewIncident = useCallback(
+    async (id: string, decision: 'CONFIRM' | 'OVERRIDE', reason: string, overrides?: any) => {
+      soundFx.playClick();
+      const res = await incidentsApi.review(id, { decision, reason, overrides });
+      const raw = res?.incident || res;
+      if (raw) {
+        const adapted = adaptBackendIncidents([raw])[0];
+        if (adapted) {
+          setIncidents((prev) => prev.map((i) => (i.id === adapted.id ? adapted : i)));
+        }
+      }
+      return res;
+    },
+    []
+  );
+
+  const overrideIncident = useCallback(
+    async (id: string, overrides: any, reason: string) => {
+      soundFx.playClick();
+      const res = await incidentsApi.override(id, { overrides, reason });
+      const raw = res?.incident || res;
+      if (raw) {
+        const adapted = adaptBackendIncidents([raw])[0];
+        if (adapted) {
+          setIncidents((prev) => prev.map((i) => (i.id === adapted.id ? adapted : i)));
+        }
+      }
+      return res;
+    },
+    []
+  );
+
+  const addIncidentReport = useCallback(
+    async (id: string, report: { source?: string; text: string; reliability?: number }) => {
+      soundFx.playClick();
+      const res = await incidentsApi.addReport(id, report);
+      const raw = res?.incident;
+      if (raw) {
+        const adapted = adaptBackendIncidents([raw])[0];
+        if (adapted) {
+          setIncidents((prev) => prev.map((i) => (i.id === adapted.id ? adapted : i)));
+        }
+      }
+      return res;
+    },
+    []
+  );
+
+  const mergeIncidents = useCallback(
+    async (canonicalId: string, duplicateIds: string[], reason?: string) => {
+      soundFx.playClick();
+      const res = await incidentsApi.merge(canonicalId, duplicateIds, reason);
+      const raw = res?.canonicalIncident;
+      if (raw) {
+        const adapted = adaptBackendIncidents([raw])[0];
+        if (adapted) {
+          setIncidents((prev) =>
+            prev.map((i) => {
+              if (i.id === adapted.id) return adapted;
+              if (duplicateIds.includes(i.id)) {
+                return { ...i, status: 'Resolved', rawStatus: 'CANCELLED', duplicateOf: adapted.id };
+              }
+              return i;
+            })
+          );
+        }
+      }
+      return res;
+    },
+    []
+  );
+
+  const getRelatedIncidents = useCallback(async (id: string) => {
+    return await incidentsApi.getRelated(id);
+  }, []);
+
 
   const updateIncidentStatus = useCallback(async (incidentId: string, status: string, reason?: string) => {
     soundFx.playClick();
@@ -833,6 +986,11 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     updateIncidentStatus,
     createIncident,
     triggerAiAnalysis,
+    reviewIncident,
+    overrideIncident,
+    addIncidentReport,
+    mergeIncidents,
+    getRelatedIncidents,
     markNotificationAsRead,
     markAllNotificationsAsRead,
     isLiveBackend,

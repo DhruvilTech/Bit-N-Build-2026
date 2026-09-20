@@ -10,6 +10,10 @@ export const env = {
   JWT_SECRET: process.env.JWT_SECRET || 'ps9_emergency_jwt_secret_2026',
   CLIENT_URL: process.env.CLIENT_URL || 'http://localhost:5173',
   AI_SERVICE_URL: process.env.AI_SERVICE_URL || 'http://localhost:8000',
+  AI_TIMEOUT: parseInt(process.env.AI_TIMEOUT || '8000', 10),
+  AI_RETRY_COUNT: parseInt(process.env.AI_RETRY_COUNT || '2', 10),
+  HUMAN_REVIEW_THRESHOLD: parseFloat(process.env.HUMAN_REVIEW_THRESHOLD || '0.70'),
+  DUPLICATE_SIMILARITY_THRESHOLD: parseFloat(process.env.DUPLICATE_SIMILARITY_THRESHOLD || '0.75'),
 };
 
 if (!env.MONGODB_URI) {

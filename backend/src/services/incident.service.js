@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import { IncidentModel } from '../models/incident.model.js';
 import { recordAuditLog } from './auditLog.service.js';
-import { NotFoundError, ValidationError } from '../utils/errors.js';
+import { NotFoundError, ValidationError, ForbiddenError } from '../utils/errors.js';
 import {
   emitIncidentNew,
   emitIncidentUpdated,
@@ -12,12 +12,16 @@ import {
   emitIncidentDuplicateDetected,
   emitIncidentsClustered,
   emitIncidentMerged,
+  emitIncidentReviewRequired,
+  emitIncidentReviewed,
+  emitIncidentOverridden,
 } from '../utils/socket.js';
 import {
   classifyIncidentWithAi,
   findDuplicatesWithAi,
   checkDuplicatePairWithAi,
   clusterIncidentsWithAi,
+  analyzeIncidentPipeline,
 } from './ai.service.js';
 
 // Safe Status Lifecycle Transition Rules
@@ -389,8 +393,8 @@ export const getIncidentReports = async (id) => {
 };
 
 /**
- * Runs AI incident classification on an incident document.
- * Fail-safe: Handles network errors, timeouts, and updates MongoDB & WebSockets gracefully.
+ * Runs the unified AI incident processing pipeline on an incident document.
+ * Fail-safe: Handles network errors, timeouts, retries, validation, and updates MongoDB & WebSockets gracefully.
  */
 export const runAiAnalysisOnIncident = async (incidentDoc, user = null) => {
   try {
@@ -403,30 +407,107 @@ export const runAiAnalysisOnIncident = async (incidentDoc, user = null) => {
     await incidentDoc.save();
     emitIncidentAiProcessing(incidentDoc);
 
-    // 2. Call AI Microservice
-    const result = await classifyIncidentWithAi(incidentDoc);
+    // 2. Query nearby recent active incidents (past 72 hours) as context for duplicate detection
+    let candidates = [];
+    try {
+      const candidateWindowHours = 72;
+      const sinceDate = new Date(Date.now() - candidateWindowHours * 60 * 60 * 1000);
+      candidates = await IncidentModel.find({
+        _id: { $ne: incidentDoc._id },
+        incidentId: { $ne: incidentDoc.incidentId },
+        status: { $nin: ['RESOLVED', 'CANCELLED'] },
+        createdAt: { $gte: sinceDate },
+      })
+        .select('incidentId title description location createdAt source type')
+        .limit(50)
+        .lean();
+    } catch (candErr) {
+      console.warn(`[AI Context Query] Warning fetching candidates for #${incidentDoc.incidentId}:`, candErr.message);
+    }
+
+    // 3. Call Unified AI Pipeline Orchestrator with retries and 5-layer validation
+    const result = await analyzeIncidentPipeline(incidentDoc, candidates);
 
     if (result.success && result.data) {
       const aiData = result.data;
+
+      // Ensure original is preserved or initialized
+      const origClass = incidentDoc.aiAnalysis?.original?.classification || aiData.classification.type;
+      const origSev = incidentDoc.aiAnalysis?.original?.severity || aiData.severity.level;
+      const origPri = incidentDoc.aiAnalysis?.original?.priority || aiData.priority.level;
+
+      const reviewReason = aiData.requiresHumanReview
+        ? `Calibrated confidence below review threshold (Class: ${Math.round(aiData.classification.confidence * 100)}%, Sev: ${Math.round(aiData.severity.confidence * 100)}%)`
+        : null;
+
       incidentDoc.aiAnalysis = {
-        incidentType: aiData.incidentType,
-        severity: aiData.severity,
-        priority: aiData.priority,
-        confidence: aiData.confidence,
+        // Phase 1 Canonical Contract Fields
+        classification: aiData.classification,
+        severityRating: aiData.severity,
+        priorityRating: aiData.priority,
+        location: aiData.location,
+        duplicate: aiData.duplicate,
         signals: aiData.signals || [],
-        reasoning: aiData.reasoning || {},
-        suggestedCorrection: Boolean(aiData.suggestedCorrection),
-        originalType: aiData.originalType || incidentDoc.type,
-        isLowConfidence: Boolean(aiData.isLowConfidence),
-        detectedLocation: aiData.detectedLocation || null,
-        model: aiData.model || 'emergency-classifier-v1',
-        version: aiData.version || '1.0',
+
+        // Backward compatibility fields
+        incidentType: aiData.classification.type,
+        severity: aiData.severity.level,
+        priority: aiData.priority.level,
+        confidence: aiData.classification.confidence,
+        reasoning: {
+          incidentType: `AI classified as ${aiData.classification.type}`,
+          severity: `Severity level ${aiData.severity.level}`,
+          priority: aiData.priority.reason,
+        },
+        suggestedCorrection: aiData.classification.type !== incidentDoc.type,
+        originalType: incidentDoc.type,
+        isLowConfidence: Boolean(aiData.requiresHumanReview),
+        detectedLocation: aiData.location?.address
+          ? {
+              found: true,
+              address: aiData.location.address,
+              latitude: aiData.location.latitude,
+              longitude: aiData.location.longitude,
+            }
+          : null,
+        model: 'emergency-pipeline-v1',
+        version: '1.0',
         status: 'COMPLETED',
         error: null,
         analyzedAt: new Date(),
+
+        // Phase 3 & 4: Review, Overrides & Ledger
+        requiresHumanReview: Boolean(aiData.requiresHumanReview),
+        reviewReason,
+        reviewedBy: null,
+        reviewedAt: null,
+        original: {
+          classification: origClass,
+          severity: origSev,
+          priority: origPri,
+        },
+        humanReview: {
+          status: 'PENDING',
+          reviewedBy: null,
+          reviewedAt: null,
+          reason: null,
+        },
+        final: {
+          classification: origClass,
+          severity: origSev,
+          priority: origPri,
+        },
+        overrides: incidentDoc.aiAnalysis?.overrides || [],
       };
 
-      // Add timeline entry for AI classification
+      // Synchronize operational fields
+      if (incidentDoc.type === 'OTHER' && aiData.classification.type !== 'OTHER') {
+        incidentDoc.type = aiData.classification.type;
+      }
+      incidentDoc.severity = aiData.severity.level;
+      incidentDoc.priority = aiData.priority.level;
+
+      // Add timeline entry for AI pipeline analysis
       incidentDoc.timeline.push({
         timelineId: `TL-${Date.now()}-AI`,
         event: 'FIELD_UPDATE',
@@ -434,13 +515,50 @@ export const runAiAnalysisOnIncident = async (incidentDoc, user = null) => {
         newStatus: incidentDoc.status,
         changedBy: { userId: 'AI-SYSTEM', name: 'PS-9 AI Engine', role: 'SYSTEM' },
         timestamp: new Date(),
-        reason: 'AI classification analysis completed',
-        description: `AI classified incident as ${aiData.incidentType} (${aiData.severity}, ${aiData.priority}) with ${Math.round(aiData.confidence * 100)}% confidence`,
+        reason: 'Unified AI incident pipeline analysis completed',
+        description: `AI classified incident as ${aiData.classification.type} (${aiData.severity.level}, ${aiData.priority.level}) with ${Math.round(aiData.classification.confidence * 100)}% confidence`,
       });
+
+      // Handle duplicate detection results
+      if (aiData.duplicate && aiData.duplicate.isDuplicate && aiData.duplicate.relatedIncidentId) {
+        incidentDoc.duplicateOf = aiData.duplicate.relatedIncidentId;
+        incidentDoc.duplicateAnalysis = {
+          status: 'DUPLICATE_FOUND',
+          hasDuplicates: true,
+          hasRelated: true,
+          topMatch: {
+            incidentId: aiData.duplicate.relatedIncidentId,
+            combinedScore: aiData.duplicate.similarity,
+            classification: 'DUPLICATE',
+          },
+          matchesCount: 1,
+          isCanonical: false,
+          analyzedAt: new Date(),
+          error: null,
+        };
+
+        incidentDoc.timeline.push({
+          timelineId: `TL-${Date.now()}-DUP`,
+          event: 'FIELD_UPDATE',
+          previousStatus: incidentDoc.status,
+          newStatus: incidentDoc.status,
+          changedBy: { userId: 'AI-SYSTEM', name: 'PS-9 AI Engine', role: 'SYSTEM' },
+          timestamp: new Date(),
+          reason: 'Duplicate incident report detected by AI pipeline',
+          description: `Potential duplicate of #${aiData.duplicate.relatedIncidentId} (${Math.round(aiData.duplicate.similarity * 100)}% match)`,
+        });
+      }
 
       await incidentDoc.save();
 
+      // Emit specific events
       emitIncidentAiAnalyzed(incidentDoc);
+      if (aiData.requiresHumanReview) {
+        emitIncidentReviewRequired(incidentDoc);
+      }
+      if (aiData.duplicate && (aiData.duplicate.isDuplicate || aiData.duplicate.similarity >= 0.55)) {
+        emitIncidentDuplicateDetected(incidentDoc, aiData.duplicate);
+      }
       emitIncidentUpdated(incidentDoc);
     } else {
       // AI Service call returned error or timed out
@@ -454,99 +572,6 @@ export const runAiAnalysisOnIncident = async (incidentDoc, user = null) => {
 
       emitIncidentAiFailed(incidentDoc, errorMsg);
       emitIncidentUpdated(incidentDoc);
-    }
-
-    // 3. Automated Duplicate Detection against active recent incidents (past 48 hours)
-    try {
-      const candidateWindowHours = 48;
-      const sinceDate = new Date(Date.now() - candidateWindowHours * 60 * 60 * 1000);
-
-      const candidates = await IncidentModel.find({
-        _id: { $ne: incidentDoc._id },
-        incidentId: { $ne: incidentDoc.incidentId },
-        status: { $nin: ['RESOLVED', 'CANCELLED'] },
-        createdAt: { $gte: sinceDate },
-      })
-        .select('incidentId title description location createdAt source type')
-        .limit(50)
-        .lean();
-
-      if (candidates.length > 0) {
-        const dupResult = await findDuplicatesWithAi(incidentDoc, candidates, 'RELATED');
-        if (dupResult.success && dupResult.data) {
-          const dupData = dupResult.data;
-          const topMatch = dupData.top_match;
-          const hasDuplicates = Boolean(dupData.has_duplicates);
-          const hasRelated = Boolean(dupData.related && dupData.related.length > 0);
-
-          let dupStatus = 'UNIQUE';
-          if (hasDuplicates) {
-            dupStatus = 'DUPLICATE_FOUND';
-          } else if (hasRelated) {
-            dupStatus = 'RELATED_FOUND';
-          }
-
-          incidentDoc.duplicateAnalysis = {
-            status: dupStatus,
-            hasDuplicates,
-            hasRelated,
-            topMatch: topMatch
-              ? {
-                  incidentId: topMatch.incident_b_id,
-                  classification: topMatch.classification,
-                  combinedScore: topMatch.combined_score,
-                  semanticSimilarity: topMatch.semantic_similarity,
-                  geographicSimilarity: topMatch.geographic_similarity,
-                  temporalSimilarity: topMatch.temporal_similarity,
-                  distanceKm: topMatch.distance_km,
-                  timeDiffHours: topMatch.time_diff_hours,
-                  reasoning: topMatch.reasoning,
-                  method: topMatch.method,
-                }
-              : null,
-            matchesCount: (dupData.duplicates?.length || 0) + (dupData.related?.length || 0),
-            clusterId: null,
-            isCanonical: !hasDuplicates,
-            analyzedAt: new Date(),
-            error: null,
-          };
-
-          // If high-confidence DUPLICATE detected, record duplicateOf and add timeline note
-          if (hasDuplicates && topMatch) {
-            incidentDoc.duplicateOf = topMatch.incident_b_id;
-            incidentDoc.timeline.push({
-              timelineId: `TL-${Date.now()}-DUP`,
-              event: 'FIELD_UPDATE',
-              previousStatus: incidentDoc.status,
-              newStatus: incidentDoc.status,
-              changedBy: { userId: 'AI-SYSTEM', name: 'PS-9 AI Engine', role: 'SYSTEM' },
-              timestamp: new Date(),
-              reason: 'Duplicate incident report detected by AI similarity engine',
-              description: `Potential duplicate of #${topMatch.incident_b_id} (${Math.round((topMatch.combined_score || 0) * 100)}% match). Reasoning: ${topMatch.reasoning || 'High semantic and spatial correlation'}`,
-            });
-          }
-
-          await incidentDoc.save();
-
-          if (hasDuplicates || hasRelated) {
-            emitIncidentDuplicateDetected(incidentDoc, dupData);
-          }
-        }
-      } else {
-        incidentDoc.duplicateAnalysis = {
-          status: 'UNIQUE',
-          hasDuplicates: false,
-          hasRelated: false,
-          topMatch: null,
-          matchesCount: 0,
-          isCanonical: true,
-          analyzedAt: new Date(),
-          error: null,
-        };
-        await incidentDoc.save();
-      }
-    } catch (dupErr) {
-      console.warn(`[AI Duplicate Detection] Non-fatal check error for #${incidentDoc.incidentId}:`, dupErr.message);
     }
 
     return incidentDoc;
@@ -846,10 +871,17 @@ export const mergeDuplicateIncidentsService = async (
     mergedIds.push(dup.incidentId);
   }
 
+  if (mergedIds.length === 0) {
+    throw new ValidationError('No valid duplicate incident IDs provided for consolidation');
+  }
+
+  // Update canonical source count
+  canonical.sourceCount = canonical.reports.length;
+
   // Update timeline on canonical incident
   canonical.timeline.push({
     timelineId: `TL-${Date.now()}-MERGED`,
-    event: 'FIELD_UPDATE',
+    event: 'INCIDENTS_MERGED',
     previousStatus: canonical.status,
     newStatus: canonical.status,
     changedBy: user
@@ -871,6 +903,7 @@ export const mergeDuplicateIncidentsService = async (
       canonicalId: canonical.incidentId,
       mergedIncidentIds: mergedIds,
       reason,
+      totalSources: canonical.sourceCount,
     },
   });
 
@@ -881,7 +914,337 @@ export const mergeDuplicateIncidentsService = async (
     canonicalIncident: canonical,
     mergedIncidentIds: mergedIds,
     mergedCount: mergedIds.length,
+    totalSources: canonical.sourceCount,
   };
 };
+
+/**
+ * Retrieves all incidents currently requiring human operator review (Phase 3)
+ */
+export const getReviewRequiredIncidents = async (pagination = {}) => {
+  const page = parseInt(pagination.page || '1', 10);
+  const limit = parseInt(pagination.limit || '50', 10);
+  const skip = (page - 1) * limit;
+
+  const query = {
+    'aiAnalysis.requiresHumanReview': true,
+    'aiAnalysis.humanReview.status': 'PENDING',
+    status: { $nin: ['CANCELLED', 'RESOLVED'] },
+  };
+
+  const [incidents, total] = await Promise.all([
+    IncidentModel.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
+    IncidentModel.countDocuments(query),
+  ]);
+
+  return {
+    incidents,
+    total,
+    pagination: {
+      total,
+      page,
+      limit,
+      pages: Math.ceil(total / limit) || 1,
+    },
+  };
+};
+
+/**
+ * Processes human operator review on an incident (Confirm or Override) (Phase 3 & Phase 4)
+ */
+export const reviewIncidentService = async (id, reviewPayload, user = null) => {
+  const incident = await getIncidentById(id);
+  const { decision, reason, overrides } = reviewPayload;
+
+  if (decision === 'CONFIRM') {
+    const origClass = incident.aiAnalysis?.original?.classification || incident.type;
+    const origSev = incident.aiAnalysis?.original?.severity || incident.severity;
+    const origPri = incident.aiAnalysis?.original?.priority || incident.priority;
+
+    incident.aiAnalysis.humanReview = {
+      status: 'CONFIRMED',
+      reviewedBy: user ? { userId: String(user.id || user._id), name: user.name, role: user.role } : null,
+      reviewedAt: new Date(),
+      reason: reason || 'AI triage assessment confirmed by emergency operator',
+    };
+    incident.aiAnalysis.requiresHumanReview = false;
+    incident.aiAnalysis.final = {
+      classification: origClass,
+      severity: origSev,
+      priority: origPri,
+    };
+
+    incident.timeline.push({
+      timelineId: `TL-${Date.now()}-CONFIRM`,
+      event: 'AI_REVIEW',
+      previousStatus: incident.status,
+      newStatus: incident.status,
+      changedBy: user ? { userId: String(user.id || user._id), name: user.name, role: user.role } : null,
+      timestamp: new Date(),
+      reason: reason || 'AI assessment confirmed',
+      description: `AI triage assessment confirmed by ${user?.name || 'Operator'} (${user?.role || 'OPERATOR'})`,
+    });
+
+    await incident.save();
+
+    await recordAuditLog({
+      user,
+      action: 'AI_REVIEW_CONFIRMED',
+      entityType: 'INCIDENT',
+      entityId: incident.incidentId,
+      metadata: {
+        reason,
+        confirmedClassification: origClass,
+        confirmedSeverity: origSev,
+        confirmedPriority: origPri,
+      },
+    });
+
+    emitIncidentReviewed(incident);
+    emitIncidentUpdated(incident);
+
+    return {
+      incident,
+      decision: 'CONFIRM',
+      message: `Incident #${incident.incidentId} AI assessment confirmed successfully`,
+    };
+  }
+
+  if (decision === 'OVERRIDE') {
+    return await overrideIncidentService(id, { overrides, reason }, user);
+  }
+
+  throw new ValidationError(`Unknown review decision: '${decision}'. Must be CONFIRM or OVERRIDE.`);
+};
+
+/**
+ * Handles authorized operator override of AI classification, severity, or priority (Phase 4)
+ * Strict backend authorization check enforced.
+ */
+export const overrideIncidentService = async (id, overridePayload, user = null) => {
+  const incident = await getIncidentById(id);
+  const { overrides = {}, field, newValue, reason } = overridePayload;
+
+  const changes = { ...overrides };
+  if (field && newValue) {
+    changes[field] = newValue;
+  }
+
+  const allowedFields = ['classification', 'severity', 'priority', 'type'];
+  const overrideKeys = Object.keys(changes).filter((k) => allowedFields.includes(k) && changes[k]);
+
+  if (overrideKeys.length === 0) {
+    throw new ValidationError('At least one operational parameter must be overridden (classification, severity, or priority)');
+  }
+
+  // RBAC Permission Enforcement
+  // ADMIN: Full override
+  // OPERATOR: Full operational incident override
+  // FIELD_COORDINATOR: Tactical/field updates (classification, priority)
+  // MEDICAL_COORDINATOR: Medical/triage updates (severity, priority)
+  const userRole = user?.role || 'OPERATOR';
+
+  for (const k of overrideKeys) {
+    if (userRole === 'ADMIN' || userRole === 'OPERATOR') {
+      continue;
+    }
+    if (userRole === 'FIELD_COORDINATOR') {
+      if (k === 'severity') {
+        throw new ForbiddenError("Field Coordinators are not authorized to override incident severity rating.");
+      }
+    } else if (userRole === 'MEDICAL_COORDINATOR') {
+      if (k === 'classification' || k === 'type') {
+        throw new ForbiddenError("Medical Coordinators can only adjust severity and triage priority parameters.");
+      }
+    } else {
+      throw new ForbiddenError(`Role '${userRole}' is not authorized to override AI parameters.`);
+    }
+  }
+
+  // Preserve original values
+  if (!incident.aiAnalysis) {
+    incident.aiAnalysis = { status: 'PENDING' };
+  }
+  if (!incident.aiAnalysis.original || !incident.aiAnalysis.original.classification) {
+    incident.aiAnalysis.original = {
+      classification: incident.type,
+      severity: incident.severity,
+      priority: incident.priority,
+    };
+  }
+  if (!incident.aiAnalysis.final) {
+    incident.aiAnalysis.final = { ...incident.aiAnalysis.original };
+  }
+  if (!Array.isArray(incident.aiAnalysis.overrides)) {
+    incident.aiAnalysis.overrides = [];
+  }
+
+  const recordedOverrides = [];
+
+  for (const k of overrideKeys) {
+    const rawNewVal = changes[k];
+    const normalizedField = k === 'type' ? 'classification' : k;
+    const originalVal =
+      incident.aiAnalysis.original[normalizedField] ||
+      incident[normalizedField === 'classification' ? 'type' : normalizedField];
+
+    // Update final
+    incident.aiAnalysis.final[normalizedField] = rawNewVal;
+
+    // Update top level operational fields on incident
+    if (normalizedField === 'classification') {
+      incident.type = rawNewVal;
+      incident.aiAnalysis.incidentType = rawNewVal;
+    } else if (normalizedField === 'severity') {
+      incident.severity = rawNewVal;
+      incident.aiAnalysis.severity = rawNewVal;
+    } else if (normalizedField === 'priority') {
+      incident.priority = rawNewVal;
+      incident.aiAnalysis.priority = rawNewVal;
+    }
+
+    const overrideEntry = {
+      field: normalizedField,
+      originalValue: String(originalVal || 'UNKNOWN'),
+      newValue: String(rawNewVal),
+      reason: reason || 'Operator manual override',
+      overriddenBy: user
+        ? { userId: String(user.id || user._id), name: user.name, role: user.role }
+        : { userId: 'OPERATOR', name: 'Emergency Operator', role: 'OPERATOR' },
+      timestamp: new Date(),
+    };
+
+    incident.aiAnalysis.overrides.push(overrideEntry);
+    recordedOverrides.push(overrideEntry);
+
+    // Audit log per overridden field for complete traceability
+    await recordAuditLog({
+      user,
+      action: 'AI_OVERRIDE',
+      entityType: 'INCIDENT',
+      entityId: incident.incidentId,
+      metadata: {
+        field: normalizedField,
+        originalValue: String(originalVal || 'UNKNOWN'),
+        newValue: String(rawNewVal),
+        reason: reason || 'Operator manual override',
+        timestamp: new Date(),
+      },
+    });
+
+    incident.timeline.push({
+      timelineId: `TL-${Date.now()}-OVR-${normalizedField}`,
+      event: 'AI_OVERRIDE',
+      previousStatus: incident.status,
+      newStatus: incident.status,
+      changedBy: user ? { userId: String(user.id || user._id), name: user.name, role: user.role } : null,
+      timestamp: new Date(),
+      reason: reason || 'Operational AI parameter override',
+      description: `AI ${normalizedField} overridden: ${originalVal} → ${rawNewVal} (${reason || 'Operator override'})`,
+    });
+  }
+
+  incident.aiAnalysis.humanReview = {
+    status: 'OVERRIDDEN',
+    reviewedBy: user ? { userId: String(user.id || user._id), name: user.name, role: user.role } : null,
+    reviewedAt: new Date(),
+    reason: reason || 'Operator manual override',
+  };
+  incident.aiAnalysis.requiresHumanReview = false;
+
+  await incident.save();
+
+  emitIncidentOverridden(incident, recordedOverrides[0]);
+  emitIncidentUpdated(incident);
+
+  return {
+    incident,
+    overrides: recordedOverrides,
+    final: incident.aiAnalysis.final,
+    message: `Successfully overridden ${recordedOverrides.length} field(s) on #${incident.incidentId}`,
+  };
+};
+
+/**
+ * Attaches an incoming report/evidence to an existing incident (Phase 5)
+ */
+export const addReportToIncidentService = async (id, reportData, user = null) => {
+  const incident = await getIncidentById(id);
+
+  const reportId = `REP-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
+  const source = reportData.source || 'CITIZEN';
+  const text = reportData.text;
+  const reliability = typeof reportData.reliability === 'number' ? reportData.reliability : 90;
+
+  const newReport = {
+    reportId,
+    source,
+    text,
+    reliability,
+    reportedAt: new Date(),
+  };
+
+  incident.reports.push(newReport);
+  incident.sourceCount = incident.reports.length;
+
+  incident.timeline.push({
+    timelineId: `TL-${Date.now()}-REP`,
+    event: 'FIELD_UPDATE',
+    previousStatus: incident.status,
+    newStatus: incident.status,
+    changedBy: user ? { userId: String(user.id || user._id), name: user.name, role: user.role } : null,
+    timestamp: new Date(),
+    reason: 'Additional intelligence report attached',
+    description: `Report #${reportId} added via ${source}: "${text.slice(0, 80)}${text.length > 80 ? '...' : ''}"`,
+  });
+
+  await incident.save();
+
+  await recordAuditLog({
+    user,
+    action: 'REPORT_ATTACHED',
+    entityType: 'INCIDENT',
+    entityId: incident.incidentId,
+    metadata: {
+      reportId,
+      source,
+      reliability,
+      totalSources: incident.sourceCount,
+    },
+  });
+
+  emitIncidentUpdated(incident);
+
+  return {
+    incident,
+    report: newReport,
+    totalSources: incident.sourceCount,
+  };
+};
+
+/**
+ * Retrieves related incidents, consolidated reports, and duplicate candidates (Phase 5)
+ */
+export const getRelatedIncidentsService = async (id) => {
+  const incident = await getIncidentById(id);
+
+  const relatedIncidents = await IncidentModel.find({
+    $or: [
+      { duplicateOf: incident.incidentId },
+      { incidentId: incident.duplicateOf },
+    ],
+  }).select('incidentId title description status severity priority createdAt source reports duplicateOf');
+
+  return {
+    incident,
+    primaryIncidentId: incident.duplicateOf || incident.incidentId,
+    isCanonical: !incident.duplicateOf,
+    sourceCount: incident.reports?.length || incident.sourceCount || 1,
+    reports: incident.reports || [],
+    relatedIncidents,
+    duplicateAnalysis: incident.duplicateAnalysis || null,
+  };
+};
+
 
 

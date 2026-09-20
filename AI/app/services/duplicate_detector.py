@@ -143,19 +143,31 @@ def semantic_similarity(text_a: str, text_b: str) -> float:
 
     Returns cosine similarity in [-1.0, 1.0] (typically [0.0, 1.0] for natural text).
     Since embeddings are L2-normalized, cosine similarity = dot product.
+    Falls back gracefully to token-overlap similarity if embedding service is unavailable.
     """
     if not text_a or not text_a.strip() or not text_b or not text_b.strip():
         return 0.0
 
-    emb_a = embedding_service.encode(text_a)
-    emb_b = embedding_service.encode(text_b)
+    try:
+        if not embedding_service.is_loaded:
+            embedding_service.load_model()
+        emb_a = embedding_service.encode(text_a)
+        emb_b = embedding_service.encode(text_b)
 
-    # Dot product of L2-normalized vectors = cosine similarity
-    cos_sim = float(np.dot(emb_a, emb_b))
+        # Dot product of L2-normalized vectors = cosine similarity
+        cos_sim = float(np.dot(emb_a, emb_b))
 
-    # Clamp to [0, 1] — negative cosine similarity is theoretically possible
-    # but means the texts are semantically opposite; treat as 0 for our purposes.
-    return round(max(0.0, min(1.0, cos_sim)), 6)
+        # Clamp to [0, 1]
+        return round(max(0.0, min(1.0, cos_sim)), 6)
+    except Exception as e:
+        logger.warning(f"Neural embedding encoding failed: {e}. Falling back to lexical similarity.")
+        tokens_a = set(text_a.lower().split())
+        tokens_b = set(text_b.lower().split())
+        intersection = tokens_a.intersection(tokens_b)
+        union = tokens_a.union(tokens_b)
+        jaccard = len(intersection) / len(union) if union else 0.0
+        return round(float(jaccard), 4)
+
 
 
 # ---------------------------------------------------------------------------

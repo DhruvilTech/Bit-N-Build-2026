@@ -94,7 +94,10 @@ export function adaptBackendIncidents(backendList: any[]): Incident[] {
       createdAt: item.createdAt ? new Date(item.createdAt).toLocaleTimeString().slice(0, 8) : '12:00:00',
       aiConfidence: item.confidence || item.aiConfidence || 92,
       aiSummary: item.description || 'Emergency incident recorded and routed through dispatch mesh.',
-      duplicateReportsCount: item.reports?.length || 1,
+      duplicateReportsCount: item.reports?.length || item.sourceCount || 1,
+      sourceCount: item.sourceCount || (Array.isArray(item.reports) ? item.reports.length : 1),
+      requiresHumanReview: Boolean(item.aiAnalysis?.requiresHumanReview || item.requiresHumanReview),
+      duplicateOf: item.duplicateOf || null,
       reports: Array.isArray(item.reports) && item.reports.length > 0
         ? item.reports.map((r: any, rIdx: number) => ({
             id: r.reportId || `REP-${rIdx + 1}`,
@@ -136,20 +139,36 @@ export function adaptBackendIncidents(backendList: any[]): Incident[] {
           ],
       aiAnalysis: item.aiAnalysis
         ? {
-            incidentType: item.aiAnalysis.incidentType,
-            severity: item.aiAnalysis.severity,
-            priority: item.aiAnalysis.priority,
-            confidence: item.aiAnalysis.confidence,
+            incidentType: item.aiAnalysis.classification?.type || item.aiAnalysis.incidentType || item.type,
+            severity: item.aiAnalysis.severity?.level || item.aiAnalysis.severity || item.severity,
+            priority: item.aiAnalysis.priority?.level || item.aiAnalysis.priority || item.priority,
+            confidence: item.aiAnalysis.classification?.confidence ?? item.aiAnalysis.confidence ?? 0.85,
             signals: item.aiAnalysis.signals || [],
             reasoning: item.aiAnalysis.reasoning || {},
             suggestedCorrection: item.aiAnalysis.suggestedCorrection,
             originalType: item.aiAnalysis.originalType,
-            isLowConfidence: item.aiAnalysis.isLowConfidence,
+            isLowConfidence: Boolean(
+              item.aiAnalysis.isLowConfidence ||
+              item.aiAnalysis.requiresHumanReview ||
+              (item.aiAnalysis.confidence !== undefined && item.aiAnalysis.confidence < 0.70)
+            ),
             model: item.aiAnalysis.model,
             version: item.aiAnalysis.version,
             status: item.aiAnalysis.status || 'PENDING',
             error: item.aiAnalysis.error,
             analyzedAt: item.aiAnalysis.analyzedAt,
+            requiresHumanReview: Boolean(item.aiAnalysis.requiresHumanReview),
+            reviewReason: item.aiAnalysis.reviewReason,
+            classification: item.aiAnalysis.classification,
+            severityAnalysis: item.aiAnalysis.severityAnalysis,
+            priorityAnalysis: item.aiAnalysis.priorityAnalysis,
+            locationAnalysis: item.aiAnalysis.locationAnalysis,
+            tactical: item.aiAnalysis.tactical,
+            duplicate: item.aiAnalysis.duplicate,
+            humanReview: item.aiAnalysis.humanReview,
+            original: item.aiAnalysis.original,
+            final: item.aiAnalysis.final,
+            overrides: item.aiAnalysis.overrides || [],
           }
         : undefined,
       delayDetected: false,

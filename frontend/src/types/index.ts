@@ -10,6 +10,31 @@ export interface IncidentAiReasoning {
   priority?: string;
 }
 
+export interface IncidentAiOverride {
+  field: string;
+  oldValue: any;
+  newValue: any;
+  reason: string;
+  overriddenBy: {
+    userId?: string;
+    name?: string;
+    role?: string;
+  };
+  overriddenAt: string;
+}
+
+export interface IncidentAiHumanReview {
+  status: 'PENDING' | 'CONFIRMED' | 'OVERRIDDEN';
+  reviewedBy?: {
+    userId?: string;
+    name?: string;
+    role?: string;
+  } | null;
+  reviewedAt?: string | null;
+  notes?: string;
+  decision?: string;
+}
+
 export interface IncidentAiAnalysis {
   incidentType?: string;
   severity?: IncidentSeverity;
@@ -25,6 +50,59 @@ export interface IncidentAiAnalysis {
   status: IncidentAiStatus;
   error?: string | null;
   analyzedAt?: string | null;
+  requiresHumanReview?: boolean;
+  reviewReason?: string | null;
+  classification?: {
+    type: string;
+    confidence: number;
+    subcategory?: string;
+    secondaryCategories?: string[];
+  };
+  severityAnalysis?: {
+    level: IncidentSeverity;
+    confidence: number;
+    score?: number;
+    lifeThreat?: boolean;
+    propertyDamage?: boolean;
+    environmentalHazard?: boolean;
+  };
+  priorityAnalysis?: {
+    level: IncidentPriority;
+    score?: number;
+    slaMinutes?: number;
+    escalationFlag?: boolean;
+    reason?: string;
+  };
+  locationAnalysis?: {
+    latitude?: number | null;
+    longitude?: number | null;
+    address?: string | null;
+    confidence?: number;
+  };
+  tactical?: {
+    hazards?: string[];
+    recommendedUnits?: string[];
+    responseDelayRisk?: string;
+    keySummary?: string;
+  };
+  duplicate?: {
+    isDuplicate: boolean;
+    similarity: number;
+    relatedIncidentId?: string | null;
+  };
+  humanReview?: IncidentAiHumanReview;
+  original?: {
+    type?: string;
+    severity?: IncidentSeverity;
+    priority?: IncidentPriority;
+    confidence?: number;
+  };
+  final?: {
+    type?: string;
+    severity?: IncidentSeverity;
+    priority?: IncidentPriority;
+  };
+  overrides?: IncidentAiOverride[];
 }
 
 export interface ReportItem {
@@ -75,6 +153,9 @@ export interface Incident {
   aiConfidence: number;
   aiSummary: string;
   duplicateReportsCount: number;
+  sourceCount?: number;
+  requiresHumanReview?: boolean;
+  duplicateOf?: string | null;
   reports: ReportItem[];
   assignedTeamIds: string[];
   timeline: TimelineEvent[];

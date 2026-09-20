@@ -16,6 +16,11 @@ import {
   compareIncidents,
   clusterIncidents,
   mergeIncidents,
+  getReviewRequiredQueue,
+  reviewIncident,
+  overrideIncident,
+  addIncidentReport,
+  fetchRelatedIncidents,
 } from '../controllers/incident.controller.js';
 import { validate } from '../middleware/validate.middleware.js';
 import { authenticate, authorize } from '../middleware/auth.middleware.js';
@@ -28,6 +33,11 @@ import {
   clusterIncidentsSchema,
   mergeIncidentsSchema,
 } from '../validators/incident.validator.js';
+import {
+  reviewIncidentSchema,
+  overrideIncidentSchema,
+  addReportSchema,
+} from '../validators/aiPipeline.validator.js';
 
 const router = Router();
 
@@ -73,6 +83,14 @@ router.get(
   authenticate,
   authorize('ADMIN', 'OPERATOR', 'FIELD_COORDINATOR', 'MEDICAL_COORDINATOR'),
   getAllIncidents
+);
+
+// 2.1 AI Human Review Required Queue (MUST BE BEFORE /:id)
+router.get(
+  '/review-required',
+  authenticate,
+  authorize('ADMIN', 'OPERATOR', 'FIELD_COORDINATOR', 'MEDICAL_COORDINATOR'),
+  getReviewRequiredQueue
 );
 
 // 3. Incident Details API
@@ -134,6 +152,23 @@ router.get(
   getReports
 );
 
+// 9.1 Add Supporting Report / Evidence to Incident (Multi-Source Fusion)
+router.post(
+  '/:id/reports',
+  authenticate,
+  authorize('ADMIN', 'OPERATOR', 'FIELD_COORDINATOR'),
+  validate(addReportSchema),
+  addIncidentReport
+);
+
+// 9.2 Fetch Related & Duplicate Incidents
+router.get(
+  '/:id/related',
+  authenticate,
+  authorize('ADMIN', 'OPERATOR', 'FIELD_COORDINATOR', 'MEDICAL_COORDINATOR'),
+  fetchRelatedIncidents
+);
+
 // 10. Trigger / Re-run AI Incident Classification (On-demand)
 router.post(
   '/:id/analyze',
@@ -148,6 +183,24 @@ router.get(
   authenticate,
   authorize('ADMIN', 'OPERATOR', 'FIELD_COORDINATOR', 'MEDICAL_COORDINATOR'),
   fetchIncidentAiAnalysis
+);
+
+// 11.1 AI Human Review Decision (Confirm / Reject)
+router.post(
+  '/:id/review',
+  authenticate,
+  authorize('ADMIN', 'OPERATOR', 'FIELD_COORDINATOR', 'MEDICAL_COORDINATOR'),
+  validate(reviewIncidentSchema),
+  reviewIncident
+);
+
+// 11.2 AI Operational Field Override (Preserves Original Evidence)
+router.post(
+  '/:id/override',
+  authenticate,
+  authorize('ADMIN', 'OPERATOR', 'FIELD_COORDINATOR', 'MEDICAL_COORDINATOR'),
+  validate(overrideIncidentSchema),
+  overrideIncident
 );
 
 // 12. Trigger AI Duplicate Scan on Incident (On-demand)
@@ -168,3 +221,4 @@ router.post(
 );
 
 export default router;
+

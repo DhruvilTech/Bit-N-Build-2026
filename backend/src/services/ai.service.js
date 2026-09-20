@@ -10,6 +10,7 @@
  */
 
 import { env } from '../config/env.js';
+import { validateAndSanitizeAiResponse } from '../validators/aiPipeline.validator.js';
 
 const getAiBaseUrl = () => env.AI_SERVICE_URL || 'http://localhost:8000';
 const DEFAULT_TIMEOUT_MS = 8000;
@@ -392,6 +393,142 @@ export const clusterIncidentsWithAi = async (
   }
 };
 
+/**
+ * Canonical AI Pipeline Orchestration Client (Phase 1 & Phase 2)
+ * Sends normalized incident payload with nearby candidates context to FastAPI pipeline,
+ * executes automatic retries with exponential backoff, and validates response through
+ * the mandatory 5-layer validation pipeline before returning to database service.
+ *
+ * @param {Object} incidentPayload - Target incident document or draft
+ * @param {Array<Object>} [nearbyCandidates] - Pool of nearby/recent active incidents
+ * @param {string} [overrideUrl] - Optional URL override
+ * @returns {Promise<{ success: boolean, data?: any, error?: string }>}
+ */
+export const analyzeIncidentPipeline = async (
+  incidentPayload,
+  nearbyCandidates = [],
+  overrideUrl = null
+) => {
+  const baseUrl = overrideUrl || getAiBaseUrl();
+  const timeoutMs = env.AI_TIMEOUT || DEFAULT_TIMEOUT_MS;
+  const maxRetries = env.AI_RETRY_COUNT ?? 2;
+
+  const incidentId = incidentPayload.incidentId || incidentPayload._id?.toString() || 'INC-TEMP';
+  const description = incidentPayload.description || incidentPayload.title || 'Emergency reported';
+
+  let lat = null;
+  let lng = null;
+  let address = null;
+  if (incidentPayload.location) {
+    if (typeof incidentPayload.location.latitude === 'number') lat = incidentPayload.location.latitude;
+    if (typeof incidentPayload.location.longitude === 'number') lng = incidentPayload.location.longitude;
+    if (
+      (lat === null || lng === null) &&
+      Array.isArray(incidentPayload.location.coordinates) &&
+      incidentPayload.location.coordinates.length >= 2
+    ) {
+      lng = lng ?? incidentPayload.location.coordinates[0];
+      lat = lat ?? incidentPayload.location.coordinates[1];
+    }
+    if (
+      (lat === null || lng === null) &&
+      Array.isArray(incidentPayload.location.geometry?.coordinates) &&
+      incidentPayload.location.geometry.coordinates.length >= 2
+    ) {
+      lng = lng ?? incidentPayload.location.geometry.coordinates[0];
+      lat = lat ?? incidentPayload.location.geometry.coordinates[1];
+    }
+    address = incidentPayload.location.address || incidentPayload.location.name || null;
+  }
+
+  const formattedNearby = (nearbyCandidates || []).map((cand) => {
+    let cLat = null;
+    let cLng = null;
+    if (cand.location) {
+      cLat = cand.location.latitude ?? cand.location.geometry?.coordinates?.[1];
+      cLng = cand.location.longitude ?? cand.location.geometry?.coordinates?.[0];
+    }
+    return {
+      incidentId: cand.incidentId || cand._id?.toString(),
+      description: cand.description || cand.title || 'Nearby incident',
+      latitude: cLat,
+      longitude: cLng,
+      timestamp: cand.createdAt ? new Date(cand.createdAt).toISOString() : null,
+      source: cand.source || 'EMERGENCY_CALL',
+      type: cand.type || null,
+    };
+  });
+
+  const requestBody = {
+    incidentId: String(incidentId),
+    description: String(description),
+    title: incidentPayload.title || null,
+    source: incidentPayload.source || 'CITIZEN',
+    location: lat !== null && lng !== null ? { latitude: lat, longitude: lng, address } : null,
+    timestamp: incidentPayload.createdAt
+      ? new Date(incidentPayload.createdAt).toISOString()
+      : new Date().toISOString(),
+    context: {
+      nearbyIncidents: formattedNearby,
+      affectedPeople: incidentPayload.metadata?.affectedPeople || null,
+    },
+  };
+
+  let lastError = null;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+      const response = await fetch(`${baseUrl}/api/v1/analyze-incident`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`AI service returned HTTP ${response.status}: ${errText.slice(0, 200)}`);
+      }
+
+      const rawData = await response.json();
+
+      // Mandatory 5-layer validation pipeline
+      const validationResult = validateAndSanitizeAiResponse(rawData, incidentId);
+      if (!validationResult.valid) {
+        throw new Error(validationResult.error);
+      }
+
+      return {
+        success: true,
+        data: validationResult.data,
+      };
+    } catch (err) {
+      lastError = err;
+      const isTimeout = err.name === 'AbortError';
+      const msg = isTimeout
+        ? `AI pipeline request timed out after ${timeoutMs}ms (attempt ${attempt + 1}/${maxRetries + 1})`
+        : `AI pipeline error (attempt ${attempt + 1}/${maxRetries + 1}): ${err.message}`;
+      console.warn(`[AI Service Client] ${msg}`);
+
+      // Exponential backoff between retries if attempts remain
+      if (attempt < maxRetries) {
+        await new Promise((res) => setTimeout(res, 200 * (attempt + 1)));
+      }
+    }
+  }
+
+  return {
+    success: false,
+    error: lastError?.message || 'AI pipeline invocation failed after retries',
+  };
+};
+
 export default {
   checkAiHealth,
   classifyIncidentWithAi,
@@ -399,4 +536,6 @@ export default {
   findDuplicatesWithAi,
   clusterIncidentsWithAi,
   formatIncidentForAi,
+  analyzeIncidentPipeline,
 };
+

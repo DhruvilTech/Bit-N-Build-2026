@@ -301,6 +301,97 @@ export const incidentsApi = {
     });
     return res.data;
   },
+
+  getReviewRequiredQueue: async (params?: { page?: number; limit?: number }) => {
+    const query = params ? new URLSearchParams(params as any).toString() : '';
+    const res = await apiRequest<{
+      status: string;
+      data: {
+        incidents: any[];
+        pagination: any;
+      };
+    }>(`/incidents/review-required${query ? `?${query}` : ''}`);
+    return res.data?.incidents || [];
+  },
+
+  review: async (id: string, data: { decision: 'CONFIRM' | 'OVERRIDE'; reason: string; overrides?: any }) => {
+    const res = await apiRequest<{
+      status: string;
+      data: {
+        incident: any;
+        review: any;
+      };
+    }>(`/incidents/${id}/review`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return res.data?.incident || res.data;
+  },
+
+  override: async (
+    id: string,
+    data: { reason: string; overrides?: any; field?: string; newValue?: string }
+  ) => {
+    const res = await apiRequest<{
+      status: string;
+      data: {
+        incident: any;
+        override: any;
+      };
+    }>(`/incidents/${id}/override`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return res.data?.incident || res.data;
+  },
+
+  addReport: async (
+    id: string,
+    report: { source?: string; text: string; reliability?: number; reportedBy?: any }
+  ) => {
+    const res = await apiRequest<{
+      status: string;
+      data: {
+        incident: any;
+        totalSources: number;
+        newReport: any;
+      };
+    }>(`/incidents/${id}/reports`, {
+      method: 'POST',
+      body: JSON.stringify(report),
+    });
+    return res.data;
+  },
+
+  getRelated: async (id: string) => {
+    const res = await apiRequest<{
+      status: string;
+      data: {
+        incidentId: string;
+        sourceCount: number;
+        reports: any[];
+        duplicates: any[];
+        candidateMatches: any[];
+      };
+    }>(`/incidents/${id}/related`);
+    return res.data;
+  },
+
+  merge: async (id: string, duplicateIncidentIds: string[], reason?: string) => {
+    const res = await apiRequest<{
+      status: string;
+      data: {
+        canonicalIncident: any;
+        mergedIncidentIds: string[];
+        mergedCount: number;
+        totalSources: number;
+      };
+    }>(`/incidents/${id}/merge`, {
+      method: 'POST',
+      body: JSON.stringify({ duplicateIncidentIds, reason }),
+    });
+    return res.data;
+  },
 };
 
 // Resources API

@@ -136,3 +136,46 @@ export const emitIncidentMerged = (canonicalIncident, mergedIncidentIds) => {
   }
 };
 
+/**
+ * Broadcast when an incident requires human operator review (confidence < 0.70)
+ */
+export const emitIncidentReviewRequired = (incident) => {
+  if (ioInstance) {
+    ioInstance.emit('incident:reviewRequired', {
+      incidentId: incident.incidentId || incident._id?.toString(),
+      incident,
+      aiAnalysis: incident.aiAnalysis,
+      reason: incident.aiAnalysis?.reviewReason || 'Low AI confidence triage required',
+    });
+  }
+};
+
+/**
+ * Broadcast when a human operator confirms an AI incident assessment
+ */
+export const emitIncidentReviewed = (incident) => {
+  if (ioInstance) {
+    ioInstance.emit('incident:reviewed', {
+      incidentId: incident.incidentId || incident._id?.toString(),
+      incident,
+      humanReview: incident.aiAnalysis?.humanReview,
+      reviewedBy: incident.aiAnalysis?.reviewedBy,
+    });
+  }
+};
+
+/**
+ * Broadcast when an authorized operator overrides AI classifications or ratings
+ */
+export const emitIncidentOverridden = (incident, overrideEntry = null) => {
+  if (ioInstance) {
+    ioInstance.emit('incident:aiOverridden', {
+      incidentId: incident.incidentId || incident._id?.toString(),
+      incident,
+      overrideEntry,
+      aiAnalysis: incident.aiAnalysis,
+    });
+  }
+};
+
+
