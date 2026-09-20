@@ -115,12 +115,14 @@ export class EscalationService {
     // 1. Dispatch role notification
     try {
       await NotificationService.notifyRole(targetRole, {
-        type: 'ESCALATION',
+        type: 'ALERT_ESCALATED',
         title: `LEVEL ${level} ESCALATION: ${incidentId}`,
         message: reason,
         severity: level === 3 ? 'CRITICAL' : 'HIGH',
+        priority: level === 3 ? 'CRITICAL' : 'HIGH',
         entityType: 'ESCALATION',
         entityId: escalationId,
+        incidentId,
         metadata: {
           incidentId,
           level,

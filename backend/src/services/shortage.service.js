@@ -1,6 +1,6 @@
 import { IncidentModel } from '../models/incident.model.js';
 import { ResourceModel } from '../models/resource.model.js';
-import Notification from '../models/notification.model.js';
+import NotificationService from './notification.service.js';
 import { emitResourceShortage, emitNotificationNew } from '../utils/socket.js';
 
 export class ShortageService {
@@ -187,27 +187,23 @@ export class ShortageService {
       return analysis;
     }
 
-    // Create notification
+    // Dispatch notification via centralized NotificationService
     const topShortage = criticalShortages[0];
     const alertTitle = `RESOURCE DEFICIT: ${topShortage.resourceType} Shortage Detected`;
     const alertMessage = `${topShortage.shortage} ${topShortage.resourceType}(s) required beyond available operational supply (${topShortage.available} available / ${topShortage.required} required).`;
 
-    const notification = await Notification.create({
-      notificationId: `NOTIF-SHORTAGE-${Date.now()}`,
-      type: 'RESOURCE_SHORTAGE',
+    await NotificationService.dispatchEventNotification('RESOURCE_SHORTAGE', {
       title: alertTitle,
       message: alertMessage,
-      severity: topShortage.severity,
       entityType: 'RESOURCE',
-      targetRole: 'ALL',
+      severity: topShortage.severity,
       metadata: {
         shortages: criticalShortages,
         evaluatedAt: analysis.evaluatedAt,
       },
+      cooldownSeconds: 900, // 15 min cooldown
     });
 
-    // Realtime emission
-    emitNotificationNew(notification);
     emitResourceShortage({
       title: alertTitle,
       message: alertMessage,
