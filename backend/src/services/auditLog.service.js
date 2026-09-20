@@ -1,11 +1,54 @@
 import { AuditLogModel } from '../models/auditLog.model.js';
 
+/**
+ * Cleanly extracts diff between two objects for audit trail (only changed fields)
+ */
+export const extractDiff = (prevObj = {}, nextObj = {}) => {
+  if (!prevObj || !nextObj) {
+    return {
+      previousValue: prevObj || null,
+      newValue: nextObj || null,
+    };
+  }
+
+  const prev = typeof prevObj.toObject === 'function' ? prevObj.toObject() : prevObj;
+  const next = typeof nextObj.toObject === 'function' ? nextObj.toObject() : nextObj;
+
+  const diffPrev = {};
+  const diffNext = {};
+
+  const keys = new Set([...Object.keys(prev), ...Object.keys(next)]);
+  for (const k of keys) {
+    if (['_id', '__v', 'updatedAt', 'createdAt'].includes(k)) continue;
+    const valPrev = JSON.stringify(prev[k]);
+    const valNext = JSON.stringify(next[k]);
+    if (valPrev !== valNext) {
+      diffPrev[k] = prev[k];
+      diffNext[k] = next[k];
+    }
+  }
+
+  return {
+    previousValue: Object.keys(diffPrev).length > 0 ? diffPrev : null,
+    newValue: Object.keys(diffNext).length > 0 ? diffNext : null,
+  };
+};
+
+/**
+ * Record an audit log entry in the cryptographic ledger
+ */
 export const recordAuditLog = async ({
   user,
   action,
-  entityType,
+  entityType = 'SYSTEM',
   entityId,
+  previousValue = null,
+  newValue = null,
   metadata = {},
+  simulationId = null,
+  ipAddress = null,
+  userAgent = null,
+  source = 'SYSTEM',
 }) => {
   try {
     const userId = user ? (user.id || user._id?.toString()) : null;
@@ -18,7 +61,13 @@ export const recordAuditLog = async ({
       userRole,
       action,
       entityType,
-      entityId: String(entityId),
+      entityId: String(entityId || 'N/A'),
+      previousValue,
+      newValue,
+      simulationId,
+      ipAddress,
+      userAgent,
+      source,
       metadata,
       timestamp: new Date(),
     });
@@ -31,6 +80,77 @@ export const recordAuditLog = async ({
   }
 };
 
+/**
+ * Unified AuditService object
+ */
+export class AuditService {
+  static async log(params) {
+    return recordAuditLog(params);
+  }
+
+  static async logCreate({ user, entityType, entityId, data = null, metadata = {}, simulationId = null, req = null }) {
+    return recordAuditLog({
+      user,
+      action: `${entityType}_CREATED`,
+      entityType,
+      entityId,
+      previousValue: null,
+      newValue: data,
+      metadata,
+      simulationId,
+      ipAddress: req?.ip || req?.connection?.remoteAddress,
+      userAgent: req?.headers?.['user-agent'],
+      source: simulationId ? 'SIMULATION' : (user ? 'USER' : 'SYSTEM'),
+    });
+  }
+
+  static async logUpdate({ user, entityType, entityId, previousValue = null, newValue = null, metadata = {}, simulationId = null, req = null }) {
+    const diff = extractDiff(previousValue, newValue);
+    return recordAuditLog({
+      user,
+      action: `${entityType}_UPDATED`,
+      entityType,
+      entityId,
+      previousValue: diff.previousValue,
+      newValue: diff.newValue,
+      metadata,
+      simulationId,
+      ipAddress: req?.ip || req?.connection?.remoteAddress,
+      userAgent: req?.headers?.['user-agent'],
+      source: simulationId ? 'SIMULATION' : (user ? 'USER' : 'SYSTEM'),
+    });
+  }
+
+  static async logDelete({ user, entityType, entityId, metadata = {}, req = null }) {
+    return recordAuditLog({
+      user,
+      action: `${entityType}_DELETED`,
+      entityType,
+      entityId,
+      metadata,
+      ipAddress: req?.ip || req?.connection?.remoteAddress,
+      userAgent: req?.headers?.['user-agent'],
+      source: user ? 'USER' : 'SYSTEM',
+    });
+  }
+
+  static async logAction({ user, action, entityType, entityId, previousValue = null, newValue = null, metadata = {}, simulationId = null, req = null }) {
+    return recordAuditLog({
+      user,
+      action,
+      entityType,
+      entityId,
+      previousValue,
+      newValue,
+      metadata,
+      simulationId,
+      ipAddress: req?.ip || req?.connection?.remoteAddress,
+      userAgent: req?.headers?.['user-agent'],
+      source: simulationId ? 'SIMULATION' : (user ? 'USER' : 'SYSTEM'),
+    });
+  }
+}
+
 export const getAuditLogs = async (filters = {}, pagination = {}) => {
   const query = {};
 
@@ -39,6 +159,7 @@ export const getAuditLogs = async (filters = {}, pagination = {}) => {
   if (filters.entityId) query.entityId = filters.entityId;
   if (filters.userId) query.userId = filters.userId;
   if (filters.userRole) query.userRole = filters.userRole;
+  if (filters.simulationId) query.simulationId = filters.simulationId;
 
   if (filters.search) {
     query.$or = [
@@ -67,4 +188,11 @@ export const getAuditLogs = async (filters = {}, pagination = {}) => {
       pages: Math.ceil(total / limit) || 1,
     },
   };
+};
+
+export default {
+  recordAuditLog,
+  AuditService,
+  getAuditLogs,
+  extractDiff,
 };

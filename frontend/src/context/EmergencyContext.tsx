@@ -32,6 +32,8 @@ import {
   stationsApi,
   routesApi,
   simulationApi,
+  SimulationState,
+  SimulationEvent,
   getToken,
 } from '../services/api';
 import {
@@ -70,6 +72,10 @@ interface EmergencyContextType {
   setIsCreateIncidentModalOpen: (open: boolean) => void;
   isNotificationsDrawerOpen: boolean;
   setIsNotificationsDrawerOpen: (open: boolean) => void;
+  activeSimulation: SimulationState | null;
+  startSimulationEngine: (scenario: string, autoRun?: boolean, stepDelayMs?: number) => Promise<SimulationState>;
+  advanceSimulationEngine: () => Promise<SimulationState | null>;
+  stopSimulationEngine: () => Promise<SimulationState | null>;
   simulateEmergency: (scenarioId: string) => void;
   dispatchTeamToIncident: (teamId: string, incidentId: string) => void;
   acknowledgeAlert: (alertId: string) => void;
@@ -148,6 +154,8 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [activeRoutes, setActiveRoutes] = useState<Record<string, RouteData>>({});
   const [isSimulationMode, setIsSimulationMode] = useState<boolean>(false);
   const [focusLocation, setFocusLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [activeSimulation, setActiveSimulation] = useState<SimulationState | null>(null);
+  const socketRef = React.useRef<any>(null);
 
   // Socket.IO Real-Time Mesh Integration
   useEffect(() => {
@@ -156,6 +164,7 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       socket = io('http://localhost:5000', {
         transports: ['websocket', 'polling'],
       });
+      socketRef.current = socket;
 
       socket.on('incident:new', (rawIncident: any) => {
         soundFx.playDispatch();
@@ -499,6 +508,39 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             prev.map((s) => (s.stationId === payload.station.stationId ? payload.station : s))
           );
         }
+      });
+
+      // Simulation Engine Real-Time Listeners (Phase 26)
+      socket.on('simulation:started', (sim: SimulationState) => {
+        soundFx.playEmergencyAlert();
+        setActiveSimulation(sim);
+      });
+
+      socket.on('simulation:step', (data: { simulation: SimulationState; event: SimulationEvent }) => {
+        if (data?.simulation) setActiveSimulation(data.simulation);
+        if (data?.event?.type === 'ESCALATION_TRIGGERED' || data?.event?.type === 'DELAY_DETECTED') {
+          soundFx.playEmergencyAlert();
+        } else if (data?.event?.type === 'INCIDENT_RESOLVED' || data?.event?.type === 'SIMULATION_COMPLETED') {
+          soundFx.playSuccess();
+        } else {
+          soundFx.playDispatch();
+        }
+      });
+
+      socket.on('simulation:updated', (sim: SimulationState) => {
+        setActiveSimulation(sim);
+      });
+
+      socket.on('simulation:completed', (sim: SimulationState) => {
+        soundFx.playSuccess();
+        setActiveSimulation(sim);
+        incidentsApi.getAll({ limit: 50 }).then((res) => {
+          if (res?.incidents) setIncidents(adaptBackendIncidents(res.incidents));
+        }).catch(() => {});
+      });
+
+      socket.on('simulation:stopped', (sim: SimulationState) => {
+        setActiveSimulation(sim);
       });
     } catch (err: any) {
       console.warn('Socket connection deferred:', err.message);
@@ -1094,156 +1136,95 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return updated;
   }, []);
 
-  // FULL EMERGENCY SIMULATION ENGINE (Hackathon Showcase Core)
-  const simulateEmergency = useCallback((scenarioId: string) => {
-    const scenario = SIMULATION_SCENARIOS.find((s) => s.id === scenarioId) || SIMULATION_SCENARIOS[0];
-    soundFx.playEmergencyAlert();
+  // MASTER EMERGENCY SIMULATION ENGINE (Phase 26 & 27 Real Backend Core)
+  const startSimulationEngine = useCallback(
+    async (scenario: string, autoRun = false, stepDelayMs = 2500): Promise<SimulationState> => {
+      soundFx.playEmergencyAlert();
+      try {
+        const sim = await simulationApi.start({ scenario, autoRun, stepDelayMs });
+        setActiveSimulation(sim);
 
-    const newId = `ER-${Math.floor(2055 + Math.random() * 900)}`;
-    const timeStr = new Date().toTimeString().slice(0, 8);
-
-    const newIncident: Incident = {
-      id: newId,
-      title: scenario.title,
-      type: scenario.type,
-      severity: scenario.severity,
-      priority: scenario.priority,
-      status: 'Analyzing',
-      location: {
-        name: scenario.zone,
-        zone: scenario.zone,
-        lat: scenario.lat,
-        lng: scenario.lng,
-      },
-      createdAt: timeStr,
-      aiConfidence: 95,
-      aiSummary: scenario.description,
-      duplicateReportsCount: Math.floor(4 + Math.random() * 5),
-      reports: [
-        {
-          id: `REP-SIM-1`,
-          source: 'IoT Thermal Sensor',
-          text: `Automated distress packet received from telemetry beacon in ${scenario.zone}.`,
-          timestamp: timeStr,
-          reliability: 98,
-        },
-        {
-          id: `REP-SIM-2`,
-          source: 'Emergency Call (911)',
-          text: `Multiple emergency calls reporting rapid escalations at ${scenario.zone}.`,
-          timestamp: timeStr,
-          reliability: 94,
-        },
-        {
-          id: `REP-SIM-3`,
-          source: 'Surveillance Drone',
-          text: `Surveillance node locked onto smoke/hazard signature. Real-time video uplink active.`,
-          timestamp: timeStr,
-          reliability: 99,
-        },
-      ],
-      assignedTeamIds: [],
-      timeline: [
-        {
-          id: `TL-SIM-1`,
-          time: timeStr,
-          title: 'Emergency Ingested',
-          description: `Disaster telemetry synchronized across multi-source sensors.`,
-          completed: true,
-        },
-        {
-          id: `TL-SIM-2`,
-          time: timeStr,
-          title: 'AI Classification: 95% Confidence',
-          description: `Categorized as ${scenario.type} with priority rating ${scenario.priority}.`,
-          completed: true,
-        },
-      ],
-    };
-
-    // 1. Inject Incident
-    setIncidents((prev) => [newIncident, ...prev]);
-    setActiveIncidentId(newId);
-
-    // 2. Inject Alert
-    setAlerts((prev) => [
-      {
-        id: `ALT-SIM-${Date.now()}`,
-        incidentId: newId,
-        severity: 'CRITICAL',
-        title: `NEW CRITICAL: ${scenario.title}`,
-        message: `${scenario.zone} — Immediate resource deployment recommended by Response AI.`,
-        timestamp: 'Just now',
-        acknowledged: false,
-        requiresEscalation: true,
-      },
-      ...prev,
-    ]);
-
-    // 3. Inject Notification
-    setNotifications((prev) => [
-      {
-        id: `NOTIF-SIM-${Date.now()}`,
-        category: 'Critical',
-        title: `EMERGENCY ALERT #${newId}`,
-        message: `${scenario.title} detected at ${scenario.zone}. AI Classification P1.`,
-        timestamp: timeStr.slice(0, 5),
-        read: false,
-        incidentId: newId,
-      },
-      ...prev,
-    ]);
-
-    // 4. Auto-recommend and dispatch closest available team after 1.5s
-    setTimeout(() => {
-      setTeams((prevTeams) => {
-        const availableCandidate = prevTeams.find(
-          (t) => t.status === 'AVAILABLE' && scenario.recommendedTeamTypes.includes(t.type)
-        ) || prevTeams.find((t) => t.status === 'AVAILABLE');
-
-        if (availableCandidate) {
-          soundFx.playDispatch();
-
-          // update incident
-          setIncidents((currentIncidents) =>
-            currentIncidents.map((inc) => {
-              if (inc.id === newId) {
-                return {
-                  ...inc,
-                  status: 'Responding',
-                  assignedTeamIds: [availableCandidate.id],
-                  timeline: [
-                    ...inc.timeline,
-                    {
-                      id: `TL-SIM-3`,
-                      time: new Date().toTimeString().slice(0, 8),
-                      title: `AI Auto-Dispatch: ${availableCandidate.name}`,
-                      description: `Mobilized with ETA ${availableCandidate.responseTimeEta || 5} min to ${scenario.zone}.`,
-                      completed: true,
-                    },
-                  ],
-                };
-              }
-              return inc;
-            })
-          );
-
-          // update team
-          return prevTeams.map((t) =>
-            t.id === availableCandidate.id
-              ? {
-                  ...t,
-                  status: 'EN_ROUTE',
-                  assignedIncidentId: newId,
-                  responseTimeEta: 5,
-                }
-              : t
-          );
+        if (socketRef.current) {
+          socketRef.current.emit('join:simulation', sim.simulationId);
         }
-        return prevTeams;
+
+        // Re-sync incidents from backend
+        try {
+          const res = await incidentsApi.getAll({ limit: 50 });
+          if (res?.incidents) {
+            const adapted = adaptBackendIncidents(res.incidents);
+            setIncidents(adapted);
+            if (sim.incidentIds?.[0]) {
+              setActiveIncidentId(sim.incidentIds[0]);
+            }
+          }
+        } catch (_) {}
+
+        return sim;
+      } catch (err: any) {
+        console.error('Failed to start simulation engine:', err);
+        throw err;
+      }
+    },
+    []
+  );
+
+  const advanceSimulationEngine = useCallback(async (): Promise<SimulationState | null> => {
+    if (!activeSimulation) return null;
+    soundFx.playClick();
+    try {
+      const sim = await simulationApi.advance(activeSimulation.simulationId);
+      setActiveSimulation(sim);
+
+      // Re-sync incidents on advance
+      try {
+        const res = await incidentsApi.getAll({ limit: 50 });
+        if (res?.incidents) {
+          setIncidents(adaptBackendIncidents(res.incidents));
+        }
+      } catch (_) {}
+
+      return sim;
+    } catch (err: any) {
+      console.error('Failed to advance simulation:', err);
+      throw err;
+    }
+  }, [activeSimulation]);
+
+  const stopSimulationEngine = useCallback(async (): Promise<SimulationState | null> => {
+    if (!activeSimulation) return null;
+    soundFx.playClick();
+    try {
+      const sim = await simulationApi.stop(activeSimulation.simulationId);
+      setActiveSimulation(sim);
+      return sim;
+    } catch (err: any) {
+      console.error('Failed to stop simulation:', err);
+      throw err;
+    }
+  }, [activeSimulation]);
+
+  const simulateEmergency = useCallback(
+    (scenarioId: string) => {
+      let canonical = 'HIGH_RISE_FIRE';
+      if (scenarioId === 'SIM-01' || scenarioId === 'CHEMICAL_FACTORY_EXPLOSION') {
+        canonical = 'CHEMICAL_FACTORY_EXPLOSION';
+      } else if (scenarioId === 'SIM-02' || scenarioId === 'HIGHWAY_TANKER_PILEUP') {
+        canonical = 'HIGHWAY_TANKER_PILEUP';
+      } else if (scenarioId === 'SIM-03' || scenarioId === 'FLASH_FLOOD') {
+        canonical = 'FLASH_FLOOD';
+      } else if (scenarioId === 'SIM-04') {
+        canonical = 'CHEMICAL_FACTORY_EXPLOSION';
+      } else if (scenarioId === 'HIGH_RISE_FIRE') {
+        canonical = 'HIGH_RISE_FIRE';
+      }
+
+      startSimulationEngine(canonical, false, 2500).catch((err) => {
+        console.error('Failed to launch simulation:', err);
       });
-    }, 1500);
-  }, []);
+    },
+    [startSimulationEngine]
+  );
 
   const activeEscalations = useMemo(() => {
     return escalations.filter((e) => e.status === 'PENDING' || e.status === 'ACKNOWLEDGED');
@@ -1337,6 +1318,10 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setIsCreateIncidentModalOpen,
     isNotificationsDrawerOpen,
     setIsNotificationsDrawerOpen,
+    activeSimulation,
+    startSimulationEngine,
+    advanceSimulationEngine,
+    stopSimulationEngine,
     simulateEmergency,
     dispatchTeamToIncident,
     acknowledgeAlert,

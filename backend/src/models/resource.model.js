@@ -173,6 +173,16 @@ const resourceSchema = new mongoose.Schema(
       index: true,
     },
     assignmentHistory: [assignmentRecordSchema],
+    isSimulation: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    simulationId: {
+      type: String,
+      default: null,
+      index: true,
+    },
     metadata: {
       type: mongoose.Schema.Types.Mixed,
       default: {},

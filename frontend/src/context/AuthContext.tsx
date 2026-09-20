@@ -18,6 +18,7 @@ interface AuthContextType {
   }) => Promise<UserProfile>;
   logout: () => Promise<void>;
   hasRole: (...roles: string[]) => boolean;
+  hasPermission: (permission: string) => boolean;
   clearError: () => void;
 }
 
@@ -141,6 +142,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return roles.includes(user.role);
   }, [user]);
 
+  const hasPermission = useCallback((permission: string) => {
+    if (!user) return false;
+    if (user.role === 'ADMIN') return true;
+
+    const permissionsMap: Record<string, string[]> = {
+      OPERATOR: [
+        'INCIDENT_CREATE', 'INCIDENT_READ', 'INCIDENT_UPDATE', 'INCIDENT_RESOLVE',
+        'RESOURCE_READ', 'RESOURCE_ASSIGN', 'RESOURCE_RELEASE',
+        'TEAM_READ', 'TEAM_ASSIGN',
+        'FACILITY_READ', 'FACILITY_UPDATE',
+        'ESCALATION_READ', 'ESCALATION_TRIGGER', 'ESCALATION_ACKNOWLEDGE', 'ESCALATION_RESOLVE',
+        'NOTIFICATION_READ', 'NOTIFICATION_CREATE',
+        'AI_ANALYZE', 'AI_OVERRIDE', 'AI_CHAT',
+        'SIMULATION_READ', 'SIMULATION_START', 'SIMULATION_ADVANCE', 'SIMULATION_STOP',
+        'AUDIT_READ', 'ANALYTICS_READ',
+      ],
+      FIELD_COORDINATOR: [
+        'INCIDENT_READ', 'INCIDENT_UPDATE', 'RESOURCE_READ', 'RESOURCE_UPDATE',
+        'TEAM_READ', 'TEAM_UPDATE', 'FACILITY_READ', 'ESCALATION_READ',
+        'NOTIFICATION_READ', 'ANALYTICS_READ', 'SIMULATION_READ',
+      ],
+      MEDICAL_COORDINATOR: [
+        'INCIDENT_READ', 'RESOURCE_READ', 'TEAM_READ', 'FACILITY_READ',
+        'FACILITY_UPDATE', 'ESCALATION_READ', 'NOTIFICATION_READ',
+        'ANALYTICS_READ', 'SIMULATION_READ',
+      ],
+      RESPONDER: [
+        'INCIDENT_READ', 'RESOURCE_READ', 'RESOURCE_UPDATE', 'TEAM_READ',
+        'TEAM_UPDATE', 'FACILITY_READ', 'ESCALATION_READ', 'NOTIFICATION_READ',
+        'SIMULATION_READ',
+      ],
+      VIEWER: [
+        'INCIDENT_READ', 'RESOURCE_READ', 'TEAM_READ', 'FACILITY_READ',
+        'ESCALATION_READ', 'NOTIFICATION_READ', 'ANALYTICS_READ',
+        'SIMULATION_READ',
+      ],
+    };
+
+    const allowed = permissionsMap[user.role] || [];
+    return allowed.includes(permission);
+  }, [user]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -152,6 +195,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         register,
         logout,
         hasRole,
+        hasPermission,
         clearError,
       }}
     >

@@ -274,10 +274,21 @@ export const Settings: React.FC = () => {
                         </span>
                       </td>
                       <td className="py-2.5 px-3 text-teal-700 dark:text-[#2DD4BF] font-semibold whitespace-nowrap">
-                        {log.entityType} {log.entityId ? `#${log.entityId.slice(-6)}` : ''}
+                        <div className="flex items-center gap-1.5">
+                          <span>{log.entityType} {log.entityId ? `#${log.entityId.slice(-6)}` : ''}</span>
+                          {log.simulationId && (
+                            <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-purple-500/20 text-purple-400 border border-purple-500/30">
+                              SIM
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-2.5 px-3 text-slate-500 text-[11px] truncate max-w-xs">
-                        {log.metadata ? JSON.stringify(log.metadata) : '-'}
+                        {log.newValue
+                          ? `New: ${JSON.stringify(log.newValue)}`
+                          : log.metadata
+                          ? JSON.stringify(log.metadata)
+                          : '-'}
                       </td>
                     </tr>
                   ))}

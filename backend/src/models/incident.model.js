@@ -186,6 +186,16 @@ const incidentSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    isSimulation: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    simulationId: {
+      type: String,
+      default: null,
+      index: true,
+    },
     resolvedAt: {
       type: Date,
       default: null,

@@ -35,6 +35,12 @@ export const initSocketServer = (httpServer, clientOrigin = '*') => {
       }
     });
 
+    socket.on('join:simulation', (simulationId) => {
+      if (simulationId) {
+        socket.join(`simulation:${simulationId}`);
+      }
+    });
+
     socket.on('disconnect', (reason) => {
       console.log(`[Socket.IO] Client disconnected (${socket.id}): ${reason}`);
     });
@@ -376,3 +382,90 @@ export const emitRouteCreated = (routeData) => {
     ioInstance.emit('route:created', routeData);
   }
 };
+
+/**
+ * Broadcast when an emergency simulation starts (Phase 26)
+ */
+export const emitSimulationStarted = (simulation) => {
+  if (ioInstance) {
+    const simId = simulation.simulationId;
+    ioInstance.to(`simulation:${simId}`).emit('simulation:started', simulation);
+    ioInstance.to('operations').emit('simulation:started', simulation);
+    ioInstance.emit('simulation:started', simulation);
+  }
+};
+
+/**
+ * Broadcast when a simulation advances by a step
+ */
+export const emitSimulationStep = (simulation, event) => {
+  if (ioInstance) {
+    const simId = simulation.simulationId;
+    ioInstance.to(`simulation:${simId}`).emit('simulation:step', { simulation, event });
+    ioInstance.to('operations').emit('simulation:step', { simulation, event });
+    ioInstance.emit('simulation:step', { simulation, event });
+  }
+};
+
+/**
+ * Broadcast an individual simulation event in the timeline
+ */
+export const emitSimulationEvent = (simulation, event) => {
+  if (ioInstance) {
+    const simId = simulation.simulationId;
+    ioInstance.to(`simulation:${simId}`).emit('simulation:event', { simulation, event });
+    ioInstance.to('operations').emit('simulation:event', { simulation, event });
+    ioInstance.emit('simulation:event', { simulation, event });
+  }
+};
+
+/**
+ * Broadcast when simulation state updates
+ */
+export const emitSimulationUpdated = (simulation) => {
+  if (ioInstance) {
+    const simId = simulation.simulationId;
+    ioInstance.to(`simulation:${simId}`).emit('simulation:updated', simulation);
+    ioInstance.to('operations').emit('simulation:updated', simulation);
+    ioInstance.emit('simulation:updated', simulation);
+  }
+};
+
+/**
+ * Broadcast when a simulation completes
+ */
+export const emitSimulationCompleted = (simulation) => {
+  if (ioInstance) {
+    const simId = simulation.simulationId;
+    ioInstance.to(`simulation:${simId}`).emit('simulation:completed', simulation);
+    ioInstance.to('operations').emit('simulation:completed', simulation);
+    ioInstance.emit('simulation:completed', simulation);
+  }
+};
+
+/**
+ * Broadcast when a simulation is stopped
+ */
+export const emitSimulationStopped = (simulation) => {
+  if (ioInstance) {
+    const simId = simulation.simulationId;
+    ioInstance.to(`simulation:${simId}`).emit('simulation:stopped', simulation);
+    ioInstance.to('operations').emit('simulation:stopped', simulation);
+    ioInstance.emit('simulation:stopped', simulation);
+  }
+};
+
+/**
+ * Broadcast when a simulation encounters an error
+ */
+export const emitSimulationError = (simulation, error) => {
+  if (ioInstance) {
+    const simId = simulation?.simulationId;
+    if (simId) {
+      ioInstance.to(`simulation:${simId}`).emit('simulation:error', { simulation, error });
+    }
+    ioInstance.to('operations').emit('simulation:error', { simulation, error });
+    ioInstance.emit('simulation:error', { simulation, error });
+  }
+};
+

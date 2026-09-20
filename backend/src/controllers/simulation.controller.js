@@ -5,6 +5,10 @@ import {
   startReturnSimulation as startReturnSimulationService,
   stopSimulation as stopSimulationService,
   autoDispatchIncident as autoDispatchIncidentService,
+  startSimulation as startSimulationService,
+  advanceSimulation as advanceSimulationService,
+  stopSimulationEngine as stopSimulationEngineService,
+  getSimulationById as getSimulationByIdService,
 } from '../services/simulation.service.js';
 
 export const getSimulationStatus = async (_req, res) => {
@@ -81,3 +85,121 @@ export const autoDispatchSimulation = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * Master Simulation REST Controller Handlers (Phase 26)
+ */
+
+export const startSimulation = async (req, res, next) => {
+  try {
+    const { scenario, speed, autoRun, stepDelayMs } = req.body;
+    const simulation = await startSimulationService({
+      scenario,
+      speed,
+      autoRun,
+      stepDelayMs,
+      user: req.user,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: `Emergency simulation started for scenario ${scenario}`,
+      simulation: {
+        id: simulation.simulationId,
+        simulationId: simulation.simulationId,
+        scenario: simulation.scenario,
+        status: simulation.status,
+        currentStep: simulation.currentStep,
+        totalSteps: simulation.totalSteps,
+        incidentIds: simulation.incidentIds,
+        eventHistory: simulation.eventHistory,
+        configuration: simulation.configuration,
+        startedAt: simulation.startedAt,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const advanceSimulation = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const simulation = await advanceSimulationService(id, req.user);
+
+    res.status(200).json({
+      success: true,
+      message: `Advanced simulation #${simulation.simulationId} to step ${simulation.currentStep}`,
+      simulation: {
+        id: simulation.simulationId,
+        simulationId: simulation.simulationId,
+        scenario: simulation.scenario,
+        status: simulation.status,
+        currentStep: simulation.currentStep,
+        totalSteps: simulation.totalSteps,
+        incidentIds: simulation.incidentIds,
+        eventHistory: simulation.eventHistory,
+        configuration: simulation.configuration,
+        startedAt: simulation.startedAt,
+        completedAt: simulation.completedAt,
+        stoppedAt: simulation.stoppedAt,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const stopSimulation = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const simulation = await stopSimulationEngineService(id, req.user);
+
+    res.status(200).json({
+      success: true,
+      message: `Stopped simulation #${simulation.simulationId}`,
+      simulation: {
+        id: simulation.simulationId,
+        simulationId: simulation.simulationId,
+        scenario: simulation.scenario,
+        status: simulation.status,
+        currentStep: simulation.currentStep,
+        totalSteps: simulation.totalSteps,
+        stoppedAt: simulation.stoppedAt,
+        eventHistory: simulation.eventHistory,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getSimulation = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const simulation = await getSimulationByIdService(id);
+
+    res.status(200).json({
+      success: true,
+      simulation: {
+        id: simulation.simulationId,
+        simulationId: simulation.simulationId,
+        scenario: simulation.scenario,
+        status: simulation.status,
+        currentStep: simulation.currentStep,
+        totalSteps: simulation.totalSteps,
+        incidentIds: simulation.incidentIds,
+        eventHistory: simulation.eventHistory,
+        configuration: simulation.configuration,
+        startedAt: simulation.startedAt,
+        stoppedAt: simulation.stoppedAt,
+        completedAt: simulation.completedAt,
+        createdBy: simulation.createdBy,
+        metadata: simulation.metadata,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

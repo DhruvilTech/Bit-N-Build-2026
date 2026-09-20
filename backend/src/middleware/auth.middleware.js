@@ -49,6 +49,8 @@ export const authenticate = async (req, _res, next) => {
   }
 };
 
+import { hasPermission } from '../config/permissions.config.js';
+
 export const authorize = (...roles) => {
   return (req, _res, next) => {
     if (!req.user) {
@@ -66,3 +68,22 @@ export const authorize = (...roles) => {
     next();
   };
 };
+
+export const requirePermission = (permission) => {
+  return (req, _res, next) => {
+    if (!req.user) {
+      return next(new UnauthorizedError('Authentication required'));
+    }
+
+    if (!hasPermission(req.user.role, permission)) {
+      return next(
+        new ForbiddenError(
+          `Forbidden: Role '${req.user.role}' does not have required permission '${permission}'`
+        )
+      );
+    }
+
+    next();
+  };
+};
+

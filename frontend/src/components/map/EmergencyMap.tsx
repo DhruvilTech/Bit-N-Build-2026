@@ -152,14 +152,26 @@ export const EmergencyMap: React.FC<EmergencyMapProps> = ({
       incidents.forEach((inc) => {
         const isSelected = selectedIncidentId === inc.id;
         const isCritical = inc.severity === 'CRITICAL';
+        const isSimulation = inc.id?.includes('SIM') || (inc as any).isSimulation || (inc as any).metadata?.isSimulation;
 
         const markerHtml = `
           <div class="relative group cursor-pointer">
             <div class="absolute -inset-2.5 rounded-full ${
-              isCritical ? 'bg-red-500/30 animate-ping' : 'bg-cyan-500/20'
+              isSimulation
+                ? 'bg-purple-500/40 animate-ping'
+                : isCritical
+                ? 'bg-red-500/30 animate-ping'
+                : 'bg-cyan-500/20'
             }"></div>
+            ${
+              isSimulation
+                ? '<div class="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-purple-600 text-white font-mono text-[8px] font-bold px-1 rounded shadow-md border border-purple-400 z-10">SIM</div>'
+                : ''
+            }
             <div class="relative w-8 h-8 rounded-full flex items-center justify-center border-2 ${
-              isCritical
+              isSimulation
+                ? 'bg-[#150a21] border-[#A78BFA] text-[#A78BFA] shadow-[0_0_18px_#A78BFA]'
+                : isCritical
                 ? 'bg-[#180808] border-[#FB4A4A] text-[#FB4A4A] shadow-[0_0_18px_#FB4A4A]'
                 : inc.severity === 'HIGH'
                 ? 'bg-[#181105] border-[#F5A623] text-[#F5A623] shadow-[0_0_14px_#F5A623]'
@@ -188,7 +200,10 @@ export const EmergencyMap: React.FC<EmergencyMapProps> = ({
 
         marker.bindPopup(`
           <div class="p-3 bg-[#0B0E13] text-[#F5F7FA] rounded-xl border border-white/15 font-sans shadow-2xl min-w-[200px]">
-            <div class="text-[10px] font-bold text-[#2DD4BF] font-mono">${inc.id} • ${inc.priority} [${inc.severity}]</div>
+            <div class="flex items-center justify-between gap-1 mb-1">
+              <span class="text-[10px] font-bold text-[#2DD4BF] font-mono">${inc.id} • ${inc.priority} [${inc.severity}]</span>
+              ${isSimulation ? '<span class="text-[9px] font-mono px-1 py-0.2 rounded bg-purple-500/20 text-purple-300 border border-purple-500/40 font-bold">SIMULATION</span>' : ''}
+            </div>
             <div class="text-sm font-semibold mt-1">${inc.title}</div>
             <div class="text-xs text-slate-400 mt-1">${inc.location.name}</div>
             <div class="mt-2 pt-2 border-t border-white/10 text-[11px] text-[#2DD4BF] font-mono flex items-center justify-between">

@@ -8,15 +8,24 @@
 import { ResourceModel } from '../models/resource.model.js';
 import { AssignmentModel } from '../models/assignment.model.js';
 import { IncidentModel } from '../models/incident.model.js';
+import { SimulationModel } from '../models/simulation.model.js';
 import { updateResourceLocation } from './resource.service.js';
 import { getRoute } from './routing.service.js';
 import { generateRecommendations } from './recommendation.service.js';
 import { assignResourcesToIncident, updateAssignmentStatus } from './assignment.service.js';
 import {
+  advanceSimulationStep,
+  clearAutoRunTimer,
+  SCENARIO_CONFIGS,
+} from './simulationWorkflow.service.js';
+import { AuditService } from './auditLog.service.js';
+import {
   emitRouteCreated,
   emitResourceLocationUpdated,
   emitResourceArrived,
   emitResourceReleased,
+  emitSimulationStarted,
+  emitSimulationStopped,
 } from '../utils/socket.js';
 import { NotFoundError, BadRequestError } from '../utils/errors.js';
 
@@ -320,6 +329,137 @@ export const autoDispatchIncident = async (incidentId) => {
   };
 };
 
+/**
+ * PHASE 26 & 27: Master Simulation Engine Methods
+ */
+
+/**
+ * Start a new emergency response simulation
+ */
+export const startSimulation = async ({
+  scenario,
+  speed = 1,
+  autoRun = false,
+  stepDelayMs = 2500,
+  user = null,
+}) => {
+  if (!scenario || !SCENARIO_CONFIGS[scenario]) {
+    throw new BadRequestError(
+      `Invalid scenario '${scenario}'. Must be one of: ${Object.keys(SCENARIO_CONFIGS).join(', ')}`
+    );
+  }
+
+  const config = SCENARIO_CONFIGS[scenario];
+  const simulationId = `SIM-${scenario.slice(0, 4)}-${Date.now()}`;
+
+  const createdBy = {
+    userId: user ? (user.id || user._id?.toString()) : 'SYSTEM',
+    name: user ? (user.name || user.email) : 'SYSTEM OPERATOR',
+    role: user ? user.role : 'OPERATOR',
+  };
+
+  const simulation = await SimulationModel.create({
+    simulationId,
+    scenario,
+    status: 'RUNNING',
+    currentStep: 0,
+    totalSteps: config.totalSteps,
+    startedAt: new Date(),
+    createdBy,
+    incidentIds: [],
+    eventHistory: [],
+    configuration: {
+      speed: Number(speed) || 1,
+      autoRun: Boolean(autoRun),
+      stepDelayMs: Number(stepDelayMs) || 2500,
+    },
+    metadata: {
+      scenarioTitle: config.title,
+    },
+  });
+
+  emitSimulationStarted(simulation);
+
+  await AuditService.logAction({
+    user,
+    action: 'SIMULATION_STARTED',
+    entityType: 'SIMULATION',
+    entityId: simulation.simulationId,
+    metadata: { scenario, autoRun, speed },
+    simulationId: simulation.simulationId,
+  });
+
+  // Automatically execute Step 1 (Incident creation)
+  const initializedSim = await advanceSimulationStep(simulation.simulationId, user);
+  return initializedSim;
+};
+
+/**
+ * Advance an ongoing simulation by one step
+ */
+export const advanceSimulation = async (simulationId, user = null) => {
+  const sim = await SimulationModel.findOne({
+    $or: [{ simulationId }, { _id: simulationId.match(/^[0-9a-fA-F]{24}$/) ? simulationId : null }],
+  });
+
+  if (!sim) {
+    throw new NotFoundError(`Simulation not found: ${simulationId}`);
+  }
+
+  if (sim.status === 'COMPLETED' || sim.status === 'STOPPED') {
+    return sim;
+  }
+
+  return await advanceSimulationStep(sim.simulationId, user);
+};
+
+/**
+ * Stop an ongoing simulation safely
+ */
+export const stopSimulationEngine = async (simulationId, user = null) => {
+  const sim = await SimulationModel.findOne({
+    $or: [{ simulationId }, { _id: simulationId.match(/^[0-9a-fA-F]{24}$/) ? simulationId : null }],
+  });
+
+  if (!sim) {
+    throw new NotFoundError(`Simulation not found: ${simulationId}`);
+  }
+
+  clearAutoRunTimer(sim.simulationId);
+
+  sim.status = 'STOPPED';
+  sim.stoppedAt = new Date();
+  await sim.save();
+
+  emitSimulationStopped(sim);
+
+  await AuditService.logAction({
+    user,
+    action: 'SIMULATION_STOPPED',
+    entityType: 'SIMULATION',
+    entityId: sim.simulationId,
+    metadata: { currentStep: sim.currentStep, totalSteps: sim.totalSteps },
+    simulationId: sim.simulationId,
+  });
+
+  return sim;
+};
+
+/**
+ * Retrieve simulation state and event timeline
+ */
+export const getSimulationById = async (simulationId) => {
+  const sim = await SimulationModel.findOne({
+    $or: [{ simulationId }, { _id: simulationId.match(/^[0-9a-fA-F]{24}$/) ? simulationId : null }],
+  });
+
+  if (!sim) {
+    throw new NotFoundError(`Simulation not found: ${simulationId}`);
+  }
+
+  return sim;
+};
+
 export default {
   getSimulationStatus,
   setSimulationMode,
@@ -327,4 +467,8 @@ export default {
   startRouteSimulation,
   startReturnSimulation,
   autoDispatchIncident,
+  startSimulation,
+  advanceSimulation,
+  stopSimulationEngine,
+  getSimulationById,
 };

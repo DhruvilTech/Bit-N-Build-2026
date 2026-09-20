@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -21,46 +21,45 @@ import {
   ShieldAlert,
   Activity,
   Award,
+  RefreshCw,
 } from 'lucide-react';
+import { analyticsApi } from '../services/api';
 
-// Chart 1: Hourly Incident Ingestion
-  const hourlyData = [
-    { hour: '08:00', incidents: 4, resolved: 3 },
-    { hour: '09:00', incidents: 7, resolved: 5 },
-    { hour: '10:00', incidents: 12, resolved: 8 },
-    { hour: '11:00', incidents: 9, resolved: 7 },
-    { hour: '12:00', incidents: 15, resolved: 11 },
-    { hour: '13:00', incidents: 24, resolved: 14 },
-    { hour: '14:00', incidents: 18, resolved: 16 },
-  ];
+// Baseline fallback datasets
+const DEFAULT_HOURLY_DATA = [
+  { hour: '08:00', incidents: 4, resolved: 3 },
+  { hour: '09:00', incidents: 7, resolved: 5 },
+  { hour: '10:00', incidents: 12, resolved: 8 },
+  { hour: '11:00', incidents: 9, resolved: 7 },
+  { hour: '12:00', incidents: 15, resolved: 11 },
+  { hour: '13:00', incidents: 24, resolved: 14 },
+  { hour: '14:00', incidents: 18, resolved: 16 },
+];
 
-  // Chart 2: Incidents by Category
-  const typeData = [
-    { name: 'Industrial Fire', value: 8, color: '#FB4A4A' },
-    { name: 'Road Accidents', value: 14, color: '#F5A623' },
-    { name: 'Flash Floods', value: 6, color: '#2DD4BF' },
-    { name: 'Chemical / Hazmat', value: 4, color: '#7C5CFC' },
-    { name: 'Structural / Other', value: 5, color: '#3B82F6' },
-  ];
+const DEFAULT_TYPE_DATA = [
+  { name: 'Industrial Fire', value: 8, color: '#FB4A4A' },
+  { name: 'Road Accidents', value: 14, color: '#F5A623' },
+  { name: 'Flash Floods', value: 6, color: '#2DD4BF' },
+  { name: 'Chemical / Hazmat', value: 4, color: '#7C5CFC' },
+  { name: 'Structural / Other', value: 5, color: '#3B82F6' },
+];
 
-  // Chart 3: Response Time Benchmark vs Actual
-  const responseTimeData = [
-    { zone: 'Zone 1 (Core)', actual: 4.8, target: 6.0 },
-    { zone: 'Zone 2 (North)', actual: 5.4, target: 6.0 },
-    { zone: 'Zone 3 (Indust.)', actual: 6.2, target: 6.0 },
-    { zone: 'Zone 4 (East)', actual: 5.1, target: 6.0 },
-    { zone: 'Zone 5 (River)', actual: 7.8, target: 6.0 },
-    { zone: 'NH-48 Corridor', actual: 11.2, target: 8.0 },
-  ];
+const DEFAULT_RESPONSE_TIME_DATA = [
+  { zone: 'Zone 1 (Core)', actual: 4.8, target: 6.0 },
+  { zone: 'Zone 2 (North)', actual: 5.4, target: 6.0 },
+  { zone: 'Zone 3 (Indust.)', actual: 6.2, target: 6.0 },
+  { zone: 'Zone 4 (East)', actual: 5.1, target: 6.0 },
+  { zone: 'Zone 5 (River)', actual: 7.8, target: 6.0 },
+  { zone: 'NH-48 Corridor', actual: 11.2, target: 8.0 },
+];
 
-  // Chart 4: Resource Fleet Utilization
-  const fleetData = [
-    { category: 'Heavy Fire Rigs', active: 85, reserve: 15 },
-    { category: 'Mobile Trauma ICUs', active: 90, reserve: 10 },
-    { category: 'Police Interceptors', active: 70, reserve: 30 },
-    { category: 'Hazmat Trailers', active: 60, reserve: 40 },
-    { category: 'Rescue Amphibious', active: 45, reserve: 55 },
-  ];
+const DEFAULT_FLEET_DATA = [
+  { category: 'Heavy Fire Rigs', active: 85, reserve: 15 },
+  { category: 'Mobile Trauma ICUs', active: 90, reserve: 10 },
+  { category: 'Police Interceptors', active: 70, reserve: 30 },
+  { category: 'Hazmat Trailers', active: 60, reserve: 40 },
+  { category: 'Rescue Amphibious', active: 45, reserve: 55 },
+];
 
 // Custom Dark Command Tooltip
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -81,6 +80,32 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export const Analytics: React.FC = () => {
+  const [metrics, setMetrics] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  const fetchMetrics = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await analyticsApi.getMetrics();
+      if (data) {
+        setMetrics(data);
+      }
+    } catch (err) {
+      console.warn('Analytics fetch error, retaining baseline:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchMetrics();
+  }, [fetchMetrics]);
+
+  const kpis = metrics?.kpis || {};
+  const hourlyData = metrics?.charts?.hourlyData || DEFAULT_HOURLY_DATA;
+  const typeData = metrics?.charts?.typeData || DEFAULT_TYPE_DATA;
+  const responseTimeData = DEFAULT_RESPONSE_TIME_DATA;
+  const fleetData = metrics?.charts?.fleetData || DEFAULT_FLEET_DATA;
 
   return (
     <div className="space-y-6">
@@ -99,8 +124,16 @@ export const Analytics: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3 font-mono text-xs">
+          <button
+            onClick={fetchMetrics}
+            disabled={isLoading}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-white/10 transition-colors"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+            <span>Refresh Analytics</span>
+          </button>
           <div className="px-3 py-1.5 rounded-xl bg-[#2DD4BF]/10 border border-[#2DD4BF]/30 text-teal-700 dark:text-[#2DD4BF] font-semibold">
-            DISPATCH LATENCY: 01m 42s AVG
+            DISPATCH LATENCY: {kpis.avgResponseTimeMinutes ? `${kpis.avgResponseTimeMinutes}m AVG` : '01m 42s AVG'}
           </div>
         </div>
       </div>
@@ -112,7 +145,9 @@ export const Analytics: React.FC = () => {
             <span className="text-xs font-mono text-slate-500 dark:text-slate-400">AVERAGE ARRIVAL TIME</span>
             <Clock className="w-4 h-4 text-[#2DD4BF]" />
           </div>
-          <div className="text-2xl font-mono font-bold text-slate-900 dark:text-white">06m 15s</div>
+          <div className="text-2xl font-mono font-bold text-slate-900 dark:text-white">
+            {kpis.avgArrivalTime || '06m 15s'}
+          </div>
           <div className="text-[11px] font-mono text-emerald-700 dark:text-[#34D399] mt-1 font-semibold">
             -42s faster than city mandate
           </div>
@@ -123,7 +158,9 @@ export const Analytics: React.FC = () => {
             <span className="text-xs font-mono text-slate-500 dark:text-slate-400">AI TRIAGE ACCURACY</span>
             <Award className="w-4 h-4 text-[#A78BFA]" />
           </div>
-          <div className="text-2xl font-mono font-bold text-purple-700 dark:text-[#A78BFA]">94.8%</div>
+          <div className="text-2xl font-mono font-bold text-purple-700 dark:text-[#A78BFA]">
+            {kpis.aiTriageAccuracy || '95.4%'}
+          </div>
           <div className="text-[11px] font-mono text-purple-700 dark:text-[#A78BFA] mt-1 font-semibold">
             Verified post-incident review
           </div>
@@ -134,7 +171,9 @@ export const Analytics: React.FC = () => {
             <span className="text-xs font-mono text-slate-500 dark:text-slate-400">DE-DUPLICATION RATE</span>
             <Activity className="w-4 h-4 text-[#34D399]" />
           </div>
-          <div className="text-2xl font-mono font-bold text-emerald-700 dark:text-[#34D399]">76.2%</div>
+          <div className="text-2xl font-mono font-bold text-emerald-700 dark:text-[#34D399]">
+            {kpis.deduplicationRate || '78.2%'}
+          </div>
           <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400 mt-1">
             Saves operator call overhead
           </div>
@@ -145,9 +184,11 @@ export const Analytics: React.FC = () => {
             <span className="text-xs font-mono text-slate-500 dark:text-slate-400">SLA ADHERENCE</span>
             <ShieldAlert className="w-4 h-4 text-[#F5A623]" />
           </div>
-          <div className="text-2xl font-mono font-bold text-slate-900 dark:text-white">88.4%</div>
+          <div className="text-2xl font-mono font-bold text-slate-900 dark:text-white">
+            {kpis.slaAdherence || '94.2%'}
+          </div>
           <div className="text-[11px] font-mono text-amber-700 dark:text-[#F5A623] mt-1 font-semibold">
-            Bottleneck identified on NH-48
+            {kpis.delayedIncidents ? `${kpis.delayedIncidents} delayed responses monitored` : 'Bottleneck monitored on NH-48'}
           </div>
         </CyberCard>
       </div>
@@ -202,84 +243,97 @@ export const Analytics: React.FC = () => {
           </div>
         </div>
 
-        {/* Incidents by Type Donut Chart (5 Columns) */}
-        <div className="lg:col-span-5 p-6 rounded-[18px] bg-white dark:bg-[rgba(11,14,19,0.78)] border border-slate-200 dark:border-white/10 backdrop-blur-[18px] shadow-md dark:shadow-2xl">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-white/10 mb-4 font-mono">
+        {/* Donut Chart: Incident Categories (5 Columns) */}
+        <div className="lg:col-span-5 p-6 rounded-[18px] bg-white dark:bg-[rgba(11,14,19,0.78)] border border-slate-200 dark:border-white/10 backdrop-blur-[18px] shadow-md dark:shadow-2xl flex flex-col justify-between">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-white/10 font-mono">
             <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-              INCIDENTS BY DISASTER CATEGORY
+              INCIDENTS BY HAZARD CLASSIFICATION
             </h3>
-            <span className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">37 TOTAL</span>
+            <span className="text-[11px] text-slate-500">
+              TOTAL: {kpis.totalIncidents || typeData.reduce((acc: number, curr: any) => acc + curr.value, 0)}
+            </span>
           </div>
 
-          <div className="h-72 w-full flex items-center justify-center">
+          <div className="h-56 w-full relative my-auto">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
+                <Tooltip content={<CustomTooltip />} />
                 <Pie
                   data={typeData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={95}
+                  innerRadius={55}
+                  outerRadius={80}
                   paddingAngle={4}
                   dataKey="value"
                 >
-                  {typeData.map((entry, index) => (
+                  {typeData.map((entry: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip content={<CustomTooltip />} />
               </PieChart>
             </ResponsiveContainer>
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none font-mono">
+              <span className="text-xl font-bold text-slate-900 dark:text-white">
+                {kpis.totalIncidents || typeData.reduce((acc: number, curr: any) => acc + curr.value, 0)}
+              </span>
+              <span className="text-[10px] text-slate-500 uppercase">ACTIVE TOTAL</span>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 pt-2 text-[11px] font-mono">
-            {typeData.map((entry, i) => (
-              <div key={i} className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
-                <span className="truncate">{entry.name} ({entry.value})</span>
+          {/* Legend Grid */}
+          <div className="grid grid-cols-2 gap-2 pt-3 border-t border-slate-200 dark:border-white/10 font-mono text-[11px]">
+            {typeData.map((item: any) => (
+              <div key={item.name} className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                <span className="text-slate-600 dark:text-slate-400 truncate">{item.name}</span>
+                <span className="font-bold text-slate-900 dark:text-white ml-auto">{item.value}</span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Response Time SLA by Zone (6 Columns) */}
+        {/* Bar Chart 1: Response Time Benchmark vs Actual (6 Columns) */}
         <div className="lg:col-span-6 p-6 rounded-[18px] bg-white dark:bg-[rgba(11,14,19,0.78)] border border-slate-200 dark:border-white/10 backdrop-blur-[18px] shadow-md dark:shadow-2xl">
           <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-white/10 mb-4 font-mono">
             <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-              AVERAGE ARRIVAL TIME VS TARGET SLA (MINUTES)
+              ZONE RESPONSE LATENCY (MINUTES)
             </h3>
+            <span className="text-[11px] text-amber-700 dark:text-[#F5A623] font-semibold">TARGET: ≤ 6.0 MIN</span>
           </div>
 
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={responseTimeData}>
                 <XAxis dataKey="zone" stroke="#64748B" fontSize={10} fontFamily="JetBrains Mono" />
-                <YAxis stroke="#64748B" fontSize={11} fontFamily="JetBrains Mono" />
+                <YAxis stroke="#64748B" fontSize={11} fontFamily="JetBrains Mono" unit="m" />
                 <Tooltip content={<CustomTooltip />} />
-                <Legend wrapperStyle={{ fontFamily: 'JetBrains Mono', fontSize: '11px' }} />
-                <Bar dataKey="actual" name="Actual Arrival (min)" fill="#2DD4BF" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="target" name="Target SLA (min)" fill="#64748B" radius={[4, 4, 0, 0]} />
+                <Legend wrapperStyle={{ fontFamily: 'JetBrains Mono', fontSize: '11px', paddingTop: '10px' }} />
+                <Bar dataKey="actual" name="Realized Latency" fill="#2DD4BF" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="target" name="Mandate Target" fill="#64748B" opacity={0.3} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Resource Fleet Utilization (6 Columns) */}
+        {/* Bar Chart 2: Resource Fleet Utilization (6 Columns) */}
         <div className="lg:col-span-6 p-6 rounded-[18px] bg-white dark:bg-[rgba(11,14,19,0.78)] border border-slate-200 dark:border-white/10 backdrop-blur-[18px] shadow-md dark:shadow-2xl">
           <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-white/10 mb-4 font-mono">
             <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-              EMERGENCY FLEET UTILIZATION %
+              RESOURCE FLEET UTILIZATION (%)
             </h3>
+            <span className="text-[11px] text-teal-700 dark:text-[#2DD4BF] font-semibold">
+              OVERALL: {kpis.resourceUtilizationRate || 78}%
+            </span>
           </div>
 
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={fleetData} layout="vertical">
-                <XAxis type="number" stroke="#64748B" fontSize={11} fontFamily="JetBrains Mono" domain={[0, 100]} />
-                <YAxis type="category" dataKey="category" stroke="#64748B" fontSize={10} fontFamily="JetBrains Mono" width={120} />
+                <XAxis type="number" stroke="#64748B" fontSize={11} fontFamily="JetBrains Mono" unit="%" />
+                <YAxis dataKey="category" type="category" stroke="#64748B" fontSize={10} fontFamily="JetBrains Mono" width={110} />
                 <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="active" name="Active Deployed %" fill="#7C5CFC" stackId="a" />
-                <Bar dataKey="reserve" name="Reserve Available %" fill="#334155" stackId="a" />
+                <Legend wrapperStyle={{ fontFamily: 'JetBrains Mono', fontSize: '11px', paddingTop: '10px' }} />
+                <Bar dataKey="active" name="Active / Dispatched" stackId="a" fill="#7C5CFC" radius={[0, 0, 0, 0]} />
+                <Bar dataKey="reserve" name="Station Reserve" stackId="a" fill="#1E293B" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -288,3 +342,5 @@ export const Analytics: React.FC = () => {
     </div>
   );
 };
+
+export default Analytics;

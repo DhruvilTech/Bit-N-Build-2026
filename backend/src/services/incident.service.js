@@ -168,6 +168,8 @@ export const createIncident = async (data, user = null) => {
     status: initialStatus,
     source: data.source || 'EMERGENCY_CALL',
     reportedBy,
+    isSimulation: Boolean(data.isSimulation),
+    simulationId: data.simulationId || null,
     location: {
       latitude: data.location.latitude,
       longitude: data.location.longitude,
@@ -256,6 +258,8 @@ export const updateIncident = async (id, data, user = null) => {
       }).catch((e) => console.warn('[Notification] Delay alert note:', e.message));
     }
   }
+  if (data.isSimulation !== undefined) incident.isSimulation = Boolean(data.isSimulation);
+  if (data.simulationId !== undefined) incident.simulationId = data.simulationId;
   if (data.metadata) {
     incident.metadata = { ...incident.metadata, ...data.metadata };
   }

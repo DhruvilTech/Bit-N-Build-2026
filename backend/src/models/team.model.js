@@ -121,6 +121,16 @@ const teamSchema = new mongoose.Schema(
       index: true,
     },
     responseHistory: [responseHistorySchema],
+    isSimulation: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    simulationId: {
+      type: String,
+      default: null,
+      index: true,
+    },
     metadata: {
       type: mongoose.Schema.Types.Mixed,
       default: {},

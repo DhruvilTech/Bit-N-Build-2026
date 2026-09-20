@@ -87,7 +87,7 @@ export interface UserProfile {
   id: string;
   name: string;
   email: string;
-  role: 'ADMIN' | 'OPERATOR' | 'FIELD_COORDINATOR' | 'MEDICAL_COORDINATOR';
+  role: 'ADMIN' | 'OPERATOR' | 'FIELD_COORDINATOR' | 'MEDICAL_COORDINATOR' | 'RESPONDER' | 'VIEWER';
   department?: string;
   badgeNumber?: string;
   phone?: string;
@@ -621,8 +621,68 @@ export const routesApi = {
   },
 };
 
-// Simulation API
+// Simulation Engine Interfaces & API
+export interface SimulationEvent {
+  step: number;
+  type: string;
+  timestamp: string;
+  status: string;
+  entityType: string;
+  entityId?: string;
+  payload?: any;
+  message: string;
+}
+
+export interface SimulationState {
+  id: string;
+  simulationId: string;
+  scenario: string;
+  status: 'CREATED' | 'RUNNING' | 'PAUSED' | 'COMPLETED' | 'STOPPED' | 'FAILED';
+  currentStep: number;
+  totalSteps: number;
+  incidentIds: string[];
+  eventHistory: SimulationEvent[];
+  configuration: {
+    speed: number;
+    autoRun: boolean;
+    stepDelayMs: number;
+  };
+  startedAt?: string;
+  stoppedAt?: string;
+  completedAt?: string;
+}
+
+// Simulation API (Phases 26-27 & Legacy GPS)
 export const simulationApi = {
+  // Phase 26 & 27 Simulation Engine
+  start: async (data: { scenario: string; speed?: number; autoRun?: boolean; stepDelayMs?: number }): Promise<SimulationState> => {
+    const res = await apiRequest<{ success: boolean; simulation: SimulationState }>('/simulation/start', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    return res.simulation;
+  },
+
+  advance: async (simulationId: string): Promise<SimulationState> => {
+    const res = await apiRequest<{ success: boolean; simulation: SimulationState }>(`/simulation/${simulationId}/advance`, {
+      method: 'POST',
+    });
+    return res.simulation;
+  },
+
+  stop: async (simulationId: string): Promise<SimulationState> => {
+    const res = await apiRequest<{ success: boolean; simulation: SimulationState }>(`/simulation/${simulationId}/stop`, {
+      method: 'POST',
+    });
+    return res.simulation;
+  },
+
+  getById: async (simulationId: string): Promise<SimulationState> => {
+    const res = await apiRequest<{ success: boolean; simulation: SimulationState }>(`/simulation/${simulationId}`);
+    return res.simulation;
+  },
+
+  // Legacy GPS Movement Simulation
   getStatus: async () => {
     const res = await apiRequest<{
       status: string;
@@ -784,6 +844,9 @@ export interface AuditLogItem {
   action: string;
   entityType: string;
   entityId?: string;
+  previousValue?: any;
+  newValue?: any;
+  simulationId?: string;
   metadata?: Record<string, any>;
   ipAddress?: string;
   timestamp: string;
@@ -971,4 +1034,14 @@ export const aiApi = {
     return res.data;
   },
 };
+
+
+// Analytics API
+export const analyticsApi = {
+  getMetrics: async (): Promise<any> => {
+    const res = await apiRequest<{ success: boolean; data: any }>('/analytics/metrics');
+    return res.data;
+  },
+};
+
 
