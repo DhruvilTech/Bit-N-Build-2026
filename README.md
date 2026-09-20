@@ -197,16 +197,18 @@ The platform governs an unbroken **11-stage operational lifecycle**:
 
 #### 1. Field Response Tracking & Finite State Machine
 * **Strict 5-Stage Finite State Machine**: Enforces valid operational progression:
-  $$\text{ASSIGNED} \longrightarrow \text{DISPATCHED} \longrightarrow \text{EN\_ROUTE} \longrightarrow \text{ARRIVED} \longrightarrow \text{COMPLETED} \quad (\text{or } \text{CANCELLED})$$
+  ```text
+  ASSIGNED ──► DISPATCHED ──► EN_ROUTE ──► ARRIVED ──► COMPLETED (or CANCELLED)
+  ```
 * **Derived Operational Durations**: Automatically calculates and persists:
-  - `dispatchDelayMinutes`: $\Delta(\text{dispatchedAt} - \text{assignedAt})$
-  - `transitDurationMinutes`: $\Delta(\text{arrivedAt} - \text{enRouteAt})$
-  - `totalResponseMinutes`: $\Delta(\text{arrivedAt} - \text{assignedAt})$
-  - `arrivalDelayMinutes`: Recorded whenever $\text{arrivedAt} > \text{expectedArrivalAt}$.
+  - `dispatchDelayMinutes`: Δ(dispatchedAt - assignedAt)
+  - `transitDurationMinutes`: Δ(arrivedAt - enRouteAt)
+  - `totalResponseMinutes`: Δ(arrivedAt - assignedAt)
+  - `arrivalDelayMinutes`: Recorded whenever arrivedAt > expectedArrivalAt.
 * **Idempotent Guarantees**: Duplicate status updates preserve existing timestamps and write an immutable transition audit entry (`backend/src/services/assignment.service.js`).
 
 #### 2. Resource & Team Location Tracking Engine
-* **GeoJSON Telemetry Standard**: Validates coordinates within strict physical boundaries: $\text{longitude} \in [-180, 180]$, $\text{latitude} \in [-90, 90]$.
+* **GeoJSON Telemetry Standard**: Validates coordinates within strict physical boundaries: longitude ∈ [-180, 180], latitude ∈ [-90, 90].
 * **Live Telemetry Stream**: Emits `team:location` and `resource:location` WebSocket events to update tactical map pins in real time.
 * **Role Gate Enforcement**: Only `RESPONDER`, `OPERATOR`, and `ADMIN` roles can mutate location coordinates; `VIEWER` mutations are rejected with `403 Forbidden`.
 
@@ -234,7 +236,7 @@ The platform governs an unbroken **11-stage operational lifecycle**:
   4. `P1_UNASSIGNED`: Emitted when a P1 incident remains unassigned after the grace period.
   5. `P1_ESCALATION`: Escalation alert dispatched when an incident remains uncontained, requesting mutual aid.
 * **Deduplication Engine**: Uses SHA-style deterministic keys (`incidentId + ruleType + targetId`) with cooldown windows to eliminate duplicate alert spam.
-* **Alert Lifecycle**: Strict state progression: `OPEN` $\longrightarrow$ `ACKNOWLEDGED` $\longrightarrow$ `RESOLVED`.
+* **Alert Lifecycle**: Strict state progression: `OPEN` ➔ `ACKNOWLEDGED` ➔ `RESOLVED`.
 
 ---
 
@@ -258,14 +260,16 @@ The platform governs an unbroken **11-stage operational lifecycle**:
   - `AI_PARSING_ERROR` (unprocessable entity payload)
   - `AI_CIRCUIT_BROKEN` (failure rate threshold tripped)
 * **Exponential Backoff with Jitter**: Computes bounded retry intervals:
-  $$\text{delay} = \min\left(\text{maxDelay}, \text{baseDelay} \cdot 2^{\text{attempt}}\right) + \text{jitter}$$
+  ```text
+  delay = min(maxDelay, baseDelay * 2^attempt) + jitter
+  ```
 * **Deterministic Life-Safety Fallback**: If the AI microservice is degraded or unreachable, the system **never halts emergency response**:
   - Automatically provisions deterministic defaults (`type: OTHER`, `severity: MEDIUM`, `priority: P2`, `requiresHumanReview: true`).
   - Broadcasts `incident:aiFallback` and `incident:humanReviewRequired` WebSocket events to notify dispatchers.
 
 #### 3. Explainable AI Decision Support & Life-Safety Overrides
 * **Structured Explainability Contract**: Every incident provides full audit transparency:
-  - Calibrated AI confidence score ($0.00 - 1.00$).
+  - Calibrated AI confidence score (range: 0.00 to 1.00).
   - Extracted situational signals (e.g., `trapped_persons`, `structural_collapse`, `chemical_spill`).
   - Human-readable risk justification explaining why the classification was determined.
 * **Clear Separation of AI Suggestion vs Final System Decision**:
@@ -283,11 +287,11 @@ The platform governs an unbroken **11-stage operational lifecycle**:
 
 #### 5. Reactive WebSocket Mesh & Command Center HUD Integration
 * **Unified Socket Contracts**: Synchronized real-time events between Node.js backend and React 19 client:
-  - `system:health` $\longrightarrow$ Updates header pulse badge
-  - `incident:aiAnalyzing` $\longrightarrow$ Triggers loading indicator on incident details
-  - `incident:aiFallback` $\longrightarrow$ Alerts operator that deterministic fallback was applied
-  - `incident:humanReviewRequired` $\longrightarrow$ Highlights low-confidence incidents for operator verification
-  - `incident:timelineUpdated` $\longrightarrow$ Instantly appends timeline events in the UI
+  - `system:health` ➔ Updates header pulse badge
+  - `incident:aiAnalyzing` ➔ Triggers loading indicator on incident details
+  - `incident:aiFallback` ➔ Alerts operator that deterministic fallback was applied
+  - `incident:humanReviewRequired` ➔ Highlights low-confidence incidents for operator verification
+  - `incident:timelineUpdated` ➔ Instantly appends timeline events in the UI
 * **Zero-Polling Reactivity**: Completely eliminates client polling; all system vitals, incident milestones, and team telemetry stream through persistent WebSocket connections.
 
 ---
@@ -360,22 +364,22 @@ To evaluate how PS-9 operates under real urban disaster conditions, consider ver
 ```mermaid
 sequenceDiagram
     autonumber
-    participant Sensor as IoT / 911 / Citizen
-    participant Core as PS-9 AI Core
-    participant Op as Human Operator
+    actor Sensor as Telemetry (IoT / 911 / Citizen)
+    participant Core as EmergenX Core Engine
+    actor Op as Incident Commander
     participant Team as Field Response Unit
     participant Hosp as Trauma Center
 
-    Sensor->>Core: Ingest raw telemetry & emergency reports
-    Core->>Core: AI NLP Triage & Geospatial De-duplication
-    Core->>Core: Risk Scoring (P1 CRITICAL, 94% Confidence)
+    Sensor->>Core: Ingest raw telemetry and emergency reports
+    Core->>Core: AI NLP triage and geospatial deduplication
+    Core->>Core: Risk scoring (P1 CRITICAL, 94% confidence)
     Core->>Core: Calculate optimal resource match (FT-04, AM-07)
     Core->>Op: Present structured incident card with recommendations
-    Op->>Core: Authorize 1-Click Dispatch
-    Core->>Team: Dispatch order with GPS telemetry & hazard perimeter
-    Core->>Hosp: Alert trauma ward for expected burn casualties
-    Team->>Core: Streaming status (En Route -> On Scene -> Contained)
-    Core->>Op: Live SLA monitor tracks transit; no escalation required
+    Op->>Core: Authorize 1-click dispatch order
+    Core->>Team: Transmit dispatch with GPS telemetry and hazard perimeter
+    Core->>Hosp: Alert trauma ward for casualty intake
+    Team->>Core: Stream transit telemetry (En Route, On Scene, Contained)
+    Core->>Op: Live SLA sentinel confirms units on schedule
 ```
 
 ---
@@ -411,7 +415,9 @@ sequenceDiagram
 
 PS-9 evaluates emergency apparatus using a **multi-criteria suitability formula**:
 
-$$\text{Suitability Score} = w_1 \cdot \text{Capability Match} + w_2 \cdot (1 - \text{Normalized Distance}) + w_3 \cdot \text{Readiness Status}$$
+```text
+Suitability Score = (w1 × Capability Match) + (w2 × (1 - Normalized Distance)) + (w3 × Readiness Status)
+```
 
 ### Concrete Recommendation Example:
 
@@ -439,19 +445,19 @@ RECOMMENDED UNITS:
 
 | Event Name | Direction | Trigger / Source | Payload Contract | UI Impact |
 |:---|:---:|:---|:---|:---|
-| `incident:new` | Server $\rightarrow$ Client | New incident created via API/AI | Complete Incident object | Adds incident to queue, plays dispatch audio, increments KPI |
-| `incident:updated` | Server $\rightarrow$ Client | Incident modified | Updated Incident object | Updates incident card and map marker |
-| `incident:statusChanged` | Server $\rightarrow$ Client | Lifecycle transition | `{ incidentId, status, timestamp }` | Transitions card column, updates timeline |
-| `team:location` | Server $\rightarrow$ Client | Field unit GPS update | `{ teamId, location: { coordinates: [lon, lat] } }` | Moves unit marker on Leaflet GIS map |
-| `resource:location` | Server $\rightarrow$ Client | Apparatus telemetry | `{ resourceId, location: { coordinates } }` | Updates apparatus position and recalculates ETA |
-| `alert:new` | Server $\rightarrow$ Client | Alert rule tripped | Complete Alert object | Displays high-priority toast, triggers audio alarm |
-| `alert:acknowledged` | Server $\rightarrow$ Client | Dispatcher acknowledges | Complete Alert object | Updates alert state to ACKNOWLEDGED in drawer |
-| `alert:resolved` | Server $\rightarrow$ Client | Issue cleared | Complete Alert object | Clears alert banner, marks RESOLVED |
-| `system:health` | Server $\rightarrow$ Client | Background health check | Aggregated health diagnostics | Updates `SystemHealthIndicator` badge in header |
-| `incident:aiAnalyzing` | Server $\rightarrow$ Client | AI processing started | `{ incidentId }` | Shows pulsing AI analysis indicator |
-| `incident:aiFallback` | Server $\rightarrow$ Client | AI service fallback triggered | `{ incidentId, reason, fallbackUsed: true }` | Displays fallback warning badge |
-| `incident:humanReviewRequired` | Server $\rightarrow$ Client | Low confidence / override | `{ incidentId, reason }` | Flags incident for manual dispatcher review |
-| `incident:timelineUpdated` | Server $\rightarrow$ Client | Timeline event recorded | Complete TimelineEvent object | Appends event directly to `IncidentTimelineView` |
+| `incident:new` | Server ➔ Client | New incident created via API/AI | Complete Incident object | Adds incident to queue, plays dispatch audio, increments KPI |
+| `incident:updated` | Server ➔ Client | Incident modified | Updated Incident object | Updates incident card and map marker |
+| `incident:statusChanged` | Server ➔ Client | Lifecycle transition | `{ incidentId, status, timestamp }` | Transitions card column, updates timeline |
+| `team:location` | Server ➔ Client | Field unit GPS update | `{ teamId, location: { coordinates: [lon, lat] } }` | Moves unit marker on Leaflet GIS map |
+| `resource:location` | Server ➔ Client | Apparatus telemetry | `{ resourceId, location: { coordinates } }` | Updates apparatus position and recalculates ETA |
+| `alert:new` | Server ➔ Client | Alert rule tripped | Complete Alert object | Displays high-priority toast, triggers audio alarm |
+| `alert:acknowledged` | Server ➔ Client | Dispatcher acknowledges | Complete Alert object | Updates alert state to ACKNOWLEDGED in drawer |
+| `alert:resolved` | Server ➔ Client | Issue cleared | Complete Alert object | Clears alert banner, marks RESOLVED |
+| `system:health` | Server ➔ Client | Background health check | Aggregated health diagnostics | Updates `SystemHealthIndicator` badge in header |
+| `incident:aiAnalyzing` | Server ➔ Client | AI processing started | `{ incidentId }` | Shows pulsing AI analysis indicator |
+| `incident:aiFallback` | Server ➔ Client | AI service fallback triggered | `{ incidentId, reason, fallbackUsed: true }` | Displays fallback warning badge |
+| `incident:humanReviewRequired` | Server ➔ Client | Low confidence / override | `{ incidentId, reason }` | Flags incident for manual dispatcher review |
+| `incident:timelineUpdated` | Server ➔ Client | Timeline event recorded | Complete TimelineEvent object | Appends event directly to `IncidentTimelineView` |
 
 ---
 
@@ -593,8 +599,8 @@ graph TB
         WS["Socket.IO (WebSocket)"]
     end
 
-    Context <--> REST
-    Context <--> WS
+    Context --- REST
+    Context --- WS
 
     subgraph Backend_Layer ["Backend Core (Node.js & Express ESM)"]
         AuthCtrl["Auth & RBAC Middleware"]
@@ -614,7 +620,7 @@ graph TB
     REST --> AlertCtrl
     REST --> TimelineCtrl
     REST --> HealthCtrl
-    WS <--> SocketEngine
+    WS --- SocketEngine
 
     subgraph Data_Layer ["Database & GIS (MongoDB Atlas)"]
         GeoInc["incidents (2dsphere)"]
@@ -641,7 +647,7 @@ graph TB
         Explain["Confidence Scoring & Reasoning"]
     end
 
-    IncCtrl <--> Target_AI
+    IncCtrl --- Target_AI
 ```
 
 ---
