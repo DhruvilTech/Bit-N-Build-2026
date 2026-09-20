@@ -6,6 +6,7 @@ import { IncidentModel } from '../models/incident.model.js';
 import { ResourceModel } from '../models/resource.model.js';
 import { ResponseTeamModel } from '../models/team.model.js';
 import { FacilityModel } from '../models/facility.model.js';
+import { StationModel } from '../models/station.model.js';
 
 const seedDatabase = async () => {
   try {
@@ -30,6 +31,7 @@ const seedDatabase = async () => {
       ResourceModel.deleteMany({}),
       ResponseTeamModel.deleteMany({}),
       FacilityModel.deleteMany({}),
+      StationModel.deleteMany({}),
     ]);
     console.log('[Seed] Collections cleared (custom accounts preserved).');
 
@@ -440,7 +442,110 @@ const seedDatabase = async () => {
     await FacilityModel.insertMany(enrichedFacilities);
     console.log(`[Seed] Seeded ${enrichedFacilities.length} Facilities.`);
 
-    // 5. Seed Resources (12 Resources)
+    // 5. Seed Stations (6 Stations)
+    console.log('[Seed] Seeding Stations...');
+    const stations = [
+      {
+        stationId: 'STAT-FIRE-01',
+        name: 'Central Fire HQ (Station 1)',
+        type: 'FIRE_STATION',
+        address: 'Central Fire HQ, Connaught Ring',
+        location: {
+          latitude: 28.6328,
+          longitude: 77.2197,
+          address: 'Central Fire HQ, Connaught Ring',
+          geometry: { type: 'Point', coordinates: [77.2197, 28.6328] },
+        },
+        capacity: 10,
+        contactNumber: '+91-11-2334-1001',
+        status: 'ACTIVE',
+        assignedResources: ['RES-VEH-05'],
+      },
+      {
+        stationId: 'STAT-MED-01',
+        name: 'Metro Trauma Ambulance Base',
+        type: 'AMBULANCE_BASE',
+        address: 'Metro General Compound Ambulance Bay',
+        location: {
+          latitude: 28.6220,
+          longitude: 77.1980,
+          address: 'Metro General Compound Ambulance Bay',
+          geometry: { type: 'Point', coordinates: [77.1980, 28.6220] },
+        },
+        capacity: 8,
+        contactNumber: '+91-11-2334-1002',
+        status: 'ACTIVE',
+        assignedResources: ['RES-VEH-02', 'RES-VEH-06'],
+      },
+      {
+        stationId: 'STAT-POL-01',
+        name: 'Central Police Precinct',
+        type: 'POLICE_STATION',
+        address: 'Central Police District HQ',
+        location: {
+          latitude: 28.6150,
+          longitude: 77.2100,
+          address: 'Central Police District HQ',
+          geometry: { type: 'Point', coordinates: [77.2100, 28.6150] },
+        },
+        capacity: 12,
+        contactNumber: '+91-11-2334-1003',
+        status: 'ACTIVE',
+        assignedResources: ['RES-VEH-03', 'RES-VEH-07'],
+      },
+      {
+        stationId: 'STAT-FIRE-02',
+        name: 'Industrial Fire & Hazmat Station',
+        type: 'FIRE_STATION',
+        address: 'Industrial Ring Sector 4 Gate',
+        location: {
+          latitude: 28.6250,
+          longitude: 77.2020,
+          address: 'Industrial Ring Sector 4 Gate',
+          geometry: { type: 'Point', coordinates: [77.2020, 28.6250] },
+        },
+        capacity: 8,
+        contactNumber: '+91-11-2334-1004',
+        status: 'ACTIVE',
+        assignedResources: ['RES-VEH-01', 'RES-VEH-04'],
+      },
+      {
+        stationId: 'STAT-RESCUE-01',
+        name: 'Riverbank Disaster Rescue Depot',
+        type: 'RESCUE_BASE',
+        address: 'Sector 5 Riverbank Depot',
+        location: {
+          latitude: 28.6500,
+          longitude: 77.1950,
+          address: 'Sector 5 Riverbank Depot',
+          geometry: { type: 'Point', coordinates: [77.1950, 28.6500] },
+        },
+        capacity: 6,
+        contactNumber: '+91-11-2334-1005',
+        status: 'ACTIVE',
+        assignedResources: ['RES-EQ-02', 'RES-VEH-08'],
+      },
+      {
+        stationId: 'STAT-DRC-01',
+        name: 'Central Incident Command Complex',
+        type: 'DISASTER_RESPONSE_CENTER',
+        address: 'Civic Center Tower 1, Connaught Ring',
+        location: {
+          latitude: 28.6320,
+          longitude: 77.2180,
+          address: 'Civic Center Tower 1, Connaught Ring',
+          geometry: { type: 'Point', coordinates: [77.2180, 28.6320] },
+        },
+        capacity: 15,
+        contactNumber: '+91-11-2334-1006',
+        status: 'ACTIVE',
+        assignedResources: ['RES-EQ-01', 'RES-EQ-03', 'RES-EQ-04'],
+      },
+    ];
+    await StationModel.insertMany(stations);
+    console.log(`[Seed] Seeded ${stations.length} Stations.`);
+
+    // 6. Seed Resources (12 Resources)
     console.log('[Seed] Seeding Resources...');
     const resources = [
       {
@@ -448,6 +553,13 @@ const seedDatabase = async () => {
         name: 'Heavy Foam Tender FT-204',
         type: 'VEHICLE',
         status: 'ASSIGNED',
+        stationId: 'STAT-FIRE-02',
+        homeLocation: {
+          latitude: 28.6250,
+          longitude: 77.2020,
+          address: 'Industrial Ring Sector 4 Gate, Zone 3',
+          geometry: { type: 'Point', coordinates: [77.2020, 28.6250] },
+        },
         location: {
           latitude: 28.6250,
           longitude: 77.2020,
@@ -463,6 +575,13 @@ const seedDatabase = async () => {
         name: 'Critical Care Mobile ICU AM-07',
         type: 'AMBULANCE',
         status: 'ASSIGNED',
+        stationId: 'STAT-MED-01',
+        homeLocation: {
+          latitude: 28.6220,
+          longitude: 77.1980,
+          address: 'Metro General Compound Ambulance Bay',
+          geometry: { type: 'Point', coordinates: [77.1980, 28.6220] },
+        },
         location: {
           latitude: 28.6190,
           longitude: 77.2040,
@@ -478,6 +597,13 @@ const seedDatabase = async () => {
         name: 'High-Speed Interceptor Patrol PD-102',
         type: 'POLICE_TEAM',
         status: 'ASSIGNED',
+        stationId: 'STAT-POL-01',
+        homeLocation: {
+          latitude: 28.6150,
+          longitude: 77.2100,
+          address: 'Central Police District HQ',
+          geometry: { type: 'Point', coordinates: [77.2100, 28.6150] },
+        },
         location: {
           latitude: 28.6289,
           longitude: 77.2065,
@@ -493,6 +619,13 @@ const seedDatabase = async () => {
         name: 'Hazmat Decontamination Unit HZ-901',
         type: 'EQUIPMENT',
         status: 'BUSY',
+        stationId: 'STAT-FIRE-02',
+        homeLocation: {
+          latitude: 28.6250,
+          longitude: 77.2020,
+          address: 'Industrial Ring Sector 4 Gate',
+          geometry: { type: 'Point', coordinates: [77.2020, 28.6250] },
+        },
         location: {
           latitude: 28.6410,
           longitude: 77.2340,
@@ -508,6 +641,13 @@ const seedDatabase = async () => {
         name: 'Autonomous Drone Recon Swarm Alpha (4 UAVs)',
         type: 'EQUIPMENT',
         status: 'BUSY',
+        stationId: 'STAT-DRC-01',
+        homeLocation: {
+          latitude: 28.6320,
+          longitude: 77.2180,
+          address: 'Civic Center Tower 1, Connaught Ring',
+          geometry: { type: 'Point', coordinates: [77.2180, 28.6320] },
+        },
         location: {
           latitude: 28.6289,
           longitude: 77.2065,
@@ -523,6 +663,13 @@ const seedDatabase = async () => {
         name: 'High-Volume Flood De-Watering Pumps (6 Units)',
         type: 'EQUIPMENT',
         status: 'AVAILABLE',
+        stationId: 'STAT-RESCUE-01',
+        homeLocation: {
+          latitude: 28.6500,
+          longitude: 77.1950,
+          address: 'Sector 5 Riverbank Depot',
+          geometry: { type: 'Point', coordinates: [77.1950, 28.6500] },
+        },
         location: {
           latitude: 28.6550,
           longitude: 77.1920,
@@ -537,6 +684,13 @@ const seedDatabase = async () => {
         name: 'Mobile Mass Casualty Triage Trailer',
         type: 'EQUIPMENT',
         status: 'AVAILABLE',
+        stationId: 'STAT-DRC-01',
+        homeLocation: {
+          latitude: 28.6320,
+          longitude: 77.2180,
+          address: 'Civic Center Tower 1, Connaught Ring',
+          geometry: { type: 'Point', coordinates: [77.2180, 28.6320] },
+        },
         location: {
           latitude: 28.6360,
           longitude: 77.2240,
@@ -551,6 +705,13 @@ const seedDatabase = async () => {
         name: 'Satellite Mobile Mesh Telemetry Node',
         type: 'EQUIPMENT',
         status: 'AVAILABLE',
+        stationId: 'STAT-DRC-01',
+        homeLocation: {
+          latitude: 28.6320,
+          longitude: 77.2180,
+          address: 'Civic Center Tower 1, Connaught Ring',
+          geometry: { type: 'Point', coordinates: [77.2180, 28.6320] },
+        },
         location: {
           latitude: 28.6320,
           longitude: 77.2180,
@@ -565,6 +726,13 @@ const seedDatabase = async () => {
         name: 'Aerial Ladder Platform 55m FT-101',
         type: 'FIRE_TEAM',
         status: 'AVAILABLE',
+        stationId: 'STAT-FIRE-01',
+        homeLocation: {
+          latitude: 28.6328,
+          longitude: 77.2197,
+          address: 'Central Fire HQ, Station 1',
+          geometry: { type: 'Point', coordinates: [77.2197, 28.6328] },
+        },
         location: {
           latitude: 28.6328,
           longitude: 77.2197,
@@ -579,6 +747,13 @@ const seedDatabase = async () => {
         name: 'Advanced Cardiac Ambulance AM-02',
         type: 'AMBULANCE',
         status: 'BUSY',
+        stationId: 'STAT-MED-01',
+        homeLocation: {
+          latitude: 28.6220,
+          longitude: 77.1980,
+          address: 'Metro General Compound Ambulance Bay',
+          geometry: { type: 'Point', coordinates: [77.1980, 28.6220] },
+        },
         location: {
           latitude: 28.5800,
           longitude: 77.1700,
@@ -594,6 +769,13 @@ const seedDatabase = async () => {
         name: 'Highway Interceptor Cruiser PD-105',
         type: 'POLICE_TEAM',
         status: 'AVAILABLE',
+        stationId: 'STAT-POL-01',
+        homeLocation: {
+          latitude: 28.6150,
+          longitude: 77.2100,
+          address: 'Central Police District HQ',
+          geometry: { type: 'Point', coordinates: [77.2100, 28.6150] },
+        },
         location: {
           latitude: 28.5720,
           longitude: 77.1620,
@@ -608,6 +790,13 @@ const seedDatabase = async () => {
         name: 'Amphibious All-Terrain Rescue Rig RT-303',
         type: 'RESCUE_TEAM',
         status: 'AVAILABLE',
+        stationId: 'STAT-RESCUE-01',
+        homeLocation: {
+          latitude: 28.6500,
+          longitude: 77.1950,
+          address: 'Sector 5 Riverbank Depot',
+          geometry: { type: 'Point', coordinates: [77.1950, 28.6500] },
+        },
         location: {
           latitude: 28.6500,
           longitude: 77.1950,
@@ -621,6 +810,7 @@ const seedDatabase = async () => {
 
     const enrichedResources = resources.map((r) => ({
       ...r,
+      currentLocation: r.currentLocation || r.location,
       availability: r.status === 'AVAILABLE' && !r.currentAssignment,
       assignmentHistory: r.currentAssignment
         ? [

@@ -168,6 +168,18 @@ export const emitIncidentReviewRequired = (incident) => {
 };
 
 /**
+ * Broadcast when resource recommendations are generated for an incident (Phase 6)
+ */
+export const emitResourceRecommended = (incidentId, recommendationData) => {
+  if (ioInstance) {
+    ioInstance.emit('resource:recommended', {
+      incidentId,
+      ...recommendationData,
+    });
+  }
+};
+
+/**
  * Broadcast when a human operator confirms an AI incident assessment
  */
 export const emitIncidentReviewed = (incident) => {
@@ -177,6 +189,18 @@ export const emitIncidentReviewed = (incident) => {
       incident,
       humanReview: incident.aiAnalysis?.humanReview,
       reviewedBy: incident.aiAnalysis?.reviewedBy,
+    });
+  }
+};
+
+/**
+ * Broadcast when resources are assigned/dispatched to an incident (Phase 8)
+ */
+export const emitResourceAssigned = (incidentId, assignment) => {
+  if (ioInstance) {
+    ioInstance.emit('resource:assigned', {
+      incidentId,
+      assignment,
     });
   }
 };
@@ -196,6 +220,20 @@ export const emitIncidentOverridden = (incident, overrideEntry = null) => {
 };
 
 /**
+ * Broadcast when a resource is released from an assignment (Phase 9)
+ */
+export const emitResourceReleased = (incidentId, resourceId, assignmentId) => {
+  if (ioInstance) {
+    ioInstance.emit('resource:released', {
+      incidentId,
+      resourceId,
+      assignmentId,
+      releasedAt: new Date(),
+    });
+  }
+};
+
+/**
  * Broadcast when an escalation is triggered
  */
 export const emitEscalationCreated = (escalation, incident = null) => {
@@ -210,6 +248,15 @@ export const emitEscalationCreated = (escalation, incident = null) => {
 };
 
 /**
+ * Broadcast when an assignment record is updated (Phase 8 & 10)
+ */
+export const emitAssignmentUpdated = (assignment) => {
+  if (ioInstance) {
+    ioInstance.emit('assignment:updated', assignment);
+  }
+};
+
+/**
  * Broadcast when an escalation is acknowledged
  */
 export const emitEscalationAcknowledged = (escalation) => {
@@ -220,12 +267,38 @@ export const emitEscalationAcknowledged = (escalation) => {
 };
 
 /**
+ * Broadcast when response operational status changes (Phase 10)
+ */
+export const emitResponseStatusChanged = (assignment) => {
+  if (ioInstance) {
+    ioInstance.emit('response:statusChanged', {
+      assignmentId: assignment.assignmentId,
+      incidentId: assignment.incidentId,
+      resourceId: assignment.resourceId,
+      status: assignment.status,
+      responseTimeMinutes: assignment.responseTimeMinutes,
+      delayMinutes: assignment.delayMinutes,
+      timestamp: new Date(),
+    });
+  }
+};
+
+/**
  * Broadcast when an escalation is resolved
  */
 export const emitEscalationResolved = (escalation) => {
   if (ioInstance) {
     ioInstance.to('operations').emit('escalation:resolved', { escalation });
     ioInstance.emit('escalation:resolved', { escalation });
+  }
+};
+
+/**
+ * Broadcast when a resource's live GPS location updates (Phase 14 & 15)
+ */
+export const emitResourceLocationUpdated = (locationData) => {
+  if (ioInstance) {
+    ioInstance.emit('resource:locationUpdated', locationData);
   }
 };
 
@@ -242,6 +315,15 @@ export const emitNotificationNew = (notification) => {
     }
     ioInstance.to('operations').emit('notification:new', notification);
     ioInstance.emit('notification:new', notification); // Global fallback
+  }
+};
+
+/**
+ * Broadcast when a resource arrives on scene at an incident (Phase 20)
+ */
+export const emitResourceArrived = (arrivalData) => {
+  if (ioInstance) {
+    ioInstance.emit('resource:arrived', arrivalData);
   }
 };
 
@@ -286,4 +368,11 @@ export const emitAiSummaryGenerated = (summaryData) => {
   }
 };
 
-
+/**
+ * Broadcast when a navigation route is computed and created (Phase 13)
+ */
+export const emitRouteCreated = (routeData) => {
+  if (ioInstance) {
+    ioInstance.emit('route:created', routeData);
+  }
+};

@@ -10,6 +10,10 @@ import auditLogRoutes from './auditLog.routes.js';
 import escalationRoutes from './escalation.routes.js';
 import notificationRoutes from './notification.routes.js';
 import aiRoutes from './ai.routes.js';
+import assignmentRoutes from './assignment.routes.js';
+import stationRoutes from './station.routes.js';
+import routeRoutes from './route.routes.js';
+import simulationRoutes from './simulation.routes.js';
 
 const apiRouter = Router();
 
@@ -24,5 +28,9 @@ apiRouter.use('/audit-logs', auditLogRoutes);
 apiRouter.use('/escalations', escalationRoutes);
 apiRouter.use('/notifications', notificationRoutes);
 apiRouter.use('/ai', aiRoutes);
+apiRouter.use('/assignments', assignmentRoutes);
+apiRouter.use('/stations', stationRoutes);
+apiRouter.use('/routes', routeRoutes);
+apiRouter.use('/simulation', simulationRoutes);
 
 export default apiRouter;
