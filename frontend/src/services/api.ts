@@ -1136,11 +1136,7 @@ export const alertsApi = {
   },
 };
 
-<<<<<<< HEAD
 // Analytics Interfaces & API (Phases 22-28)
-=======
-// Analytics Interfaces & API (Phase 22, 23, 24)
->>>>>>> c94fd4e47b765461bb407b7bce72f7b8d8d3bca8
 export interface AnalyticsOverview {
   period: string;
   totalIncidents: number;
@@ -1234,14 +1230,11 @@ export interface HospitalCapacityItem {
 }
 
 export const analyticsApi = {
-<<<<<<< HEAD
   getMetrics: async (): Promise<any> => {
     const res = await apiRequest<{ success: boolean; data: any }>('/analytics/metrics');
     return res.data;
   },
 
-=======
->>>>>>> c94fd4e47b765461bb407b7bce72f7b8d8d3bca8
   getOverview: async (params?: { period?: string; from?: string; to?: string }): Promise<AnalyticsOverview> => {
     const qs = new URLSearchParams();
     if (params?.period) qs.set('period', params.period);

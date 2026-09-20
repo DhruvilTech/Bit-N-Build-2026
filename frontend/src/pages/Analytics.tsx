@@ -260,19 +260,8 @@ export const Analytics: React.FC = () => {
             <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
               INCIDENTS BY HAZARD CLASSIFICATION
             </h3>
-<<<<<<< HEAD
-            <span className="text-[11px] text-slate-500">
-              TOTAL: {overview ? overview.totalIncidents : typeData.reduce((acc: number, curr: any) => acc + curr.value, 0)}
-            </span>
-          </div>
-
-          <div className="h-56 w-full relative my-auto">
-            {typeData.length === 0 ? (
-              <div className="h-full flex items-center justify-center font-mono text-xs text-slate-400">
-                No incident classifications found
-=======
             <span className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">
-              {overview?.totalIncidents || typeData.reduce((acc, c) => acc + c.value, 0)} TOTAL
+              {overview ? overview.totalIncidents : typeData.reduce((acc: number, curr: any) => acc + curr.value, 0)} TOTAL
             </span>
           </div>
 
@@ -280,24 +269,11 @@ export const Analytics: React.FC = () => {
             {typeData.length === 0 || typeData.every((t) => t.value === 0) ? (
               <div className="font-mono text-xs text-slate-400 text-center p-4">
                 No categorized incidents recorded for this period
->>>>>>> c94fd4e47b765461bb407b7bce72f7b8d8d3bca8
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-<<<<<<< HEAD
-                    data={typeData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={55}
-                    outerRadius={80}
-                    paddingAngle={3}
-                    dataKey="value"
-                  >
-                    {typeData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} stroke="rgba(0,0,0,0.5)" strokeWidth={2} />
-=======
                     data={typeData.filter((t) => t.value > 0)}
                     cx="50%"
                     cy="50%"
@@ -308,7 +284,6 @@ export const Analytics: React.FC = () => {
                   >
                     {typeData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
->>>>>>> c94fd4e47b765461bb407b7bce72f7b8d8d3bca8
                     ))}
                   </Pie>
                   <Tooltip content={<CustomTooltip />} />
@@ -317,20 +292,11 @@ export const Analytics: React.FC = () => {
             )}
           </div>
 
-<<<<<<< HEAD
-          <div className="grid grid-cols-2 gap-2 pt-3 border-t border-slate-200 dark:border-white/10 font-mono text-xs">
-            {typeData.slice(0, 4).map((entry, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
-                <span className="text-slate-600 dark:text-slate-400 truncate">{entry.name}</span>
-                <span className="font-bold text-slate-900 dark:text-white ml-auto">{entry.value}</span>
-=======
           <div className="grid grid-cols-2 gap-2 pt-2 text-[11px] font-mono">
             {typeData.map((entry, i) => (
               <div key={i} className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: entry.color }} />
                 <span className="truncate">{entry.name} ({entry.value})</span>
->>>>>>> c94fd4e47b765461bb407b7bce72f7b8d8d3bca8
               </div>
             ))}
           </div>
@@ -377,7 +343,6 @@ export const Analytics: React.FC = () => {
           </div>
 
           <div className="h-64 w-full">
-<<<<<<< HEAD
             {fleetData.length === 0 ? (
               <div className="h-full flex items-center justify-center font-mono text-xs text-slate-400">
                 No resource fleet data found
@@ -394,17 +359,6 @@ export const Analytics: React.FC = () => {
                 </BarChart>
               </ResponsiveContainer>
             )}
-=======
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={fleetData} layout="vertical">
-                <XAxis type="number" stroke="#64748B" fontSize={11} fontFamily="JetBrains Mono" domain={[0, 100]} />
-                <YAxis type="category" dataKey="category" stroke="#64748B" fontSize={10} fontFamily="JetBrains Mono" width={130} />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="active" name="Active Deployed %" fill="#7C5CFC" stackId="a" />
-                <Bar dataKey="reserve" name="Reserve Available %" fill="#334155" stackId="a" />
-              </BarChart>
-            </ResponsiveContainer>
->>>>>>> c94fd4e47b765461bb407b7bce72f7b8d8d3bca8
           </div>
         </div>
       </div>

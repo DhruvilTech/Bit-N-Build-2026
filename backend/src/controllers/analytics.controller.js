@@ -1,12 +1,7 @@
-<<<<<<< HEAD
-import { getOperationalMetrics } from '../services/analytics.service.js';
-=======
->>>>>>> c94fd4e47b765461bb407b7bce72f7b8d8d3bca8
-import { AnalyticsService } from '../services/analytics.service.js';
+import { getOperationalMetrics, AnalyticsService } from '../services/analytics.service.js';
 import { ShortageService } from '../services/shortage.service.js';
 import { successResponse } from '../utils/response.js';
 
-<<<<<<< HEAD
 export const getMetrics = async (_req, res, next) => {
   try {
     const data = await getOperationalMetrics();
@@ -19,8 +14,6 @@ export const getMetrics = async (_req, res, next) => {
   }
 };
 
-=======
->>>>>>> c94fd4e47b765461bb407b7bce72f7b8d8d3bca8
 export const getOverview = async (req, res, next) => {
   try {
     const { period, from, to } = req.query;
