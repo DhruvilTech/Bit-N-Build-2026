@@ -12,6 +12,7 @@ from app.utils.logger import logger
 from app.routes.health import router as health_router
 from app.routes.classification import router as classification_router
 from app.routes.duplicate_detection import router as duplicate_router
+from app.routes.ai_assistant import router as ai_assistant_router
 from app.services.embedding_service import embedding_service
 
 
@@ -100,6 +101,7 @@ async def generic_exception_handler(request: Request, exc: Exception):
 app.include_router(health_router)
 app.include_router(classification_router)
 app.include_router(duplicate_router)
+app.include_router(ai_assistant_router)
 
 
 @app.get("/")

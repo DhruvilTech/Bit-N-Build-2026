@@ -23,6 +23,9 @@ import {
   teamsApi,
   resourcesApi,
   facilitiesApi,
+  notificationsApi,
+  escalationsApi,
+  EscalationItem,
   getToken,
 } from '../services/api';
 import {
@@ -45,6 +48,8 @@ interface EmergencyContextType {
   equipment: EquipmentResource[];
   alerts: AlertItem[];
   notifications: NotificationItem[];
+  escalations: EscalationItem[];
+  activeEscalations: EscalationItem[];
   currentTime: string;
   currentDate: string;
   theme: 'dark' | 'light';
@@ -74,6 +79,8 @@ interface EmergencyContextType {
   getRelatedIncidents: (id: string) => Promise<any>;
   markNotificationAsRead: (id: string) => void;
   markAllNotificationsAsRead: () => void;
+  acknowledgeEscalation: (id: string) => Promise<any>;
+  resolveEscalation: (id: string, notes?: string) => Promise<any>;
   isLiveBackend: boolean;
   syncWithBackend: () => Promise<void>;
   stats: {
@@ -83,6 +90,8 @@ interface EmergencyContextType {
     availableVehicles: number;
     hospitalsAvailable: number;
     delayedResponses: number;
+    activeEscalations: number;
+    unreadNotifications: number;
   };
 }
 
@@ -96,6 +105,7 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [equipment, setEquipment] = useState<EquipmentResource[]>(INITIAL_EQUIPMENT);
   const [alerts, setAlerts] = useState<AlertItem[]>(INITIAL_ALERTS);
   const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
+  const [escalations, setEscalations] = useState<EscalationItem[]>([]);
 
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     try {
@@ -297,6 +307,65 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           );
         }
       });
+
+      // Phase 17 & 18: Notification Real-Time Sync
+      socket.on('notification:new', (payload: any) => {
+        soundFx.playDispatch();
+        let cat: 'Critical' | 'Teams' | 'Resources' | 'System' = 'System';
+        if (payload.type === 'CRITICAL_INCIDENT' || payload.type === 'ESCALATION') cat = 'Critical';
+        else if (payload.type === 'RESOURCE_ASSIGNMENT') cat = 'Teams';
+        else if (payload.type === 'RESOURCE_SHORTAGE') cat = 'Resources';
+
+        const item: NotificationItem = {
+          id: payload.notificationId || payload._id || `NTF-${Date.now()}`,
+          category: cat,
+          title: payload.title,
+          message: payload.message,
+          timestamp: new Date(payload.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          read: false,
+          incidentId: payload.entityId || payload.metadata?.incidentId,
+        };
+        setNotifications((prev) => [item, ...prev.filter((n) => n.id !== item.id)]);
+      });
+
+      socket.on('notification:read', (payload: any) => {
+        if (payload.all) {
+          setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+        } else if (payload.notificationId) {
+          setNotifications((prev) =>
+            prev.map((n) => (n.id === payload.notificationId ? { ...n, read: true } : n))
+          );
+        }
+      });
+
+      // Phase 16: Escalation Real-Time Sync
+      socket.on('escalation:created', (payload: any) => {
+        soundFx.playEmergencyAlert();
+        const esc: EscalationItem = payload.escalation;
+        if (esc) {
+          setEscalations((prev) => [esc, ...prev.filter((e) => e.escalationId !== esc.escalationId)]);
+        }
+      });
+
+      socket.on('escalation:acknowledged', (payload: any) => {
+        soundFx.playClick();
+        const esc: EscalationItem = payload.escalation;
+        if (esc) {
+          setEscalations((prev) =>
+            prev.map((e) => (e.escalationId === esc.escalationId ? esc : e))
+          );
+        }
+      });
+
+      socket.on('escalation:resolved', (payload: any) => {
+        soundFx.playSuccess();
+        const esc: EscalationItem = payload.escalation;
+        if (esc) {
+          setEscalations((prev) =>
+            prev.filter((e) => e.escalationId !== esc.escalationId && e._id !== esc._id)
+          );
+        }
+      });
     } catch (err: any) {
       console.warn('Socket connection deferred:', err.message);
     }
@@ -312,11 +381,13 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     if (!token) return;
 
     try {
-      const [incidentsRes, teamsRes, facilitiesRes, resourcesRes] = await Promise.allSettled([
+      const [incidentsRes, teamsRes, facilitiesRes, resourcesRes, notifsRes, escalationsRes] = await Promise.allSettled([
         incidentsApi.getAll(),
         teamsApi.getAll(),
         facilitiesApi.getAll(),
         resourcesApi.getAll(),
+        notificationsApi.getAll(),
+        escalationsApi.getActive(),
       ]);
 
       if (incidentsRes.status === 'fulfilled' && Array.isArray(incidentsRes.value) && incidentsRes.value.length > 0) {
@@ -337,6 +408,30 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
       if (resourcesRes.status === 'fulfilled' && Array.isArray(resourcesRes.value) && resourcesRes.value.length > 0) {
         setEquipment(adaptBackendResources(resourcesRes.value));
+      }
+
+      if (notifsRes.status === 'fulfilled' && notifsRes.value?.notifications) {
+        const adaptedNotifs: NotificationItem[] = notifsRes.value.notifications.map((n) => {
+          let cat: 'Critical' | 'Teams' | 'Resources' | 'System' = 'System';
+          if (n.type === 'CRITICAL_INCIDENT' || n.type === 'ESCALATION') cat = 'Critical';
+          else if (n.type === 'RESOURCE_ASSIGNMENT') cat = 'Teams';
+          else if (n.type === 'RESOURCE_SHORTAGE') cat = 'Resources';
+
+          return {
+            id: n.notificationId || n._id || `NTF-${Date.now()}`,
+            category: cat,
+            title: n.title,
+            message: n.message,
+            timestamp: new Date(n.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            read: Boolean(n.isRead),
+            incidentId: n.entityId || n.metadata?.incidentId,
+          };
+        });
+        setNotifications(adaptedNotifs);
+      }
+
+      if (escalationsRes.status === 'fulfilled' && Array.isArray(escalationsRes.value)) {
+        setEscalations(escalationsRes.value);
       }
 
       setIsLiveBackend(true);
@@ -433,6 +528,9 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const hospitalsAvailable = hospitals.filter((h) => !h.divertStatus && h.availableIcuBeds > 0).length;
     const delayedResponses = incidents.filter((i) => i.delayDetected && i.status !== 'Resolved').length;
 
+    const activeEscalations = escalations.filter((e) => e.status === 'PENDING' || e.status === 'ACKNOWLEDGED').length;
+    const unreadNotifications = notifications.filter((n) => !n.read).length;
+
     return {
       totalIncidents,
       criticalIncidents,
@@ -440,8 +538,10 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       availableVehicles,
       hospitalsAvailable,
       delayedResponses,
+      activeEscalations,
+      unreadNotifications,
     };
-  }, [incidents, teams, equipment, hospitals]);
+  }, [incidents, teams, equipment, hospitals, escalations, notifications]);
 
   const toggleTheme = useCallback(() => {
     soundFx.playClick();
@@ -792,15 +892,47 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, [syncWithBackend]);
 
-  const markNotificationAsRead = useCallback((id: string) => {
+  const markNotificationAsRead = useCallback(async (id: string) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
+    try {
+      await notificationsApi.markAsRead(id);
+    } catch (err: any) {
+      console.warn('Backend markAsRead note:', err.message);
+    }
   }, []);
 
-  const markAllNotificationsAsRead = useCallback(() => {
+  const markAllNotificationsAsRead = useCallback(async () => {
     soundFx.playClick();
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    try {
+      await notificationsApi.markAllAsRead();
+    } catch (err: any) {
+      console.warn('Backend markAllAsRead note:', err.message);
+    }
+  }, []);
+
+  const acknowledgeEscalation = useCallback(async (id: string) => {
+    soundFx.playClick();
+    const updated = await escalationsApi.acknowledge(id);
+    if (updated) {
+      setEscalations((prev) =>
+        prev.map((e) => (e.escalationId === id || e._id === id ? updated : e))
+      );
+    }
+    return updated;
+  }, []);
+
+  const resolveEscalation = useCallback(async (id: string, notes?: string) => {
+    soundFx.playSuccess();
+    const updated = await escalationsApi.resolve(id, notes);
+    if (updated) {
+      setEscalations((prev) =>
+        prev.filter((e) => e.escalationId !== id && e._id !== id)
+      );
+    }
+    return updated;
   }, []);
 
   // FULL EMERGENCY SIMULATION ENGINE (Hackathon Showcase Core)
@@ -954,6 +1086,10 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }, 1500);
   }, []);
 
+  const activeEscalations = useMemo(() => {
+    return escalations.filter((e) => e.status === 'PENDING' || e.status === 'ACKNOWLEDGED');
+  }, [escalations]);
+
   const value = {
     incidents,
     activeIncidentId,
@@ -964,6 +1100,8 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     equipment,
     alerts,
     notifications,
+    escalations,
+    activeEscalations,
     currentTime,
     currentDate,
     theme,
@@ -993,6 +1131,8 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     getRelatedIncidents,
     markNotificationAsRead,
     markAllNotificationsAsRead,
+    acknowledgeEscalation,
+    resolveEscalation,
     isLiveBackend,
     syncWithBackend,
     stats,

@@ -18,6 +18,23 @@ export const initSocketServer = (httpServer, clientOrigin = '*') => {
   ioInstance.on('connection', (socket) => {
     console.log(`[Socket.IO] Client connected: ${socket.id}`);
 
+    // Join room based on user role or id
+    socket.on('join', ({ userId, role } = {}) => {
+      if (userId) {
+        socket.join(`user:${userId}`);
+      }
+      if (role) {
+        socket.join(`role:${role}`);
+      }
+      socket.join('operations');
+    });
+
+    socket.on('join:incident', (incidentId) => {
+      if (incidentId) {
+        socket.join(`incident:${incidentId}`);
+      }
+    });
+
     socket.on('disconnect', (reason) => {
       console.log(`[Socket.IO] Client disconnected (${socket.id}): ${reason}`);
     });
@@ -175,6 +192,97 @@ export const emitIncidentOverridden = (incident, overrideEntry = null) => {
       overrideEntry,
       aiAnalysis: incident.aiAnalysis,
     });
+  }
+};
+
+/**
+ * Broadcast when an escalation is triggered
+ */
+export const emitEscalationCreated = (escalation, incident = null) => {
+  if (ioInstance) {
+    // Broadcast to targeted role room and operations console
+    if (escalation.targetRole) {
+      ioInstance.to(`role:${escalation.targetRole}`).emit('escalation:created', { escalation, incident });
+    }
+    ioInstance.to('operations').emit('escalation:created', { escalation, incident });
+    ioInstance.emit('escalation:created', { escalation, incident }); // Global fallback
+  }
+};
+
+/**
+ * Broadcast when an escalation is acknowledged
+ */
+export const emitEscalationAcknowledged = (escalation) => {
+  if (ioInstance) {
+    ioInstance.to('operations').emit('escalation:acknowledged', { escalation });
+    ioInstance.emit('escalation:acknowledged', { escalation });
+  }
+};
+
+/**
+ * Broadcast when an escalation is resolved
+ */
+export const emitEscalationResolved = (escalation) => {
+  if (ioInstance) {
+    ioInstance.to('operations').emit('escalation:resolved', { escalation });
+    ioInstance.emit('escalation:resolved', { escalation });
+  }
+};
+
+/**
+ * Broadcast a new notification to a specific user or role
+ */
+export const emitNotificationNew = (notification) => {
+  if (ioInstance) {
+    if (notification.userId) {
+      ioInstance.to(`user:${notification.userId}`).emit('notification:new', notification);
+    }
+    if (notification.targetRole && notification.targetRole !== 'ALL') {
+      ioInstance.to(`role:${notification.targetRole}`).emit('notification:new', notification);
+    }
+    ioInstance.to('operations').emit('notification:new', notification);
+    ioInstance.emit('notification:new', notification); // Global fallback
+  }
+};
+
+/**
+ * Broadcast when notifications are marked read
+ */
+export const emitNotificationRead = (data) => {
+  if (ioInstance) {
+    if (data.userId) {
+      ioInstance.to(`user:${data.userId}`).emit('notification:read', data);
+    }
+    ioInstance.emit('notification:read', data);
+  }
+};
+
+/**
+ * Broadcast transit delay alert
+ */
+export const emitResponseDelayed = (data) => {
+  if (ioInstance) {
+    ioInstance.to('operations').emit('incident:responseDelayed', data);
+    ioInstance.emit('incident:responseDelayed', data);
+  }
+};
+
+/**
+ * Broadcast resource shortage alert
+ */
+export const emitResourceShortage = (data) => {
+  if (ioInstance) {
+    ioInstance.to('operations').emit('resource:shortage', data);
+    ioInstance.emit('resource:shortage', data);
+  }
+};
+
+/**
+ * Broadcast AI summary generated
+ */
+export const emitAiSummaryGenerated = (summaryData) => {
+  if (ioInstance) {
+    ioInstance.to('operations').emit('ai:summaryGenerated', summaryData);
   }
 };
 

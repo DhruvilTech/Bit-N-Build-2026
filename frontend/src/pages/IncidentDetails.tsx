@@ -30,9 +30,11 @@ import {
   FileText,
   AlertOctagon,
   Check,
+  TrendingUp,
 } from 'lucide-react';
 
 import { soundFx } from '../utils/audio';
+import { aiApi, AiSummaryResult, escalationsApi, EscalationItem } from '../services/api';
 import { AiOverrideModal } from '../components/operations/AiOverrideModal';
 import { AddReportModal } from '../components/operations/AddReportModal';
 
@@ -52,6 +54,9 @@ export const IncidentDetails: React.FC = () => {
     addIncidentReport,
     mergeIncidents,
     getRelatedIncidents,
+    escalations,
+    acknowledgeEscalation,
+    resolveEscalation,
   } = useEmergency();
 
   const incident = incidents.find((inc) => inc.id === id) || incidents[0];
@@ -77,6 +82,63 @@ export const IncidentDetails: React.FC = () => {
   const [relatedData, setRelatedData] = useState<any>(null);
   const [isMerging, setIsMerging] = useState<boolean>(false);
   const [mergeFeedback, setMergeFeedback] = useState<string | null>(null);
+
+  // Phase 19: AI Emergency Summary State
+  const [summaryData, setSummaryData] = useState<AiSummaryResult | null>(null);
+  const [isLoadingSummary, setIsLoadingSummary] = useState<boolean>(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+
+  // Phase 16: Escalation State
+  const [incidentEscalations, setIncidentEscalations] = useState<EscalationItem[]>([]);
+  const [isActingOnEscalation, setIsActingOnEscalation] = useState<boolean>(false);
+
+  const handleGenerateSummary = async () => {
+    if (!incident?.id) return;
+    setIsLoadingSummary(true);
+    setSummaryError(null);
+    try {
+      const res = await aiApi.getIncidentSummary(incident.id);
+      setSummaryData(res);
+      soundFx.playDispatch();
+    } catch (err: any) {
+      setSummaryError(err.message || 'Failed to generate summary');
+    } finally {
+      setIsLoadingSummary(false);
+    }
+  };
+
+  const handleAcknowledge = async (escId: string) => {
+    setIsActingOnEscalation(true);
+    try {
+      await acknowledgeEscalation(escId);
+      const updated = await escalationsApi.getByIncident(incident.id);
+      setIncidentEscalations(updated);
+    } catch (e: any) {
+      console.warn('Acknowledge error:', e.message);
+    } finally {
+      setIsActingOnEscalation(false);
+    }
+  };
+
+  const handleResolve = async (escId: string) => {
+    setIsActingOnEscalation(true);
+    try {
+      await resolveEscalation(escId, 'Resolved via Incident Command Console');
+      const updated = await escalationsApi.getByIncident(incident.id);
+      setIncidentEscalations(updated);
+    } catch (e: any) {
+      console.warn('Resolve error:', e.message);
+    } finally {
+      setIsActingOnEscalation(false);
+    }
+  };
+
+  // Fetch escalations for this incident
+  useEffect(() => {
+    if (incident?.id) {
+      escalationsApi.getByIncident(incident.id).then(setIncidentEscalations).catch(() => {});
+    }
+  }, [incident?.id, escalations]);
 
   const handleTriggerAi = async () => {
     setIsAnalyzingAi(true);
@@ -664,6 +726,254 @@ export const IncidentDetails: React.FC = () => {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+          </div>
+
+          {/* Phase 19: AI Operational Emergency Summary Panel */}
+          <div className="p-5 sm:p-6 rounded-[18px] bg-white dark:bg-[rgba(11,14,19,0.78)] border border-purple-500/40 dark:border-[rgba(124,92,252,0.4)] backdrop-blur-[18px] shadow-lg dark:shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-white/10">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-700 dark:text-[#A78BFA]">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-display font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    AI EMERGENCY SUMMARY
+                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-700 dark:text-[#A78BFA] font-bold border border-purple-500/30">
+                      DECISION SUPPORT
+                    </span>
+                  </h3>
+                  <p className="text-[10px] font-mono text-slate-500">
+                    SCOPED OPERATIONAL DATA • ZERO SENSITIVE LEAKS
+                  </p>
+                </div>
+              </div>
+
+              <CyberButton
+                variant="ai"
+                size="sm"
+                onClick={handleGenerateSummary}
+                disabled={isLoadingSummary}
+                icon={<RefreshCw className={`w-3.5 h-3.5 ${isLoadingSummary ? 'animate-spin' : ''}`} />}
+              >
+                {isLoadingSummary ? 'Generating...' : summaryData ? 'Refresh' : 'Generate'}
+              </CyberButton>
+            </div>
+
+            {summaryError && (
+              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-300 font-mono text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{summaryError}</span>
+              </div>
+            )}
+
+            {!summaryData && !isLoadingSummary && !summaryError && (
+              <div className="py-6 text-center font-mono text-xs text-slate-500 space-y-2">
+                <p>Click "Generate" to synthesize a real-time 6-factor emergency briefing.</p>
+                <button
+                  onClick={handleGenerateSummary}
+                  className="px-3 py-1.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-700 dark:text-[#A78BFA] border border-purple-500/30 font-semibold inline-flex items-center gap-1.5 transition-colors"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Synthesize Briefing Now</span>
+                </button>
+              </div>
+            )}
+
+            {isLoadingSummary && (
+              <div className="py-8 flex flex-col items-center justify-center text-center space-y-2 font-mono text-xs text-purple-700 dark:text-[#A78BFA]">
+                <RefreshCw className="w-6 h-6 animate-spin text-purple-500" />
+                <span>Aggregating incident context and calculating response posture...</span>
+              </div>
+            )}
+
+            {summaryData && !isLoadingSummary && (
+              <div className="space-y-4 font-mono text-xs">
+                {/* 1. SITUATION */}
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/5">
+                  <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 block uppercase tracking-wider mb-1">
+                    SITUATION:
+                  </span>
+                  <p className="font-sans text-xs text-slate-800 dark:text-slate-200 leading-relaxed">
+                    {summaryData.situation}
+                  </p>
+                </div>
+
+                {/* 2. CURRENT RESPONSE & DELAYS */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="p-3 rounded-xl bg-cyan-50 dark:bg-cyan-950/20 border border-cyan-200 dark:border-cyan-800/30">
+                    <span className="text-[10px] font-bold text-cyan-700 dark:text-cyan-400 block uppercase mb-1">
+                      CURRENT RESPONSE:
+                    </span>
+                    <ul className="space-y-1 text-[11px] text-slate-700 dark:text-slate-300 font-sans">
+                      {summaryData.currentResponse.map((item, idx) => (
+                        <li key={idx} className="flex items-start gap-1">
+                          <span>•</span>
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/30">
+                    <span className="text-[10px] font-bold text-amber-700 dark:text-amber-400 block uppercase mb-1">
+                      DELAYS & BOTTLENECK:
+                    </span>
+                    <ul className="space-y-1 text-[11px] text-slate-700 dark:text-slate-300 font-sans">
+                      {summaryData.delays.map((item, idx) => (
+                        <li key={idx} className="flex items-start gap-1">
+                          <span>•</span>
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                {/* 3. RESOURCE STATUS & RISKS */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800/30">
+                    <span className="text-[10px] font-bold text-blue-700 dark:text-blue-400 block uppercase mb-1">
+                      RESOURCE STATUS:
+                    </span>
+                    <ul className="space-y-1 text-[11px] text-slate-700 dark:text-slate-300 font-sans">
+                      {summaryData.resourceStatus.map((item, idx) => (
+                        <li key={idx} className="flex items-start gap-1">
+                          <span>•</span>
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800/30">
+                    <span className="text-[10px] font-bold text-rose-700 dark:text-rose-400 block uppercase mb-1">
+                      KEY RISKS:
+                    </span>
+                    <ul className="space-y-1 text-[11px] text-slate-700 dark:text-slate-300 font-sans">
+                      {summaryData.risks.map((item, idx) => (
+                        <li key={idx} className="flex items-start gap-1">
+                          <span>•</span>
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                {/* 4. RECOMMENDED ACTIONS */}
+                <div className="p-3 rounded-xl bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800/30">
+                  <span className="text-[10px] font-bold text-purple-700 dark:text-[#A78BFA] block uppercase tracking-wider mb-1.5">
+                    RECOMMENDED ACTIONS:
+                  </span>
+                  <div className="space-y-1.5 font-sans text-xs">
+                    {summaryData.recommendedActions.map((action, idx) => (
+                      <div key={idx} className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-purple-600 dark:text-[#A78BFA] flex-shrink-0" />
+                        <span>{action}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-2 text-[10px] text-slate-500 flex justify-between items-center">
+                  <span>SOURCE: SCOPED MONGO CONTEXT &bull; STRICT CONTRACT</span>
+                  <span>GENERATED: {new Date(summaryData.generatedAt).toLocaleTimeString()}</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Phase 16: Active Escalation Engine & History */}
+          <div className="p-5 sm:p-6 rounded-[18px] bg-white dark:bg-[rgba(11,14,19,0.78)] border border-amber-500/30 dark:border-amber-500/30 backdrop-blur-[18px] shadow-lg dark:shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-white/10">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-700 dark:text-[#F5A623]">
+                  <AlertOctagon className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-display font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    ESCALATION ENGINE
+                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-[#F5A623] font-bold border border-amber-500/30">
+                      LEVEL 1 &bull; 2 &bull; 3
+                    </span>
+                  </h3>
+                  <p className="text-[10px] font-mono text-slate-500">
+                    AUTOMATED TIMEOUT & TACTICAL OVERSIGHT
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {incidentEscalations.length === 0 ? (
+              <div className="py-4 text-center font-mono text-xs text-slate-500">
+                No active escalations triggered for this incident. All response thresholds normal.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {incidentEscalations.map((esc) => (
+                  <div
+                    key={esc.escalationId}
+                    className={`p-3.5 rounded-xl border font-mono text-xs space-y-2 transition-all ${
+                      esc.status === 'PENDING'
+                        ? 'bg-amber-500/10 border-amber-500/40 text-amber-900 dark:text-amber-200'
+                        : esc.status === 'ACKNOWLEDGED'
+                        ? 'bg-blue-500/10 border-blue-500/40 text-blue-900 dark:text-blue-200'
+                        : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-900 dark:text-emerald-200'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-[11px] flex items-center gap-1.5">
+                        <span
+                          className={`w-2 h-2 rounded-full ${
+                            esc.level === 3
+                              ? 'bg-red-500 animate-ping'
+                              : esc.level === 2
+                              ? 'bg-amber-500'
+                              : 'bg-yellow-500'
+                          }`}
+                        />
+                        LEVEL {esc.level} &bull; TARGET: {esc.targetRole}
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-black/20 uppercase">
+                        {esc.status}
+                      </span>
+                    </div>
+
+                    <p className="font-sans text-xs">{esc.reason}</p>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-black/10 dark:border-white/10 text-[10px]">
+                      <span>Triggered: {new Date(esc.triggeredAt).toLocaleTimeString()}</span>
+
+                      <div className="flex items-center gap-2">
+                        {esc.status === 'PENDING' && (
+                          <button
+                            onClick={() => handleAcknowledge(esc.escalationId)}
+                            disabled={isActingOnEscalation}
+                            className="px-2.5 py-1 rounded bg-amber-500 hover:bg-amber-600 text-white font-bold transition-colors disabled:opacity-50"
+                          >
+                            Acknowledge
+                          </button>
+                        )}
+                        {esc.status === 'ACKNOWLEDGED' && (
+                          <button
+                            onClick={() => handleResolve(esc.escalationId)}
+                            disabled={isActingOnEscalation}
+                            className="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition-colors disabled:opacity-50"
+                          >
+                            Resolve
+                          </button>
+                        )}
+                        {esc.status === 'RESOLVED' && (
+                          <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1">
+                            <Check className="w-3 h-3" /> Resolved
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>

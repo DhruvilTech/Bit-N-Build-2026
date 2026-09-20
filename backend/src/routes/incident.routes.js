@@ -22,6 +22,7 @@ import {
   addIncidentReport,
   fetchRelatedIncidents,
 } from '../controllers/incident.controller.js';
+import { getIncidentEscalations } from '../controllers/escalation.controller.js';
 import { validate } from '../middleware/validate.middleware.js';
 import { authenticate, authorize } from '../middleware/auth.middleware.js';
 import {
@@ -218,6 +219,13 @@ router.post(
   authorize('ADMIN', 'OPERATOR'),
   validate(mergeIncidentsSchema),
   mergeIncidents
+);
+
+// 14. Fetch Incident Escalations History
+router.get(
+  '/:id/escalations',
+  authenticate,
+  getIncidentEscalations
 );
 
 export default router;

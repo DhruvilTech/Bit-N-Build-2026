@@ -558,3 +558,173 @@ export const auditLogsApi = {
     return res.data?.logs || [];
   },
 };
+
+// ==========================================
+// PHASES 16-20 API CLIENT EXTENSIONS
+// ==========================================
+
+export interface EscalationItem {
+  _id?: string;
+  escalationId: string;
+  incidentId: string;
+  level: number;
+  ruleId: string;
+  reason: string;
+  status: 'PENDING' | 'ACKNOWLEDGED' | 'RESOLVED' | 'CANCELLED';
+  targetRole: string;
+  triggeredAt: string;
+  acknowledgedAt?: string;
+  acknowledgedBy?: { userId?: string; name?: string; role?: string };
+  resolvedAt?: string;
+  resolvedBy?: { userId?: string; name?: string; role?: string };
+  metadata?: Record<string, any>;
+}
+
+export const escalationsApi = {
+  getAll: async (params?: { status?: string; level?: number; targetRole?: string; incidentId?: string }) => {
+    const query = params ? new URLSearchParams(params as any).toString() : '';
+    const res = await apiRequest<{ success: boolean; data: { escalations: EscalationItem[]; total: number } }>(
+      `/escalations${query ? `?${query}` : ''}`
+    );
+    return res.data?.escalations || [];
+  },
+
+  getActive: async (targetRole?: string) => {
+    const query = targetRole ? `?targetRole=${encodeURIComponent(targetRole)}` : '';
+    const res = await apiRequest<{ success: boolean; data: { escalations: EscalationItem[] } }>(
+      `/escalations/active${query}`
+    );
+    return res.data?.escalations || [];
+  },
+
+  getByIncident: async (incidentId: string) => {
+    const res = await apiRequest<{ success: boolean; data: { escalations: EscalationItem[] } }>(
+      `/escalations/incident/${incidentId}`
+    );
+    return res.data?.escalations || [];
+  },
+
+  acknowledge: async (escalationId: string) => {
+    const res = await apiRequest<{ success: boolean; data: { escalation: EscalationItem } }>(
+      `/escalations/${escalationId}/acknowledge`,
+      { method: 'POST' }
+    );
+    return res.data?.escalation;
+  },
+
+  resolve: async (escalationId: string, resolutionNotes?: string) => {
+    const res = await apiRequest<{ success: boolean; data: { escalation: EscalationItem } }>(
+      `/escalations/${escalationId}/resolve`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ resolutionNotes }),
+      }
+    );
+    return res.data?.escalation;
+  },
+};
+
+export interface NotificationApiItem {
+  _id?: string;
+  notificationId: string;
+  userId?: string;
+  targetRole: string;
+  type: string;
+  title: string;
+  message: string;
+  severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  entityType: string;
+  entityId?: string;
+  isRead: boolean;
+  readAt?: string;
+  createdAt: string;
+  metadata?: Record<string, any>;
+}
+
+export const notificationsApi = {
+  getAll: async (params?: { isRead?: boolean; limit?: number; page?: number }) => {
+    const query = params ? new URLSearchParams(params as any).toString() : '';
+    const res = await apiRequest<{
+      success: boolean;
+      data: {
+        notifications: NotificationApiItem[];
+        total: number;
+        unreadCount: number;
+      };
+    }>(`/notifications${query ? `?${query}` : ''}`);
+    return res.data;
+  },
+
+  markAsRead: async (notificationId: string) => {
+    const res = await apiRequest<{
+      success: boolean;
+      data: { success: boolean; notificationId: string; unreadCount: number };
+    }>(`/notifications/${notificationId}/read`, {
+      method: 'PATCH',
+    });
+    return res.data;
+  },
+
+  markAllAsRead: async () => {
+    const res = await apiRequest<{
+      success: boolean;
+      data: { success: boolean; unreadCount: number };
+    }>('/notifications/read-all', {
+      method: 'PATCH',
+    });
+    return res.data;
+  },
+};
+
+export interface AiSummaryResult {
+  situation: string;
+  currentResponse: string[];
+  resourceStatus: string[];
+  risks: string[];
+  delays: string[];
+  recommendedActions: string[];
+  generatedAt: string;
+}
+
+export interface AiChatResult {
+  intent: string;
+  answer: string;
+  data: Array<{
+    id: string;
+    title: string;
+    type: string;
+    status: string;
+    link?: string | null;
+  }>;
+  sources: string[];
+  generatedAt: string;
+}
+
+export const aiApi = {
+  getIncidentSummary: async (incidentId: string): Promise<AiSummaryResult> => {
+    const res = await apiRequest<{ success: boolean; data: AiSummaryResult }>(
+      '/ai/incident-summary',
+      {
+        method: 'POST',
+        body: JSON.stringify({ incidentId }),
+      }
+    );
+    return res.data;
+  },
+
+  chat: async (payload: {
+    message: string;
+    history?: Array<{ sender: string; text: string }>;
+    contextIncidentId?: string;
+  }): Promise<AiChatResult> => {
+    const res = await apiRequest<{ success: boolean; data: AiChatResult }>(
+      '/ai/chat',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }
+    );
+    return res.data;
+  },
+};
+

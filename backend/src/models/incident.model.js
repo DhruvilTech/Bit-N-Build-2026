@@ -177,6 +177,15 @@ const incidentSchema = new mongoose.Schema(
       default: {},
     },
     timeline: [timelineEventSchema],
+    delayDetected: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    delayMinutes: {
+      type: Number,
+      default: 0,
+    },
     resolvedAt: {
       type: Date,
       default: null,

@@ -3,6 +3,7 @@ import { ResponseTeamModel } from '../models/team.model.js';
 import { ResourceModel } from '../models/resource.model.js';
 import { IncidentModel } from '../models/incident.model.js';
 import { recordAuditLog } from './auditLog.service.js';
+import NotificationService from './notification.service.js';
 import { NotFoundError, BadRequestError, ConflictError } from '../utils/errors.js';
 
 export const getTeams = async (filters = {}, pagination = {}) => {
@@ -261,8 +262,23 @@ export const assignTeamToIncident = async (id, { incidentId, notes = '' }, user 
   // Cross-module synchronization: link team to Incident
   await IncidentModel.updateOne(
     { $or: [{ incidentId }, ...(mongoose.Types.ObjectId.isValid(incidentId) ? [{ _id: incidentId }] : [])] },
-    { $addToSet: { assignedResources: team.teamId } }
+    { $addToSet: { assignedResources: team.teamId, assignedTeams: team.teamId } }
   );
+
+  // Dispatch real-time operational notification
+  try {
+    await NotificationService.notifyRole('FIELD_COORDINATOR', {
+      type: 'RESOURCE_ASSIGNMENT',
+      title: `TEAM DISPATCHED: #${team.teamId}`,
+      message: `Team ${team.name} (${team.type}) dispatched to incident #${incidentId}`,
+      severity: 'MEDIUM',
+      entityType: 'TEAM',
+      entityId: team.teamId,
+      metadata: { incidentId, teamId: team.teamId },
+    });
+  } catch (notifErr) {
+    console.warn('[TeamService] Notification dispatch error:', notifErr.message);
+  }
 
   await recordAuditLog({
     user,

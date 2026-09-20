@@ -6,29 +6,47 @@ import {
   Bot,
   Send,
   Sparkles,
+  ExternalLink,
+  Trash2,
+  AlertTriangle,
+  RotateCcw,
+  CheckCircle2,
 } from 'lucide-react';
 import { soundFx } from '../utils/audio';
+import { aiApi, AiChatResult } from '../services/api';
+import { useNavigate } from 'react-router-dom';
 
 interface Message {
   id: string;
   sender: 'user' | 'ai';
   text: string;
   timestamp: string;
+  intent?: string;
+  data?: Array<{
+    id: string;
+    title: string;
+    type: string;
+    status: string;
+    link?: string | null;
+  }>;
+  isError?: boolean;
 }
 
 export const AIAssistant: React.FC = () => {
-  const { incidents, teams, hospitals, stats } = useEmergency();
+  const { stats } = useEmergency();
+  const navigate = useNavigate();
 
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'MSG-01',
       sender: 'ai',
-      text: `Greetings Operator. Response AI is operational and monitoring real-time disaster feeds. There are currently ${stats.totalIncidents} active incidents (${stats.criticalIncidents} Critical P1). How can I assist tactical decision-making?`,
-      timestamp: '13:40:10',
+      text: `Greetings Operator. Response AI Command Copilot is operational and monitoring real-time disaster feeds. There are currently ${stats.totalIncidents} active incidents (${stats.criticalIncidents} Critical P1, ${stats.activeEscalations || 0} Escalations). How can I assist tactical decision-making?`,
+      timestamp: new Date().toTimeString().slice(0, 8),
     },
   ]);
   const [input, setInput] = useState<string>('');
   const [isThinking, setIsThinking] = useState<boolean>(false);
+  const [lastPrompt, setLastPrompt] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -40,59 +58,21 @@ export const AIAssistant: React.FC = () => {
   }, [messages, isThinking]);
 
   const quickPrompts = [
-    'Summarize current emergency situation.',
+    'Show current critical incidents.',
+    'Which ambulances are available?',
     'Which incidents are currently delayed?',
-    'What are the critical P1 incidents?',
-    'Which teams and vehicles are available right now?',
-    'Report hospital ICU bed shortages.',
+    'Which hospitals have capacity?',
+    'Summarize the current emergency situation.',
+    'Which incidents are currently escalated?',
   ];
 
-  const generateAIResponse = (query: string): string => {
-    const q = query.toLowerCase();
-
-    if (q.includes('summarize') || q.includes('situation')) {
-      const topCritical = incidents.find((i) => i.severity === 'CRITICAL');
-      return `SITUATIONAL BRIEFING:\n• Active Incidents: ${stats.totalIncidents} monitored in real time.\n• Critical Threats: ${stats.criticalIncidents} rated P1 (${topCritical ? topCritical.title + ' in ' + topCritical.location.zone : 'None'}).\n• Field Readiness: ${stats.activeTeams} teams mobilized, ${stats.availableVehicles} reserve vehicles ready for dispatch.\n• Response Latency: ${stats.delayedResponses > 0 ? stats.delayedResponses + ' units flagged for transit bottleneck.' : 'All units operating within expected SLAs.'}`;
-    }
-
-    if (q.includes('delay')) {
-      const delayed = incidents.filter((i) => i.delayDetected);
-      if (delayed.length === 0) {
-        return `Positive status: No active incidents currently exceed SLA response benchmarks. Average transit time is 06m 12s across active zones.`;
-      }
-      return `ALERT: ${delayed.length} delayed responses detected:\n${delayed
-        .map((d) => `• #${d.id} (${d.title}): Transit duration exceeds baseline by +${d.delayMinutes || 6} min along ${d.location.zone}. Rerouting suggested.`)
-        .join('\n')}`;
-    }
-
-    if (q.includes('critical') || q.includes('p1')) {
-      const criticals = incidents.filter((i) => i.severity === 'CRITICAL');
-      return `CRITICAL INCIDENTS ROSTER (${criticals.length} Active):\n${criticals
-        .map((c) => `• #${c.id} [${c.type}]: ${c.title} at ${c.location.name}. AI Confidence: ${c.aiConfidence}%. Status: ${c.status}.`)
-        .join('\n')}`;
-    }
-
-    if (q.includes('team') || q.includes('available') || q.includes('vehicle')) {
-      const avail = teams.filter((t) => t.status === 'AVAILABLE');
-      return `AVAILABLE FIELD ASSETS (${avail.length} Units Ready):\n${avail
-        .map((t) => `• ${t.name} (${t.type}): Vehicle ${t.vehicleName} stationed at ${t.location.zone}. Fuel: ${t.batteryOrFuelLevel}%.`)
-        .join('\n')}`;
-    }
-
-    if (q.includes('hospital') || q.includes('bed') || q.includes('icu')) {
-      const diverting = hospitals.filter((h) => h.divertStatus);
-      const totalIcu = hospitals.reduce((acc, h) => acc + h.availableIcuBeds, 0);
-      return `MEDICAL SYSTEM CAPACITY:\n• Total Available ICU Beds: ${totalIcu} across 8 metro trauma facilities.\n• Divert Status: ${diverting.length > 0 ? diverting.map((h) => h.name).join(', ') + ' currently saturated.' : 'All trauma centers accepting priority casualties.'}`;
-    }
-
-    return `Telemetry acknowledged for query: "${query}". Cross-referencing 14 IoT seismic/atmospheric nodes and GPS trackers. Optimal command priority remains containment of active P1 hazards and mutual aid staging.`;
-  };
-
-  const handleSend = (textToSend?: string) => {
+  const handleSend = async (textToSend?: string) => {
     const text = textToSend || input;
-    if (!text.trim()) return;
+    if (!text.trim() || isThinking) return;
 
     soundFx.playClick();
+    setLastPrompt(text);
+
     const userMsg: Message = {
       id: `USER-${Date.now()}`,
       sender: 'user',
@@ -104,18 +84,48 @@ export const AIAssistant: React.FC = () => {
     setInput('');
     setIsThinking(true);
 
-    setTimeout(() => {
+    try {
+      const history = messages.slice(-4).map((m) => ({ sender: m.sender, text: m.text }));
+      const result: AiChatResult = await aiApi.chat({
+        message: text,
+        history,
+      });
+
       soundFx.playDispatch();
-      const aiReply = generateAIResponse(text);
       const aiMsg: Message = {
         id: `AI-${Date.now()}`,
         sender: 'ai',
-        text: aiReply,
+        text: result.answer,
         timestamp: new Date().toTimeString().slice(0, 8),
+        intent: result.intent,
+        data: result.data,
       };
       setMessages((prev) => [...prev, aiMsg]);
+    } catch (err: any) {
+      soundFx.playEmergencyAlert();
+      const errorMsg: Message = {
+        id: `AI-ERR-${Date.now()}`,
+        sender: 'ai',
+        text: `Command assistant encountered a temporary connectivity issue: ${err.message || 'AI service unavailable'}. Please verify backend network state and retry.`,
+        timestamp: new Date().toTimeString().slice(0, 8),
+        isError: true,
+      };
+      setMessages((prev) => [...prev, errorMsg]);
+    } finally {
       setIsThinking(false);
-    }, 650);
+    }
+  };
+
+  const handleClearHistory = () => {
+    soundFx.playClick();
+    setMessages([
+      {
+        id: `MSG-${Date.now()}`,
+        sender: 'ai',
+        text: 'Tactical session cleared. Response AI is ready for operational inquiries.',
+        timestamp: new Date().toTimeString().slice(0, 8),
+      },
+    ]);
   };
 
   return (
@@ -126,18 +136,26 @@ export const AIAssistant: React.FC = () => {
           <div className="flex items-center gap-2">
             <Bot className="w-5 h-5 text-[#7C5CFC]" />
             <h1 className="text-xl font-display font-bold text-slate-900 dark:text-white tracking-wider">
-              <TextScramble text="AI RESPONSE COPILOT // TACTICAL SYNTHESIS" duration={350} />
+              <TextScramble text="AI RESPONSE COPILOT // TACTICAL COMMAND" duration={350} />
             </h1>
           </div>
           <p className="text-xs font-mono text-slate-600 dark:text-slate-400 mt-1">
-            NEURAL DISASTER SYNTHESIS • CONVERSATIONAL TELEMETRY INTERROGATION
+            INTENT-DRIVEN TELEMETRY INTERROGATION • TARGETED OPERATIONAL CONTEXT
           </p>
         </div>
 
         <div className="flex items-center gap-2 font-mono text-xs">
+          <button
+            onClick={handleClearHistory}
+            title="Clear Chat History"
+            className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-white/[0.04] hover:bg-slate-200 dark:hover:bg-white/10 border border-slate-300 dark:border-white/10 text-slate-600 dark:text-slate-400 hover:text-red-500 transition-colors flex items-center gap-1"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Clear Log</span>
+          </button>
           <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#7C5CFC]/15 border border-[#7C5CFC]/40 text-purple-700 dark:text-[#A78BFA] font-semibold">
             <span className="w-1.5 h-1.5 rounded-full bg-[#7C5CFC] animate-pulse" />
-            MODEL: EMERGENCY-GPT-4v // OPERATIONAL
+            ONLINE // FAST-FAIL AI
           </span>
         </div>
       </div>
@@ -154,8 +172,14 @@ export const AIAssistant: React.FC = () => {
                 className={`flex gap-3 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 {msg.sender === 'ai' && (
-                  <div className="w-8 h-8 rounded-xl bg-[#7C5CFC]/20 border border-[#7C5CFC]/40 flex items-center justify-center text-purple-700 dark:text-[#A78BFA] flex-shrink-0">
-                    <Bot className="w-4 h-4" />
+                  <div
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                      msg.isError
+                        ? 'bg-red-500/20 border border-red-500/40 text-red-500'
+                        : 'bg-[#7C5CFC]/20 border border-[#7C5CFC]/40 text-purple-700 dark:text-[#A78BFA]'
+                    }`}
+                  >
+                    {msg.isError ? <AlertTriangle className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
                   </div>
                 )}
 
@@ -163,14 +187,62 @@ export const AIAssistant: React.FC = () => {
                   className={`max-w-xl p-4 rounded-2xl whitespace-pre-line leading-relaxed ${
                     msg.sender === 'user'
                       ? 'bg-teal-500/10 text-teal-900 dark:text-[#5EEAD4] border border-teal-500/30 rounded-tr-none'
+                      : msg.isError
+                      ? 'bg-red-500/10 text-red-900 dark:text-red-300 border border-red-500/30 rounded-tl-none font-sans text-xs'
                       : 'bg-slate-50 dark:bg-white/[0.03] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-white/10 rounded-tl-none font-sans text-xs'
                   }`}
                 >
                   <div className="flex items-center justify-between gap-4 mb-1 font-mono text-[10px] text-slate-500 dark:text-slate-400">
-                    <span>{msg.sender === 'user' ? 'OPERATOR' : 'RESPONSE AI'}</span>
+                    <span className="flex items-center gap-1.5 font-bold">
+                      {msg.sender === 'user' ? 'OPERATOR' : 'RESPONSE AI'}
+                      {msg.intent && (
+                        <span className="px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-700 dark:text-[#A78BFA] text-[9px] font-mono">
+                          {msg.intent}
+                        </span>
+                      )}
+                    </span>
                     <span>{msg.timestamp}</span>
                   </div>
                   <div>{msg.text}</div>
+
+                  {/* Interactive Structured Entity References */}
+                  {msg.data && msg.data.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-slate-200 dark:border-white/10 space-y-1.5">
+                      <div className="text-[10px] font-mono text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
+                        Operational Entity References:
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {msg.data.slice(0, 6).map((item, idx) => (
+                          <div
+                            key={idx}
+                            onClick={() => {
+                              if (item.link) navigate(item.link);
+                            }}
+                            className={`px-2.5 py-1 rounded-lg border text-[11px] font-mono flex items-center gap-1.5 transition-all ${
+                              item.link
+                                ? 'bg-purple-500/10 border-purple-500/30 text-purple-700 dark:text-[#A78BFA] hover:bg-purple-500/20 cursor-pointer'
+                                : 'bg-slate-100 dark:bg-white/5 border-slate-300 dark:border-white/10 text-slate-700 dark:text-slate-300'
+                            }`}
+                          >
+                            <span className="font-bold">{item.id}</span>
+                            <span>•</span>
+                            <span className="truncate max-w-[140px]">{item.title}</span>
+                            {item.link && <ExternalLink className="w-3 h-3" />}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {msg.isError && lastPrompt && (
+                    <button
+                      onClick={() => handleSend(lastPrompt)}
+                      className="mt-2.5 inline-flex items-center gap-1 px-2.5 py-1 rounded bg-red-500/20 hover:bg-red-500/30 text-red-600 dark:text-red-400 font-mono text-[11px] transition-colors"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      <span>Retry query</span>
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -182,7 +254,7 @@ export const AIAssistant: React.FC = () => {
                 </div>
                 <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 text-purple-700 dark:text-[#A78BFA] font-mono text-xs flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#7C5CFC] animate-ping" />
-                  Cross-referencing live telemetry and response status...
+                  Extracting scoped operational data and synthesizing response...
                 </div>
               </div>
             )}
@@ -195,7 +267,8 @@ export const AIAssistant: React.FC = () => {
               <button
                 key={i}
                 onClick={() => handleSend(prompt)}
-                className="px-2.5 py-1 rounded-lg bg-white dark:bg-white/[0.02] hover:bg-slate-200 dark:hover:bg-white/10 border border-slate-300 dark:border-white/10 text-[11px] font-mono text-slate-600 dark:text-slate-400 hover:text-teal-700 dark:hover:text-[#2DD4BF] whitespace-nowrap transition-colors"
+                disabled={isThinking}
+                className="px-2.5 py-1 rounded-lg bg-white dark:bg-white/[0.02] hover:bg-slate-200 dark:hover:bg-white/10 border border-slate-300 dark:border-white/10 text-[11px] font-mono text-slate-600 dark:text-slate-400 hover:text-teal-700 dark:hover:text-[#2DD4BF] whitespace-nowrap transition-colors disabled:opacity-50"
               >
                 {prompt}
               </button>
@@ -212,9 +285,10 @@ export const AIAssistant: React.FC = () => {
           >
             <input
               type="text"
-              placeholder="Inquire about incidents, resource shortages, ETA delays..."
+              placeholder="Inquire about incidents, available ambulances, delayed responses, ICU beds..."
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              disabled={isThinking}
               className="flex-1 px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-white/[0.04] border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 font-mono text-xs focus:outline-none focus:border-[#7C5CFC]/60 focus:ring-1 focus:ring-[#7C5CFC]/40"
             />
             <CyberButton
@@ -246,56 +320,29 @@ export const AIAssistant: React.FC = () => {
             </div>
 
             <h3 className="font-display font-bold text-slate-900 dark:text-white text-base">
-              NEURAL SITUATION AGENT
+              NEURAL COMMAND COPILOT
             </h3>
-            <p className="text-xs font-mono text-purple-700 dark:text-[#A78BFA] mt-1">STATUS: CONTINUOUS INGESTION</p>
+            <p className="text-xs font-mono text-purple-700 dark:text-[#A78BFA] mt-1 font-semibold">
+              TASK-SPECIFIC MINIMAL CONTEXT
+            </p>
 
-            {/* Audio Waveform Bars Simulation */}
-            <div className="flex items-center gap-1.5 h-8 my-4">
-              {[40, 75, 25, 90, 60, 85, 30, 95, 50, 70, 45, 80].map((height, i) => (
-                <div
-                  key={i}
-                  className="w-1 bg-gradient-to-t from-[#7C5CFC] to-[#2DD4BF] rounded-full transition-all duration-300"
-                  style={{
-                    height: `${isThinking ? height : Math.max(15, height * 0.4)}%`,
-                  }}
-                />
-              ))}
-            </div>
-
-            <div className="w-full pt-4 border-t border-slate-200 dark:border-white/5 grid grid-cols-2 gap-2 text-[11px] font-mono text-slate-500 dark:text-slate-400 text-left">
-              <div>
-                <span className="text-slate-500 dark:text-slate-400 block">LATENCY:</span>
-                <span className="text-emerald-700 dark:text-[#34D399] font-bold">18 ms</span>
+            <div className="w-full mt-6 pt-4 border-t border-slate-200 dark:border-white/10 text-left font-mono text-xs space-y-2.5 text-slate-600 dark:text-slate-400">
+              <div className="flex justify-between items-center">
+                <span>INTENT ROUTING:</span>
+                <span className="text-teal-700 dark:text-[#2DD4BF] font-bold">CONTROLLED MATRIX</span>
               </div>
-              <div>
-                <span className="text-slate-500 dark:text-slate-400 block">TRAINED ON:</span>
-                <span className="text-slate-900 dark:text-white font-bold">HAZMAT & NIMS</span>
+              <div className="flex justify-between items-center">
+                <span>DATABASE ACCESS:</span>
+                <span className="text-teal-700 dark:text-[#2DD4BF] font-bold">SCOPED PROJECTIONS</span>
               </div>
-            </div>
-          </div>
-
-          {/* Multimodal Drone Thermal Sensor Integration Card */}
-          <div className="rounded-[20px] overflow-hidden bg-white dark:bg-[rgba(11,14,19,0.85)] border border-slate-200 dark:border-white/10 shadow-lg dark:shadow-2xl">
-            <div className="relative h-40">
-              <img
-                src="/assets/drone_thermal_feed.jpg"
-                alt="Tactical FLIR Drone Feed"
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/30" />
-              <div className="absolute top-3 left-3 px-2 py-0.5 rounded bg-red-600/90 text-white font-mono text-[10px] font-bold flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
-                FLIR CAMERA #4 // 485°C
+              <div className="flex justify-between items-center">
+                <span>FAIL-SAFE HEURISTICS:</span>
+                <span className="text-emerald-600 dark:text-[#34D399] font-bold">ACTIVE</span>
               </div>
-              <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between text-[10px] font-mono text-white/90">
-                <span>AI VISION: HAZMAT ACTIVE</span>
-                <span className="text-[#2DD4BF] font-bold">96.4% CONF</span>
+              <div className="flex justify-between items-center">
+                <span>OPERATIONAL SAFETY:</span>
+                <span className="text-amber-600 dark:text-[#F5A623] font-bold">READ-ONLY SUPPORT</span>
               </div>
-            </div>
-            <div className="p-3 font-mono text-xs text-slate-600 dark:text-slate-400 border-t border-slate-200 dark:border-white/10 flex items-center justify-between">
-              <span>MULTIMODAL INGESTION</span>
-              <span className="text-emerald-700 dark:text-[#34D399] font-semibold">STREAM ACTIVE</span>
             </div>
           </div>
         </div>

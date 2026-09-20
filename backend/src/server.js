@@ -14,7 +14,26 @@ const startServer = async () => {
     const httpServer = http.createServer(app);
     initSocketServer(httpServer, env.CLIENT_URL || '*');
 
-    // 3. Start Listening
+    // 3. Start Periodic Escalation Evaluator
+    let isEvaluating = false;
+    const runEscalationScheduler = async () => {
+      if (isEvaluating) return;
+      isEvaluating = true;
+      try {
+        const { default: EscalationService } = await import('./services/escalation.service.js');
+        await EscalationService.evaluateAllActiveIncidents();
+      } catch (e) {
+        console.error('[EscalationScheduler] Check error:', e.message);
+      } finally {
+        isEvaluating = false;
+      }
+    };
+
+    // Run first check 5s after startup, then every 60s
+    setTimeout(runEscalationScheduler, 5000);
+    const escalationInterval = setInterval(runEscalationScheduler, 60000);
+
+    // 4. Start Listening
     const server = httpServer.listen(env.PORT, () => {
       console.log('====================================================');
       console.log(`🚀 PS-9 EMERGENCY BACKEND IS RUNNING`);
@@ -29,6 +48,7 @@ const startServer = async () => {
     // Graceful Shutdown
     const handleShutdown = (signal) => {
       console.log(`\n[Shutdown] Received ${signal}. Closing server gracefully...`);
+      clearInterval(escalationInterval);
       server.close(() => {
         console.log('[Shutdown] HTTP server closed.');
         process.exit(0);

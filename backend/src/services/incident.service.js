@@ -23,6 +23,8 @@ import {
   clusterIncidentsWithAi,
   analyzeIncidentPipeline,
 } from './ai.service.js';
+import NotificationService from './notification.service.js';
+import EscalationService from './escalation.service.js';
 
 // Safe Status Lifecycle Transition Rules
 export const VALID_STATUS_TRANSITIONS = {
@@ -203,6 +205,24 @@ export const createIncident = async (data, user = null) => {
   // Broadcast real-time WebSocket event
   emitIncidentNew(incident);
 
+  // Dispatch operational notification if Critical or P1
+  if (incident.severity === 'CRITICAL' || incident.priority === 'P1') {
+    NotificationService.notifyRole('OPERATOR', {
+      type: 'CRITICAL_INCIDENT',
+      title: `CRITICAL INCIDENT: #${incident.incidentId}`,
+      message: `${incident.title} at ${incident.location?.address || 'Incident location'}. Immediate response required.`,
+      severity: 'CRITICAL',
+      entityType: 'INCIDENT',
+      entityId: incident.incidentId,
+      metadata: { incidentId: incident.incidentId, priority: incident.priority, severity: incident.severity },
+    }).catch((e) => console.warn('[Notification] Critical incident dispatch note:', e.message));
+  }
+
+  // Initial escalation evaluation (e.g. unassigned P1)
+  EscalationService.evaluateIncident(incident).catch((e) =>
+    console.warn('[Escalation] Initial evaluation note:', e.message)
+  );
+
   // Asynchronously trigger AI incident classification without blocking response
   runAiAnalysisOnIncident(incident, user).catch((err) => {
     console.error(`[AI Trigger Error] Background classification failed for #${incident.incidentId}:`, err);
@@ -219,6 +239,23 @@ export const updateIncident = async (id, data, user = null) => {
   if (data.type) incident.type = data.type;
   if (data.severity) incident.severity = data.severity;
   if (data.priority) incident.priority = data.priority;
+  if (data.delayDetected !== undefined) {
+    incident.delayDetected = Boolean(data.delayDetected);
+    if (data.delayMinutes !== undefined) {
+      incident.delayMinutes = Number(data.delayMinutes);
+    }
+    if (incident.delayDetected) {
+      NotificationService.notifyRole('OPERATOR', {
+        type: 'RESPONSE_DELAY',
+        title: `RESPONSE DELAY: #${incident.incidentId}`,
+        message: `Transit delay detected for ${incident.title}. Exceeding SLA benchmark by +${incident.delayMinutes || 6} min.`,
+        severity: 'HIGH',
+        entityType: 'INCIDENT',
+        entityId: incident.incidentId,
+        metadata: { incidentId: incident.incidentId, delayMinutes: incident.delayMinutes },
+      }).catch((e) => console.warn('[Notification] Delay alert note:', e.message));
+    }
+  }
   if (data.metadata) {
     incident.metadata = { ...incident.metadata, ...data.metadata };
   }
@@ -245,6 +282,11 @@ export const updateIncident = async (id, data, user = null) => {
   });
 
   emitIncidentUpdated(incident);
+
+  // Evaluate escalation rules on updated incident
+  EscalationService.evaluateIncident(incident).catch((e) =>
+    console.warn('[Escalation] Update evaluation note:', e.message)
+  );
 
   return incident;
 };
