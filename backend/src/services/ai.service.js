@@ -204,6 +204,10 @@ export const checkDuplicatePairWithAi = async (incidentA, incidentB, overrideUrl
     }
 
     const data = await response.json();
+    if (Array.isArray(data.reasoning)) {
+      data.reasoningList = data.reasoning;
+      data.reasoning = data.reasoning.join('. ');
+    }
     return { success: true, data };
   } catch (error) {
     const isTimeout = error.name === 'AbortError';
@@ -220,7 +224,7 @@ export const checkDuplicatePairWithAi = async (incidentA, incidentB, overrideUrl
  * Scans a target incident against a candidate pool of incidents to find duplicates and related events.
  * @param {Object} incident - Target incident to check
  * @param {Array<Object>} candidates - Pool of candidate incidents
- * @param {string} [minClassification='RELATED'] - Minimum match level ('DUPLICATE' | 'RELATED')
+ * @param {string|number} [minClassification='RELATED'] - Minimum match level ('DUPLICATE' | 'RELATED')
  * @param {string} [overrideUrl]
  * @returns {Promise<{ success: boolean, data?: any, error?: string }>}
  */
@@ -237,8 +241,10 @@ export const findDuplicatesWithAi = async (
         data: {
           incident_id: incident.incidentId || incident._id?.toString() || 'INC-TARGET',
           total_candidates: 0,
+          total_matches: 0,
           duplicates: [],
           related: [],
+          matches: [],
           has_duplicates: false,
           top_match: null,
         },
@@ -259,9 +265,8 @@ export const findDuplicatesWithAi = async (
         Accept: 'application/json',
       },
       body: JSON.stringify({
-        incident: formattedTarget,
+        target: formattedTarget,
         candidates: formattedCandidates,
-        min_classification: minClassification,
       }),
       signal: controller.signal,
     });
@@ -275,8 +280,31 @@ export const findDuplicatesWithAi = async (
       };
     }
 
-    const data = await response.json();
-    return { success: true, data };
+    const rawData = await response.json();
+    const rawMatches = rawData.matches || [];
+
+    const matches = rawMatches.map((m) => ({
+      ...m,
+      reasoning: Array.isArray(m.reasoning) ? m.reasoning.join('. ') : m.reasoning,
+    }));
+
+    const duplicates = matches.filter((m) => m.classification === 'DUPLICATE');
+    const related = matches.filter((m) => m.classification === 'RELATED');
+    const topMatch = matches.length > 0 ? matches[0] : null;
+
+    return {
+      success: true,
+      data: {
+        incident_id: rawData.target_id,
+        total_candidates: rawData.total_candidates,
+        total_matches: rawData.total_matches,
+        matches,
+        duplicates,
+        related,
+        has_duplicates: duplicates.length > 0,
+        top_match: topMatch,
+      },
+    };
   } catch (error) {
     const isTimeout = error.name === 'AbortError';
     const message = isTimeout
@@ -291,13 +319,13 @@ export const findDuplicatesWithAi = async (
 /**
  * Clusters a batch of incidents using graph-connected components and multi-factor similarity.
  * @param {Array<Object>} incidents - Array of incident objects to cluster
- * @param {string} [clusterThreshold='RELATED'] - Threshold for connecting components ('DUPLICATE' | 'RELATED')
+ * @param {number} [clusterThreshold] - Threshold for connecting components
  * @param {string} [overrideUrl]
  * @returns {Promise<{ success: boolean, data?: any, error?: string }>}
  */
 export const clusterIncidentsWithAi = async (
   incidents = [],
-  clusterThreshold = 'RELATED',
+  clusterThreshold = null,
   overrideUrl = null
 ) => {
   try {
@@ -306,6 +334,7 @@ export const clusterIncidentsWithAi = async (
         success: true,
         data: {
           total_incidents: 0,
+          total_clusters: 0,
           cluster_count: 0,
           clusters: [],
           unclustered: [],
@@ -318,6 +347,10 @@ export const clusterIncidentsWithAi = async (
     const timeoutId = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS * 2);
 
     const formattedIncidents = incidents.map(formatIncidentForAi);
+    const bodyPayload = { incidents: formattedIncidents };
+    if (typeof clusterThreshold === 'number') {
+      bodyPayload.cluster_threshold = clusterThreshold;
+    }
 
     const response = await fetch(`${baseUrl}/api/v1/incidents/cluster`, {
       method: 'POST',
@@ -325,10 +358,7 @@ export const clusterIncidentsWithAi = async (
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
-      body: JSON.stringify({
-        incidents: formattedIncidents,
-        cluster_threshold: clusterThreshold,
-      }),
+      body: JSON.stringify(bodyPayload),
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
@@ -341,8 +371,16 @@ export const clusterIncidentsWithAi = async (
       };
     }
 
-    const data = await response.json();
-    return { success: true, data };
+    const rawData = await response.json();
+    return {
+      success: true,
+      data: {
+        total_incidents: rawData.total_incidents,
+        total_clusters: rawData.total_clusters,
+        cluster_count: rawData.total_clusters,
+        clusters: rawData.clusters || [],
+      },
+    };
   } catch (error) {
     const isTimeout = error.name === 'AbortError';
     const message = isTimeout
