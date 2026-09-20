@@ -4,6 +4,7 @@ import { useEmergency } from '../context/EmergencyContext';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { CyberButton } from '../components/ui/CyberButton';
 import { EmergencyMap } from '../components/map/EmergencyMap';
+import { ActiveResponsePanel } from '../components/operations/ActiveResponsePanel';
 import { TextScramble } from '../components/motion/TextScramble';
 import {
   ArrowLeft,
@@ -1040,6 +1041,7 @@ export const IncidentDetails: React.FC = () => {
               <span>LAT: {incident.location.lat.toFixed(4)} | LNG: {incident.location.lng.toFixed(4)}</span>
             </div>
             <EmergencyMap height="340px" selectedIncidentId={incident.id} showAllControls={false} />
+            <ActiveResponsePanel />
           </div>
 
           {/* Aggregated Multi-Source Intelligence Stream */}

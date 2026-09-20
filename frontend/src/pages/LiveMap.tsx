@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { EmergencyMap } from '../components/map/EmergencyMap';
+import { ActiveResponsePanel } from '../components/operations/ActiveResponsePanel';
 import { useEmergency } from '../context/EmergencyContext';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { TextScramble } from '../components/motion/TextScramble';
@@ -42,9 +43,10 @@ export const LiveMap: React.FC = () => {
 
       {/* Main Map + Side Telemetry Panel */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Full Interactive Map Container */}
-        <div className="lg:col-span-8">
-          <EmergencyMap height="680px" selectedIncidentId={activeIncidentId} />
+        {/* Full Interactive Map Container & GPS Tracking Panel */}
+        <div className="lg:col-span-8 space-y-6">
+          <EmergencyMap height="560px" selectedIncidentId={activeIncidentId} />
+          <ActiveResponsePanel />
         </div>
 
         {/* Side Tactical Telemetry & Quick Locator */}
