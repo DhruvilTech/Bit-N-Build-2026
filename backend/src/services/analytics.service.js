@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 /**
  * Analytics and Operational Intelligence Service (EmergenX Analytics)
  * Computes dynamic metrics and aggregations across MongoDB incidents,
@@ -155,6 +156,13 @@ import { AssignmentModel } from '../models/assignment.model.js';
 export class AnalyticsService {
   static getOperationalMetrics = getOperationalMetrics;
 
+=======
+import { IncidentModel } from '../models/incident.model.js';
+import { ResourceModel } from '../models/resource.model.js';
+import { AssignmentModel } from '../models/assignment.model.js';
+
+export class AnalyticsService {
+>>>>>>> c94fd4e47b765461bb407b7bce72f7b8d8d3bca8
   /**
    * Helper to parse date filter options
    */
