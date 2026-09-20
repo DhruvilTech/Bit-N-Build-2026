@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { FacilityModel } from '../models/facility.model.js';
 import { recordAuditLog } from './auditLog.service.js';
 import { NotFoundError, BadRequestError, ConflictError } from '../utils/errors.js';
+import NotificationService from './notification.service.js';
 
 export const getFacilities = async (filters = {}, pagination = {}) => {
   const query = {};
@@ -203,6 +204,17 @@ export const updateFacilityCapacity = async (id, { availableCapacity, delta, cap
 
   await facility.save();
 
+  if (facility.status === 'AT_CAPACITY' || newAvailable === 0) {
+    NotificationService.dispatchEventNotification('HOSPITAL_CAPACITY_WARNING', {
+      title: `CAPACITY WARNING: ${facility.name} at Capacity`,
+      message: `${facility.name} has 0 available beds remaining (0/${facility.capacity}). Diverting non-critical admissions.`,
+      entityType: 'FACILITY',
+      entityId: facility.facilityId,
+      metadata: { facilityId: facility.facilityId, availableCapacity: newAvailable, totalCapacity: facility.capacity },
+      cooldownSeconds: 180,
+    }).catch((e) => console.warn('[Notification] Facility capacity warning dispatch note:', e.message));
+  }
+
   await recordAuditLog({
     user,
     action: 'FACILITY_CAPACITY_UPDATED',
@@ -233,6 +245,17 @@ export const updateEmergencyStatus = async (id, { emergencyStatus, status }, use
   if (status) facility.status = status;
 
   await facility.save();
+
+  if (facility.emergencyStatus === 'CRITICAL' || facility.status === 'DIVERT') {
+    NotificationService.dispatchEventNotification('HOSPITAL_CAPACITY_WARNING', {
+      title: `FACILITY ALERT: ${facility.name} status is ${facility.emergencyStatus || facility.status}`,
+      message: `${facility.name} has updated operational status to ${facility.emergencyStatus || facility.status}. Diverting non-critical transport.`,
+      entityType: 'FACILITY',
+      entityId: facility.facilityId,
+      metadata: { facilityId: facility.facilityId, emergencyStatus: facility.emergencyStatus, status: facility.status },
+      cooldownSeconds: 180,
+    }).catch((e) => console.warn('[Notification] Facility alert dispatch note:', e.message));
+  }
 
   await recordAuditLog({
     user,

@@ -1032,31 +1032,58 @@ export const escalationsApi = {
 export interface NotificationApiItem {
   _id?: string;
   notificationId: string;
+  recipient?: string;
   userId?: string;
   targetRole: string;
   type: string;
   title: string;
   message: string;
   severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  priority?: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO';
   entityType: string;
   entityId?: string;
+  incidentId?: string;
+  alertId?: string;
+  assignmentId?: string;
   isRead: boolean;
   readAt?: string;
   createdAt: string;
+  expiresAt?: string;
   metadata?: Record<string, any>;
 }
 
 export const notificationsApi = {
-  getAll: async (params?: { isRead?: boolean; limit?: number; page?: number }) => {
+  getAll: async (params?: {
+    isRead?: boolean;
+    unread?: boolean;
+    type?: string;
+    severity?: string;
+    limit?: number;
+    page?: number;
+  }) => {
     const query = params ? new URLSearchParams(params as any).toString() : '';
     const res = await apiRequest<{
       success: boolean;
       data: {
         notifications: NotificationApiItem[];
+        pagination?: {
+          page: number;
+          limit: number;
+          total: number;
+          pages: number;
+        };
         total: number;
         unreadCount: number;
       };
     }>(`/notifications${query ? `?${query}` : ''}`);
+    return res.data;
+  },
+
+  getUnreadCount: async (): Promise<{ count: number }> => {
+    const res = await apiRequest<{
+      success: boolean;
+      data: { count: number };
+    }>('/notifications/unread-count');
     return res.data;
   },
 
@@ -1076,6 +1103,16 @@ export const notificationsApi = {
       data: { success: boolean; unreadCount: number };
     }>('/notifications/read-all', {
       method: 'PATCH',
+    });
+    return res.data;
+  },
+
+  delete: async (notificationId: string) => {
+    const res = await apiRequest<{
+      success: boolean;
+      data: { success: boolean; notificationId: string; unreadCount: number };
+    }>(`/notifications/${notificationId}`, {
+      method: 'DELETE',
     });
     return res.data;
   },

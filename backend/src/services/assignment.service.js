@@ -34,6 +34,7 @@ import {
   emitRouteCreated,
   emitIncidentTimeline,
 } from '../utils/socket.js';
+import NotificationService from './notification.service.js';
 
 // Legal Assignment Status Transitions (Phase 10 & GPS Return)
 export const VALID_ASSIGNMENT_TRANSITIONS = {
@@ -342,6 +343,16 @@ export const assignResourcesToIncident = async (
 
     emitResourceAssigned(incident.incidentId, asg);
 
+    NotificationService.dispatchEventNotification('RESOURCE_ASSIGNED', {
+      title: `Unit ${asg.resourceName || asg.resourceId} Assigned`,
+      message: `Assigned to Incident #${incident.incidentId} (${incident.title}). ETA: ${asg.estimatedArrivalMinutes || 5} min.`,
+      entityType: 'RESOURCE',
+      entityId: asg.resourceId,
+      incidentId: incident.incidentId,
+      assignmentId: asg.assignmentId,
+      metadata: { incidentId: incident.incidentId, resourceId: asg.resourceId, assignmentId: asg.assignmentId },
+    }).catch((e) => console.warn('[Notification] Resource assigned dispatch note:', e.message));
+
     if (asg.route && asg.route.geometry?.length > 0) {
       emitRouteCreated({
         assignmentId: asg.assignmentId,
@@ -551,6 +562,42 @@ export const updateAssignmentStatus = async (
   emitResponseStatusChanged(assignment);
   if (newStatus === 'COMPLETED' || newStatus === 'CANCELLED') {
     emitResourceReleased(assignment.incidentId, assignment.resourceId, assignment.assignmentId);
+  }
+
+  // Operational event notifications
+  if (newStatus === 'DISPATCHED') {
+    NotificationService.dispatchEventNotification('RESOURCE_DISPATCHED', {
+      title: `Unit Dispatched: ${assignment.resourceName || assignment.resourceId}`,
+      message: `${assignment.resourceName || assignment.resourceId} dispatched to Incident #${assignment.incidentId}.`,
+      entityType: 'RESOURCE',
+      entityId: assignment.resourceId,
+      incidentId: assignment.incidentId,
+      assignmentId: assignment.assignmentId,
+      metadata: { incidentId: assignment.incidentId, resourceId: assignment.resourceId },
+    }).catch((e) => console.warn('[Notification] Resource dispatched note:', e.message));
+  } else if (newStatus === 'ON_SCENE') {
+    NotificationService.dispatchEventNotification('RESOURCE_ARRIVED', {
+      title: `Unit Arrived: ${assignment.resourceName || assignment.resourceId}`,
+      message: `${assignment.resourceName || assignment.resourceId} is ON SCENE at Incident #${assignment.incidentId}. Response time: ${assignment.responseTimeMinutes || 0} min.`,
+      entityType: 'RESOURCE',
+      entityId: assignment.resourceId,
+      incidentId: assignment.incidentId,
+      assignmentId: assignment.assignmentId,
+      metadata: { incidentId: assignment.incidentId, resourceId: assignment.resourceId },
+    }).catch((e) => console.warn('[Notification] Resource arrived note:', e.message));
+  }
+
+  if (assignment.delayMinutes && assignment.delayMinutes > 0) {
+    NotificationService.dispatchEventNotification('RESPONSE_DELAY', {
+      title: `Response Delay: ${assignment.resourceName || assignment.resourceId}`,
+      message: `${assignment.resourceName || assignment.resourceId} delayed by +${assignment.delayMinutes} min on Incident #${assignment.incidentId}.`,
+      entityType: 'RESOURCE',
+      entityId: assignment.resourceId,
+      incidentId: assignment.incidentId,
+      assignmentId: assignment.assignmentId,
+      metadata: { incidentId: assignment.incidentId, resourceId: assignment.resourceId, delayMinutes: assignment.delayMinutes },
+      cooldownSeconds: 120,
+    }).catch((e) => console.warn('[Notification] Delay alert note:', e.message));
   }
 
   return assignment;

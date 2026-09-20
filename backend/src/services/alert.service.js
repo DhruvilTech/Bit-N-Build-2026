@@ -8,6 +8,7 @@ import { recordAuditLog } from './auditLog.service.js';
 import { emitAlertNew, emitAlertAcknowledged, emitAlertResolved, emitIncidentTimeline } from '../utils/socket.js';
 import { NotFoundError, BadRequestError } from '../utils/errors.js';
 import { env } from '../config/env.js';
+import NotificationService from './notification.service.js';
 
 /**
  * Deterministic Alert Engine: Create or retrieve existing active alert
@@ -113,6 +114,19 @@ export const createAlert = async ({
     entityId: alert.alertId,
     metadata: { type, severity, incidentId, assignmentId, title },
   });
+
+  // 5. Operational Event Notification
+  NotificationService.dispatchEventNotification('ALERT_CREATED', {
+    title: `Alert [${severity}]: ${title}`,
+    message,
+    entityType: 'ALERT',
+    entityId: alert.alertId,
+    incidentId: alert.incidentId,
+    alertId: alert.alertId,
+    assignmentId: alert.assignmentId,
+    metadata: { alertId: alert.alertId, severity, type },
+    cooldownSeconds: 60,
+  }).catch((e) => console.warn('[Notification] Alert created dispatch note:', e.message));
 
   return { alert, isNew: true };
 };
@@ -346,6 +360,19 @@ export const acknowledgeAlert = async (id, user = null, note = '') => {
 
   // Socket notification
   emitAlertAcknowledged(alert);
+
+  // Operational notification
+  NotificationService.dispatchEventNotification('ALERT_ACKNOWLEDGED', {
+    title: `Alert Acknowledged: ${alert.title}`,
+    message: `Alert #${alert.alertId} acknowledged by ${user?.name || 'Operator'}.`,
+    entityType: 'ALERT',
+    entityId: alert.alertId,
+    incidentId: alert.incidentId,
+    alertId: alert.alertId,
+    assignmentId: alert.assignmentId,
+    metadata: { alertId: alert.alertId, status: alert.status },
+    cooldownSeconds: 60,
+  }).catch((e) => console.warn('[Notification] Alert acknowledged dispatch note:', e.message));
 
   // Audit log
   await recordAuditLog({

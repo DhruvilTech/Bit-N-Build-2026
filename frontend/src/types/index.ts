@@ -245,6 +245,12 @@ export interface NotificationItem {
   timestamp: string;
   read: boolean;
   incidentId?: string;
+  alertId?: string;
+  assignmentId?: string;
+  resourceId?: string;
+  severity?: string;
+  priority?: string;
+  type?: string;
 }
 
 export interface EmergencyScenario {

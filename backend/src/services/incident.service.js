@@ -394,17 +394,25 @@ export const createIncident = async (data, user = null) => {
   // Broadcast real-time WebSocket event
   emitIncidentNew(incident);
 
-  // Dispatch operational notification if Critical or P1
+  // Dispatch operational notification
   if (incident.severity === 'CRITICAL' || incident.priority === 'P1') {
-    NotificationService.notifyRole('OPERATOR', {
-      type: 'CRITICAL_INCIDENT',
+    NotificationService.dispatchEventNotification('INCIDENT_CRITICAL', {
       title: `CRITICAL INCIDENT: #${incident.incidentId}`,
       message: `${incident.title} at ${incident.location?.address || 'Incident location'}. Immediate response required.`,
-      severity: 'CRITICAL',
       entityType: 'INCIDENT',
       entityId: incident.incidentId,
+      incidentId: incident.incidentId,
       metadata: { incidentId: incident.incidentId, priority: incident.priority, severity: incident.severity },
     }).catch((e) => console.warn('[Notification] Critical incident dispatch note:', e.message));
+  } else {
+    NotificationService.dispatchEventNotification('INCIDENT_CREATED', {
+      title: `Incident Logged: #${incident.incidentId}`,
+      message: `${incident.title} reported at ${incident.location?.address || 'Area'}.`,
+      entityType: 'INCIDENT',
+      entityId: incident.incidentId,
+      incidentId: incident.incidentId,
+      metadata: { incidentId: incident.incidentId, priority: incident.priority, severity: incident.severity },
+    }).catch((e) => console.warn('[Notification] Incident creation dispatch note:', e.message));
   }
 
   // Initial escalation evaluation (e.g. unassigned P1)
@@ -548,6 +556,27 @@ export const updateIncidentStatus = async (id, newStatus, reason = null, user = 
   });
 
   emitIncidentStatusChanged(incident);
+
+  // Dispatch operational notification for status transitions
+  if (newStatus === 'RESOLVED') {
+    NotificationService.dispatchEventNotification('INCIDENT_RESOLVED', {
+      title: `Incident Resolved: #${incident.incidentId}`,
+      message: `Incident #${incident.incidentId} (${incident.title}) has been resolved.`,
+      entityType: 'INCIDENT',
+      entityId: incident.incidentId,
+      incidentId: incident.incidentId,
+      metadata: { incidentId: incident.incidentId, status: newStatus },
+    }).catch((e) => console.warn('[Notification] Incident resolved dispatch note:', e.message));
+  } else {
+    NotificationService.dispatchEventNotification('INCIDENT_UPDATED', {
+      title: `Incident #${incident.incidentId} Status: ${newStatus}`,
+      message: `Status transitioned from ${currentStatus} to ${newStatus}${reason ? `: ${reason}` : ''}`,
+      entityType: 'INCIDENT',
+      entityId: incident.incidentId,
+      incidentId: incident.incidentId,
+      metadata: { incidentId: incident.incidentId, previousStatus: currentStatus, newStatus },
+    }).catch((e) => console.warn('[Notification] Incident status dispatch note:', e.message));
+  }
 
   return incident;
 };
@@ -846,6 +875,29 @@ export const runAiAnalysisOnIncident = async (incidentDoc, user = null) => {
         emitIncidentDuplicateDetected(incidentDoc, aiData.duplicate);
       }
       emitIncidentUpdated(incidentDoc);
+
+      // Operational notification for AI triage result
+      if (aiData.severity?.level === 'CRITICAL' || aiData.priority?.level === 'P1') {
+        NotificationService.dispatchEventNotification('INCIDENT_CRITICAL', {
+          title: `CRITICAL TRIAGE: #${incidentDoc.incidentId}`,
+          message: `AI identified critical hazard/casualty risk in #${incidentDoc.incidentId} (${incidentDoc.title}). Priority P1 active.`,
+          entityType: 'INCIDENT',
+          entityId: incidentDoc.incidentId,
+          incidentId: incidentDoc.incidentId,
+          metadata: { incidentId: incidentDoc.incidentId, severity: aiData.severity.level, priority: aiData.priority.level },
+          cooldownSeconds: 120,
+        }).catch((e) => console.warn('[Notification] AI critical dispatch note:', e.message));
+      } else {
+        NotificationService.dispatchEventNotification('AI_ANALYSIS_COMPLETED', {
+          title: `AI Triage: #${incidentDoc.incidentId}`,
+          message: `Classified as ${aiData.classification.type} (${aiData.severity.level}) with ${Math.round(aiData.classification.confidence * 100)}% confidence.`,
+          entityType: 'INCIDENT',
+          entityId: incidentDoc.incidentId,
+          incidentId: incidentDoc.incidentId,
+          metadata: { incidentId: incidentDoc.incidentId, type: aiData.classification.type, severity: aiData.severity.level },
+          cooldownSeconds: 60,
+        }).catch((e) => console.warn('[Notification] AI analysis dispatch note:', e.message));
+      }
     } else {
       // AI Service call returned error or timed out
       const errorMsg = result.error || 'AI classification failed';
@@ -858,6 +910,16 @@ export const runAiAnalysisOnIncident = async (incidentDoc, user = null) => {
 
       emitIncidentAiFailed(incidentDoc, errorMsg);
       emitIncidentUpdated(incidentDoc);
+
+      NotificationService.dispatchEventNotification('AI_ANALYSIS_FAILED', {
+        title: `AI Triage Failed: #${incidentDoc.incidentId}`,
+        message: `AI analysis pipeline encountered an error: ${errorMsg}. Manual triage required.`,
+        entityType: 'INCIDENT',
+        entityId: incidentDoc.incidentId,
+        incidentId: incidentDoc.incidentId,
+        metadata: { incidentId: incidentDoc.incidentId, error: errorMsg },
+        cooldownSeconds: 60,
+      }).catch((e) => console.warn('[Notification] AI failed dispatch note:', e.message));
     }
 
     return incidentDoc;
