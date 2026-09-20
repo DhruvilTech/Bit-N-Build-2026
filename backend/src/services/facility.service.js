@@ -306,3 +306,68 @@ export const deleteFacility = async (id, user = null) => {
 
   return { deleted: true, facilityId: facility.facilityId };
 };
+
+export const getFacilitiesCapacity = async () => {
+  const facilities = await FacilityModel.find({ type: 'HOSPITAL' })
+    .select('facilityId name capacity availableCapacity status emergencyStatus departments location specializations')
+    .sort({ name: 1 })
+    .lean();
+
+  return facilities.map((f) => {
+    const total = f.capacity || 0;
+    const available = Math.max(0, Math.min(total, f.availableCapacity || 0));
+    const occupied = Math.max(0, total - available);
+    const occupancyPercentage = total > 0 ? Math.round((occupied / total) * 100) : 0;
+
+    let status = 'NORMAL';
+    if (f.status === 'DIVERTING') {
+      status = 'FULL';
+    } else if (occupancyPercentage >= 95 || available === 0) {
+      status = 'FULL';
+    } else if (occupancyPercentage >= 85) {
+      status = 'CRITICAL';
+    } else if (occupancyPercentage >= 70) {
+      status = 'HIGH';
+    }
+
+    const icuDept = (f.departments || []).find((d) => /icu|intensive/i.test(d.name));
+    const burnDept = (f.departments || []).find((d) => /burn/i.test(d.name));
+
+    return {
+      id: f.facilityId,
+      name: f.name,
+      totalBeds: total,
+      availableBeds: available,
+      occupiedBeds: occupied,
+      occupancyPercentage,
+      divertStatus: f.status === 'DIVERTING',
+      emergencyStatus: f.emergencyStatus || 'NORMAL',
+      status,
+      icu: icuDept
+        ? {
+            total: icuDept.capacity,
+            available: Math.max(0, icuDept.availableCapacity),
+            occupied: Math.max(0, icuDept.capacity - icuDept.availableCapacity),
+          }
+        : {
+            total: Math.round(total * 0.2),
+            available: Math.round(available * 0.2),
+            occupied: Math.max(0, Math.round(total * 0.2) - Math.round(available * 0.2)),
+          },
+      burn: burnDept
+        ? {
+            total: burnDept.capacity,
+            available: Math.max(0, burnDept.availableCapacity),
+            occupied: Math.max(0, burnDept.capacity - burnDept.availableCapacity),
+          }
+        : {
+            total: Math.round(total * 0.1),
+            available: Math.round(available * 0.1),
+            occupied: Math.max(0, Math.round(total * 0.1) - Math.round(available * 0.1)),
+          },
+      location: f.location?.address || 'Metro Healthcare Sector',
+      coordinates: f.location?.geometry?.coordinates || [f.location?.longitude, f.location?.latitude],
+    };
+  });
+};
+

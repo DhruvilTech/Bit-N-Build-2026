@@ -837,6 +837,11 @@ export const facilitiesApi = {
     });
     return res.data?.facility || res.data;
   },
+
+  getCapacity: async (): Promise<HospitalCapacityItem[]> => {
+    const res = await apiRequest<{ success: boolean; data: HospitalCapacityItem[] }>('/facilities/capacity');
+    return res.data;
+  },
 };
 
 // Audit Logs API
@@ -1004,6 +1009,8 @@ export interface AiChatResult {
     status: string;
     link?: string | null;
   }>;
+  executedTools?: string[];
+  verifiedData?: boolean;
   sources: string[];
   generatedAt: string;
 }
@@ -1065,5 +1072,174 @@ export const alertsApi = {
   },
 };
 
+// Analytics Interfaces & API (Phase 22, 23, 24)
+export interface AnalyticsOverview {
+  period: string;
+  totalIncidents: number;
+  activeIncidents: number;
+  criticalIncidents: number;
+  resolvedIncidents: number;
+  averageArrivalTime: string;
+  averageArrivalMinutes: number;
+  aiTriageAccuracy: number;
+  deduplicationRate: number;
+  slaAdherence: number;
+  dispatchLatency: string;
+  generatedAt: string;
+}
 
+export interface AnalyticsCategory {
+  name: string;
+  value: number;
+  color: string;
+}
 
+export interface AnalyticsSeverityItem {
+  level: string;
+  count: number;
+  color: string;
+}
+
+export interface AnalyticsResponseTime {
+  hourlyData: Array<{ hour: string; incidents: number; resolved: number }>;
+  responseTimeData: Array<{ zone: string; actual: number; target: number }>;
+}
+
+export interface AnalyticsFleetItem {
+  category: string;
+  active: number;
+  reserve: number;
+  activeCount?: number;
+  reserveCount?: number;
+  totalCount?: number;
+}
+
+export interface HeatmapPoint {
+  lat: number;
+  lng: number;
+  weight: number;
+  incidentId: string;
+  title: string;
+  type: string;
+  severity: string;
+  status: string;
+}
+
+export interface ResourceShortageItem {
+  resourceType: string;
+  required: number;
+  available: number;
+  shortage: number;
+  severity: 'NORMAL' | 'HIGH' | 'CRITICAL';
+}
+
+export interface ResourceShortageAnalysis {
+  shortages: ResourceShortageItem[];
+  criticalCount: number;
+  totalDemand: number;
+  totalSupply: number;
+  activeIncidentsCount: number;
+  evaluatedAt: string;
+}
+
+export interface HospitalCapacityItem {
+  id: string;
+  name: string;
+  totalBeds: number;
+  availableBeds: number;
+  occupiedBeds: number;
+  occupancyPercentage: number;
+  divertStatus: boolean;
+  emergencyStatus: string;
+  status?: string;
+  icu: {
+    total: number;
+    available: number;
+    occupied: number;
+  } | null;
+  burn: {
+    total: number;
+    available: number;
+    occupied: number;
+  } | null;
+  location: string;
+}
+
+export const analyticsApi = {
+  getOverview: async (params?: { period?: string; from?: string; to?: string }): Promise<AnalyticsOverview> => {
+    const qs = new URLSearchParams();
+    if (params?.period) qs.set('period', params.period);
+    if (params?.from) qs.set('from', params.from);
+    if (params?.to) qs.set('to', params.to);
+    const qStr = qs.toString();
+    const res = await apiRequest<{ success: boolean; data: AnalyticsOverview }>(`/analytics/overview${qStr ? `?${qStr}` : ''}`);
+    return res.data;
+  },
+
+  getIncidents: async (params?: { period?: string; from?: string; to?: string }): Promise<{ total: number; categories: AnalyticsCategory[] }> => {
+    const qs = new URLSearchParams();
+    if (params?.period) qs.set('period', params.period);
+    if (params?.from) qs.set('from', params.from);
+    if (params?.to) qs.set('to', params.to);
+    const qStr = qs.toString();
+    const res = await apiRequest<{ success: boolean; data: { total: number; categories: AnalyticsCategory[] } }>(`/analytics/incidents${qStr ? `?${qStr}` : ''}`);
+    return res.data;
+  },
+
+  getSeverity: async (params?: { period?: string; from?: string; to?: string }): Promise<{ severity: AnalyticsSeverityItem[]; total: number }> => {
+    const qs = new URLSearchParams();
+    if (params?.period) qs.set('period', params.period);
+    const qStr = qs.toString();
+    const res = await apiRequest<{ success: boolean; data: { severity: AnalyticsSeverityItem[]; total: number } }>(`/analytics/severity${qStr ? `?${qStr}` : ''}`);
+    return res.data;
+  },
+
+  getResponseTime: async (params?: { period?: string; from?: string; to?: string }): Promise<AnalyticsResponseTime> => {
+    const qs = new URLSearchParams();
+    if (params?.period) qs.set('period', params.period);
+    if (params?.from) qs.set('from', params.from);
+    if (params?.to) qs.set('to', params.to);
+    const qStr = qs.toString();
+    const res = await apiRequest<{ success: boolean; data: AnalyticsResponseTime }>(`/analytics/response-time${qStr ? `?${qStr}` : ''}`);
+    return res.data;
+  },
+
+  getResources: async (): Promise<{ fleetData: AnalyticsFleetItem[] }> => {
+    const res = await apiRequest<{ success: boolean; data: { fleetData: AnalyticsFleetItem[] } }>('/analytics/resources');
+    return res.data;
+  },
+
+  getDelays: async (params?: { period?: string; from?: string; to?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.period) qs.set('period', params.period);
+    const qStr = qs.toString();
+    const res = await apiRequest<{ success: boolean; data: any }>(`/analytics/delays${qStr ? `?${qStr}` : ''}`);
+    return res.data;
+  },
+
+  getAreas: async (params?: { period?: string; from?: string; to?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.period) qs.set('period', params.period);
+    const qStr = qs.toString();
+    const res = await apiRequest<{ success: boolean; data: any }>(`/analytics/areas${qStr ? `?${qStr}` : ''}`);
+    return res.data;
+  },
+
+  getHeatmap: async (params?: { from?: string; to?: string; type?: string; severity?: string }): Promise<HeatmapPoint[]> => {
+    const qs = new URLSearchParams();
+    if (params?.from) qs.set('from', params.from);
+    if (params?.to) qs.set('to', params.to);
+    if (params?.type) qs.set('type', params.type);
+    if (params?.severity) qs.set('severity', params.severity);
+    const qStr = qs.toString();
+    const res = await apiRequest<{ success: boolean; data: HeatmapPoint[] }>(`/analytics/heatmap${qStr ? `?${qStr}` : ''}`);
+    return res.data;
+  },
+
+  getResourceShortages: async (): Promise<ResourceShortageAnalysis> => {
+    const res = await apiRequest<{ success: boolean; data: ResourceShortageAnalysis }>('/analytics/resource-shortages');
+    return res.data;
+  },
+};
+
+>>>>>>> fc981ae (feat(phase-25): hospital capacity intelligence, capacity-aware medical routing, and live Resources HUD)
