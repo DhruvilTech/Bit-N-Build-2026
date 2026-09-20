@@ -4,7 +4,7 @@ const assignmentTimelineEventSchema = new mongoose.Schema(
   {
     status: {
       type: String,
-      enum: ['ASSIGNED', 'DISPATCHED', 'EN_ROUTE', 'ON_SCENE', 'COMPLETED', 'RETURNING', 'CANCELLED'],
+      enum: ['ASSIGNED', 'DISPATCHED', 'EN_ROUTE', 'ARRIVED', 'ON_SCENE', 'COMPLETED', 'RETURNING', 'CANCELLED'],
       required: true,
     },
     timestamp: {
@@ -40,25 +40,35 @@ const assignmentSchema = new mongoose.Schema(
       trim: true,
       index: true,
     },
+    teamId: {
+      type: String,
+      default: null,
+      trim: true,
+      index: true,
+    },
     resourceId: {
       type: String,
-      required: true,
+      default: function () {
+        return this.teamId || '';
+      },
       trim: true,
       index: true,
     },
     resourceName: {
       type: String,
-      required: true,
+      default: function () {
+        return this.teamId || '';
+      },
       trim: true,
     },
     resourceType: {
       type: String,
-      required: true,
+      default: 'GENERAL',
       trim: true,
     },
     status: {
       type: String,
-      enum: ['ASSIGNED', 'DISPATCHED', 'EN_ROUTE', 'ON_SCENE', 'COMPLETED', 'RETURNING', 'CANCELLED'],
+      enum: ['ASSIGNED', 'DISPATCHED', 'EN_ROUTE', 'ARRIVED', 'ON_SCENE', 'COMPLETED', 'RETURNING', 'CANCELLED'],
       default: 'ASSIGNED',
       index: true,
     },
@@ -67,6 +77,11 @@ const assignmentSchema = new mongoose.Schema(
       name: { type: String },
       role: { type: String },
       email: { type: String },
+    },
+    createdBy: {
+      userId: { type: String },
+      name: { type: String },
+      role: { type: String },
     },
     notes: {
       type: String,
@@ -108,10 +123,26 @@ const assignmentSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    expectedArrivalAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    isDelayed: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
     // Metrics
-    estimatedDistanceKm: {
+    distanceKm: {
       type: Number,
       default: null,
+    },
+    estimatedDistanceKm: {
+      type: Number,
+      default: function () {
+        return this.distanceKm;
+      },
     },
     estimatedArrivalMinutes: {
       type: Number,
@@ -132,6 +163,22 @@ const assignmentSchema = new mongoose.Schema(
     delayMinutes: {
       type: Number,
       default: 0,
+    },
+    dispatchTime: {
+      type: Number,
+      default: null,
+    },
+    responseTime: {
+      type: Number,
+      default: null,
+    },
+    totalAssignmentTime: {
+      type: Number,
+      default: null,
+    },
+    arrivalDelay: {
+      type: Number,
+      default: null,
     },
     route: {
       distanceKm: { type: Number, default: null },

@@ -226,6 +226,7 @@ export const emitIncidentOverridden = (incident, overrideEntry = null) => {
 };
 
 /**
+/**
  * Broadcast when a resource is released from an assignment (Phase 9)
  */
 export const emitResourceReleased = (incidentId, resourceId, assignmentId) => {
@@ -236,6 +237,116 @@ export const emitResourceReleased = (incidentId, resourceId, assignmentId) => {
       assignmentId,
       releasedAt: new Date(),
     });
+  }
+};
+
+/**
+ * PHASE 11: Broadcast when an assignment status or lifecycle metrics change
+ */
+export const emitAssignmentUpdated = (assignment) => {
+  if (ioInstance) {
+    ioInstance.emit('assignment:updated', assignment);
+  }
+};
+
+/**
+ * PHASE 11: Broadcast when a response team is updated
+ */
+export const emitTeamUpdated = (team) => {
+  if (ioInstance) {
+    ioInstance.emit('team:updated', team);
+  }
+};
+
+/**
+ * PHASE 11: Broadcast when a resource is updated
+ */
+export const emitResourceUpdated = (resource) => {
+  if (ioInstance) {
+    ioInstance.emit('resource:updated', resource);
+  }
+};
+
+/**
+ * PHASE 12: Broadcast when a team's real-time GPS location updates
+ */
+export const emitTeamLocation = ({ teamId, latitude, longitude, timestamp }) => {
+  if (ioInstance) {
+    ioInstance.emit('team:location', {
+      teamId,
+      latitude,
+      longitude,
+      timestamp: timestamp || new Date().toISOString(),
+    });
+  }
+};
+
+/**
+ * PHASE 13: Broadcast when an assignment's ETA is updated
+ */
+export const emitAssignmentEtaUpdated = ({
+  assignmentId,
+  incidentId,
+  teamId,
+  distanceKm,
+  estimatedArrivalMinutes,
+  expectedArrivalAt,
+}) => {
+  if (ioInstance) {
+    ioInstance.emit('assignment:etaUpdated', {
+      assignmentId,
+      incidentId,
+      teamId,
+      distanceKm,
+      estimatedArrivalMinutes,
+      expectedArrivalAt,
+    });
+  }
+};
+
+/**
+ * PHASE 14 & Upstream: Broadcast when an assignment becomes delayed past its SLA
+ */
+export const emitResponseDelayed = (data) => {
+  if (ioInstance) {
+    const payload = {
+      assignmentId: data.assignmentId,
+      incidentId: data.incidentId,
+      teamId: data.teamId,
+      delayMinutes: data.delayMinutes,
+      detectedAt: data.detectedAt || new Date().toISOString(),
+      ...data,
+    };
+    ioInstance.emit('response:delayed', payload);
+    ioInstance.to('operations').emit('incident:responseDelayed', payload);
+    ioInstance.emit('incident:responseDelayed', payload);
+  }
+};
+
+/**
+ * PHASE 15: Broadcast when a new emergency alert is generated
+ */
+export const emitAlertNew = (alert) => {
+  if (ioInstance) {
+    ioInstance.emit('alert:new', alert);
+  }
+};
+
+/**
+ * PHASE 15: Broadcast when an emergency alert is acknowledged
+ */
+export const emitAlertAcknowledged = (alert) => {
+  if (ioInstance) {
+    ioInstance.emit('alert:acknowledged', alert);
+  }
+};
+
+/**
+ * PHASE 15: Broadcast when an emergency alert is resolved
+ */
+export const emitAlertResolved = (alert) => {
+  if (ioInstance) {
+    ioInstance.emit('alert:resolved', alert);
   }
 };
 
@@ -253,14 +364,6 @@ export const emitEscalationCreated = (escalation, incident = null) => {
   }
 };
 
-/**
- * Broadcast when an assignment record is updated (Phase 8 & 10)
- */
-export const emitAssignmentUpdated = (assignment) => {
-  if (ioInstance) {
-    ioInstance.emit('assignment:updated', assignment);
-  }
-};
 
 /**
  * Broadcast when an escalation is acknowledged
@@ -345,15 +448,6 @@ export const emitNotificationRead = (data) => {
   }
 };
 
-/**
- * Broadcast transit delay alert
- */
-export const emitResponseDelayed = (data) => {
-  if (ioInstance) {
-    ioInstance.to('operations').emit('incident:responseDelayed', data);
-    ioInstance.emit('incident:responseDelayed', data);
-  }
-};
 
 /**
  * Broadcast resource shortage alert

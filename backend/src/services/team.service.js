@@ -2,9 +2,12 @@ import mongoose from 'mongoose';
 import { ResponseTeamModel } from '../models/team.model.js';
 import { ResourceModel } from '../models/resource.model.js';
 import { IncidentModel } from '../models/incident.model.js';
+import { AssignmentModel } from '../models/assignment.model.js';
 import { recordAuditLog } from './auditLog.service.js';
 import NotificationService from './notification.service.js';
 import { NotFoundError, BadRequestError, ConflictError } from '../utils/errors.js';
+import { emitTeamLocation, emitTeamUpdated, emitAssignmentUpdated } from '../utils/socket.js';
+import { recalculateEtaForTeam, calculateHaversineDistanceKm, calculateEta, getAverageSpeedForType } from './eta.service.js';
 
 export const getTeams = async (filters = {}, pagination = {}) => {
   const query = {};
@@ -209,6 +212,7 @@ export const updateTeamLocation = async (id, { latitude, longitude, address }, u
   }
   if (!team) throw new NotFoundError(`Response Team #${id} not found`);
 
+  const now = new Date();
   team.location = {
     latitude,
     longitude,
@@ -218,8 +222,22 @@ export const updateTeamLocation = async (id, { latitude, longitude, address }, u
       coordinates: [longitude, latitude],
     },
   };
+  team.currentLocation = team.location;
+  team.locationUpdatedAt = now;
 
   await team.save();
+
+  // Phase 12: Emit team:location real-time event
+  emitTeamLocation({
+    teamId: team.teamId,
+    latitude,
+    longitude,
+    timestamp: now.toISOString(),
+  });
+  emitTeamUpdated(team);
+
+  // Phase 13: Recalculate ETA for all active assignments linked to this moving team
+  await recalculateEtaForTeam(team.teamId, { latitude, longitude }, team.type);
 
   await recordAuditLog({
     user,
@@ -246,23 +264,27 @@ export const assignTeamToIncident = async (id, { incidentId, notes = '' }, user 
     );
   }
 
+  const now = new Date();
   team.status = 'ASSIGNED';
   team.currentAssignment = incidentId;
   team.availability = false;
 
-  team.responseHistory.push({
+  const historyRecord = {
+    assignmentId: `RESP-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
     incidentId,
-    assignedAt: new Date(),
+    assignedAt: now,
     status: 'ASSIGNED',
     notes: notes || `Dispatched to incident #${incidentId}`,
-  });
+  };
+  team.responseHistory.push(historyRecord);
 
   await team.save();
 
   // Cross-module synchronization: link team to Incident
-  await IncidentModel.updateOne(
+  const incident = await IncidentModel.findOneAndUpdate(
     { $or: [{ incidentId }, ...(mongoose.Types.ObjectId.isValid(incidentId) ? [{ _id: incidentId }] : [])] },
-    { $addToSet: { assignedResources: team.teamId, assignedTeams: team.teamId } }
+    { $addToSet: { assignedResources: team.teamId, assignedTeams: team.teamId } },
+    { new: true }
   );
 
   // Dispatch real-time operational notification
@@ -280,12 +302,44 @@ export const assignTeamToIncident = async (id, { incidentId, notes = '' }, user 
     console.warn('[TeamService] Notification dispatch error:', notifErr.message);
   }
 
+  // Phase 11 & 13: Create synchronized Assignment document
+  let etaData = { distanceKm: null, estimatedArrivalMinutes: null, expectedArrivalAt: null };
+  if (incident?.location && team.location) {
+    const speed = getAverageSpeedForType(team.type);
+    const dist = calculateHaversineDistanceKm(
+      team.location.latitude,
+      team.location.longitude,
+      incident.location.latitude,
+      incident.location.longitude
+    );
+    etaData = calculateEta(dist, speed);
+  }
+
+  const assignment = await AssignmentModel.create({
+    assignmentId: historyRecord.assignmentId,
+    incidentId,
+    teamId: team.teamId,
+    status: 'ASSIGNED',
+    assignedAt: now,
+    distanceKm: etaData.distanceKm,
+    estimatedArrivalMinutes: etaData.estimatedArrivalMinutes,
+    expectedArrivalAt: etaData.expectedArrivalAt,
+    notes,
+    createdBy: {
+      userId: user?.id || user?._id?.toString() || null,
+      name: user?.name || 'SYSTEM',
+      role: user?.role || 'SYSTEM',
+    },
+  });
+
+  emitAssignmentUpdated(assignment);
+  emitTeamUpdated(team);
   await recordAuditLog({
     user,
     action: 'TEAM_ASSIGNED',
     entityType: 'RESPONSE_TEAM',
     entityId: team.teamId,
-    metadata: { incidentId, notes },
+    metadata: { incidentId, notes, assignmentId: assignment.assignmentId },
   });
 
   return team;

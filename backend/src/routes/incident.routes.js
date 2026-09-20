@@ -112,6 +112,7 @@ router.get(
   getIncident
 );
 
+
 // 4. Update Incident Parameters
 router.patch(
   '/:id',
@@ -256,11 +257,11 @@ router.post(
   createIncidentAssignments
 );
 
-// 17. Get Incident Resource Assignments & Tracking (Phases 8 & 10)
+// 17. Get Incident Resource Assignments & Tracking (Phases 8, 10 & 11)
 router.get(
   '/:id/assignments',
   authenticate,
-  authorize('ADMIN', 'OPERATOR', 'FIELD_COORDINATOR', 'MEDICAL_COORDINATOR'),
+  authorize('ADMIN', 'OPERATOR', 'FIELD_COORDINATOR', 'MEDICAL_COORDINATOR', 'RESPONDER', 'VIEWER'),
   getIncidentAssignments
 );
 

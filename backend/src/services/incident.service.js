@@ -25,6 +25,7 @@ import {
 } from './ai.service.js';
 import NotificationService from './notification.service.js';
 import EscalationService from './escalation.service.js';
+import { evaluateCriticalIncidentAlert } from './alert.service.js';
 
 // Safe Status Lifecycle Transition Rules
 export const VALID_STATUS_TRANSITIONS = {
@@ -225,6 +226,12 @@ export const createIncident = async (data, user = null) => {
     console.warn('[Escalation] Initial evaluation note:', e.message)
   );
 
+  // Phase 15: Check Critical Incident Alert rule
+  if (incident.severity === 'CRITICAL') {
+    evaluateCriticalIncidentAlert(incident).catch((err) => {
+      console.error(`[Alert Engine] Failed to evaluate critical alert for #${incident.incidentId}:`, err.message);
+    });
+  }
   // Asynchronously trigger AI incident classification without blocking response
   runAiAnalysisOnIncident(incident, user).catch((err) => {
     console.error(`[AI Trigger Error] Background classification failed for #${incident.incidentId}:`, err);

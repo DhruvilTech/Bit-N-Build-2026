@@ -15,6 +15,7 @@ import stationRoutes from './station.routes.js';
 import routeRoutes from './route.routes.js';
 import simulationRoutes from './simulation.routes.js';
 import analyticsRoutes from './analytics.routes.js';
+import alertRoutes from './alert.routes.js';
 
 const apiRouter = Router();
 
@@ -34,5 +35,6 @@ apiRouter.use('/stations', stationRoutes);
 apiRouter.use('/routes', routeRoutes);
 apiRouter.use('/simulation', simulationRoutes);
 apiRouter.use('/analytics', analyticsRoutes);
+apiRouter.use('/alerts', alertRoutes);
 
 export default apiRouter;

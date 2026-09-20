@@ -433,19 +433,43 @@ export const incidentsApi = {
   },
 };
 
-// Resource Assignments & Lifecycle Tracking API (Phases 8, 9 & 10)
+// Resource Assignments & Lifecycle Tracking API (Phases 8-14)
 export const assignmentsApi = {
+  getAll: async (params: Record<string, string> = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    const res = await apiRequest<{ success: boolean; data: { assignments: any[]; total: number } }>(
+      `/assignments${qs ? `?${qs}` : ''}`
+    );
+    return res.data?.assignments || [];
+  },
+
   getById: async (assignmentId: string) => {
     const res = await apiRequest<{
-      status: string;
+      status?: string;
+      success?: boolean;
       data: { assignment: any };
     }>(`/assignments/${assignmentId}`);
     return res.data?.assignment;
   },
 
+  getForIncident: async (incidentId: string) => {
+    const res = await apiRequest<{ success: boolean; data: { assignments: any[] } }>(
+      `/incidents/${incidentId}/assignments`
+    );
+    return res.data?.assignments || [];
+  },
+
+  create: async (payload: { incidentId: string; teamId?: string; resourceId?: string; notes?: string }) => {
+    const res = await apiRequest<{ success: boolean; data: { assignment: any } }>('/assignments', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return res.data?.assignment;
+  },
+
   updateStatus: async (
     assignmentId: string,
-    status: 'DISPATCHED' | 'EN_ROUTE' | 'ON_SCENE' | 'COMPLETED' | 'CANCELLED',
+    status: 'DISPATCHED' | 'EN_ROUTE' | 'ARRIVED' | 'ON_SCENE' | 'COMPLETED' | 'CANCELLED',
     notes?: string,
     timestamp?: string
   ) => {
@@ -455,6 +479,38 @@ export const assignmentsApi = {
     }>(`/assignments/${assignmentId}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status, notes, timestamp }),
+    });
+    return res.data?.assignment;
+  },
+
+  dispatch: async (id: string, notes: string = '') => {
+    const res = await apiRequest<{ success: boolean; data: { assignment: any } }>(`/assignments/${id}/dispatch`, {
+      method: 'POST',
+      body: JSON.stringify({ notes }),
+    });
+    return res.data?.assignment;
+  },
+
+  enRoute: async (id: string, notes: string = '') => {
+    const res = await apiRequest<{ success: boolean; data: { assignment: any } }>(`/assignments/${id}/en-route`, {
+      method: 'POST',
+      body: JSON.stringify({ notes }),
+    });
+    return res.data?.assignment;
+  },
+
+  arrive: async (id: string, notes: string = '') => {
+    const res = await apiRequest<{ success: boolean; data: { assignment: any } }>(`/assignments/${id}/arrive`, {
+      method: 'POST',
+      body: JSON.stringify({ notes }),
+    });
+    return res.data?.assignment;
+  },
+
+  complete: async (id: string, notes: string = '') => {
+    const res = await apiRequest<{ success: boolean; data: { assignment: any } }>(`/assignments/${id}/complete`, {
+      method: 'POST',
+      body: JSON.stringify({ notes }),
     });
     return res.data?.assignment;
   },
@@ -479,6 +535,14 @@ export const assignmentsApi = {
       body: JSON.stringify({ notes }),
     });
     return res.data?.assignment;
+  },
+
+  updateTeamLocation: async (teamId: string, latitude: number, longitude: number, address?: string) => {
+    const res = await apiRequest<{ success: boolean; data: { team: any } }>(`/teams/${teamId}/location`, {
+      method: 'PATCH',
+      body: JSON.stringify({ latitude, longitude, address }),
+    });
+    return res.data?.team;
   },
 };
 
@@ -1034,8 +1098,6 @@ export const aiApi = {
     return res.data;
   },
 };
-
-
 // Analytics API
 export const analyticsApi = {
   getMetrics: async (): Promise<any> => {
@@ -1044,4 +1106,31 @@ export const analyticsApi = {
   },
 };
 
-
+// Phase 15: Alerts API
+export const alertsApi = {
+  getAll: async (params: Record<string, string> = {}) => {
+    const qs = new URLSearchParams(params).toString();
+    const res = await apiRequest<{ success: boolean; data: { alerts: any[]; total: number } }>(
+      `/alerts${qs ? `?${qs}` : ''}`
+    );
+    return res.data?.alerts || [];
+  },
+  getById: async (id: string) => {
+    const res = await apiRequest<{ success: boolean; data: { alert: any } }>(`/alerts/${id}`);
+    return res.data?.alert;
+  },
+  acknowledge: async (id: string, note: string = '') => {
+    const res = await apiRequest<{ success: boolean; data: { alert: any } }>(`/alerts/${id}/acknowledge`, {
+      method: 'POST',
+      body: JSON.stringify({ note }),
+    });
+    return res.data?.alert;
+  },
+  resolve: async (id: string, resolution: string = '') => {
+    const res = await apiRequest<{ success: boolean; data: { alert: any } }>(`/alerts/${id}/resolve`, {
+      method: 'POST',
+      body: JSON.stringify({ resolution }),
+    });
+    return res.data?.alert;
+  },
+};

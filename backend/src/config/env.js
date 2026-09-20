@@ -17,6 +17,17 @@ export const env = {
   MISTRAL_API_KEY: process.env.MISTRAL_API_KEY || '',
   MISTRAL_MODEL: process.env.MISTRAL_MODEL || 'ministral-8b-latest',
   MISTRAL_FALLBACK_MODEL: process.env.MISTRAL_FALLBACK_MODEL || 'ministral-3b-latest',
+  // Phase 13 Speeds (km/h)
+  SPEED_AMBULANCE: parseFloat(process.env.SPEED_AMBULANCE || '45'),
+  SPEED_FIRE: parseFloat(process.env.SPEED_FIRE || '40'),
+  SPEED_POLICE: parseFloat(process.env.SPEED_POLICE || '50'),
+  SPEED_RESCUE: parseFloat(process.env.SPEED_RESCUE || '35'),
+  SPEED_HAZMAT: parseFloat(process.env.SPEED_HAZMAT || '30'),
+  SPEED_GENERAL: parseFloat(process.env.SPEED_GENERAL || '40'),
+  // Phase 14 SLA / Delay
+  SLA_CHECK_INTERVAL_MS: parseInt(process.env.SLA_CHECK_INTERVAL_MS || '30000', 10),
+  // Phase 15 Alert Escalation
+  P1_ESCALATION_THRESHOLD_MINUTES: parseInt(process.env.P1_ESCALATION_THRESHOLD_MINUTES || '15', 10),
 };
 
 if (!env.MONGODB_URI) {

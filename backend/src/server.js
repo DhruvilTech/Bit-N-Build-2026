@@ -3,6 +3,7 @@ import app from './app.js';
 import { env } from './config/env.js';
 import { connectDatabase } from './config/database.js';
 import { initSocketServer } from './utils/socket.js';
+import { startScheduler, stopScheduler } from './services/scheduler.service.js';
 
 const startServer = async () => {
   try {
@@ -33,6 +34,9 @@ const startServer = async () => {
     setTimeout(runEscalationScheduler, 5000);
     const escalationInterval = setInterval(runEscalationScheduler, 60000);
 
+    // 4. Start Centralized SLA / Alert Engine Scheduler
+    startScheduler();
+
     // 4. Start Listening
     const server = httpServer.listen(env.PORT, () => {
       console.log('====================================================');
@@ -49,6 +53,7 @@ const startServer = async () => {
     const handleShutdown = (signal) => {
       console.log(`\n[Shutdown] Received ${signal}. Closing server gracefully...`);
       clearInterval(escalationInterval);
+      stopScheduler();
       server.close(() => {
         console.log('[Shutdown] HTTP server closed.');
         process.exit(0);
