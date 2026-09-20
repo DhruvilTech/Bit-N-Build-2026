@@ -12,6 +12,10 @@ import {
   triggerAiAnalysis,
   fetchIncidentAiAnalysis,
   classifyIncidentDraft,
+  detectDuplicatesForIncident,
+  compareIncidents,
+  clusterIncidents,
+  mergeIncidents,
 } from '../controllers/incident.controller.js';
 import { validate } from '../middleware/validate.middleware.js';
 import { authenticate, authorize } from '../middleware/auth.middleware.js';
@@ -20,6 +24,9 @@ import {
   updateIncidentSchema,
   updateStatusSchema,
   updateLocationSchema,
+  compareIncidentsSchema,
+  clusterIncidentsSchema,
+  mergeIncidentsSchema,
 } from '../validators/incident.validator.js';
 
 const router = Router();
@@ -31,6 +38,25 @@ router.post(
   authorize('ADMIN', 'OPERATOR', 'FIELD_COORDINATOR'),
   classifyIncidentDraft
 );
+
+// 0.1 AI Incident Similarity & Duplicate Comparison
+router.post(
+  '/compare',
+  authenticate,
+  authorize('ADMIN', 'OPERATOR', 'FIELD_COORDINATOR'),
+  validate(compareIncidentsSchema),
+  compareIncidents
+);
+
+// 0.2 AI Incident Batch Clustering & Graph Consolidation
+router.post(
+  '/cluster',
+  authenticate,
+  authorize('ADMIN', 'OPERATOR'),
+  validate(clusterIncidentsSchema),
+  clusterIncidents
+);
+
 
 // 1. Ingestion / Collection API
 router.post(
@@ -122,6 +148,23 @@ router.get(
   authenticate,
   authorize('ADMIN', 'OPERATOR', 'FIELD_COORDINATOR', 'MEDICAL_COORDINATOR'),
   fetchIncidentAiAnalysis
+);
+
+// 12. Trigger AI Duplicate Scan on Incident (On-demand)
+router.post(
+  '/:id/detect-duplicates',
+  authenticate,
+  authorize('ADMIN', 'OPERATOR', 'FIELD_COORDINATOR'),
+  detectDuplicatesForIncident
+);
+
+// 13. Consolidate / Merge Duplicate Incidents into Canonical Incident
+router.post(
+  '/:id/merge',
+  authenticate,
+  authorize('ADMIN', 'OPERATOR'),
+  validate(mergeIncidentsSchema),
+  mergeIncidents
 );
 
 export default router;

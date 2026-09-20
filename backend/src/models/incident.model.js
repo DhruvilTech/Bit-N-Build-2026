@@ -225,6 +225,33 @@ const incidentSchema = new mongoose.Schema(
       recommendedResourceTypes: [{ type: String }],
       summary: { type: String },
     },
+    duplicateAnalysis: {
+      status: {
+        type: String,
+        enum: ['PENDING', 'NOT_CHECKED', 'CHECKED', 'DUPLICATE_FOUND', 'RELATED_FOUND', 'UNIQUE', 'FAILED', 'SKIPPED'],
+        default: 'NOT_CHECKED',
+        index: true,
+      },
+      hasDuplicates: { type: Boolean, default: false },
+      hasRelated: { type: Boolean, default: false },
+      topMatch: {
+        incidentId: { type: String, default: null },
+        classification: { type: String, default: null },
+        combinedScore: { type: Number, default: null },
+        semanticSimilarity: { type: Number, default: null },
+        geographicSimilarity: { type: Number, default: null },
+        temporalSimilarity: { type: Number, default: null },
+        distanceKm: { type: Number, default: null },
+        timeDiffHours: { type: Number, default: null },
+        reasoning: { type: String, default: null },
+        method: { type: String, default: null },
+      },
+      matchesCount: { type: Number, default: 0 },
+      clusterId: { type: String, default: null },
+      isCanonical: { type: Boolean, default: true },
+      analyzedAt: { type: Date, default: null },
+      error: { type: String, default: null },
+    },
   },
   {
     timestamps: true,
@@ -241,6 +268,8 @@ const incidentSchema = new mongoose.Schema(
 incidentSchema.index({ 'location.geometry': '2dsphere' });
 incidentSchema.index({ severity: 1, priority: 1, status: 1, type: 1, source: 1 });
 incidentSchema.index({ createdAt: -1 });
+incidentSchema.index({ duplicateOf: 1 });
+incidentSchema.index({ status: 1, createdAt: -1 });
 
 export const IncidentModel = mongoose.model('Incident', incidentSchema);
 export default IncidentModel;

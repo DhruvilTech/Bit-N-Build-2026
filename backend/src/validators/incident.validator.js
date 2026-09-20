@@ -83,3 +83,63 @@ export const updateLocationSchema = z.object({
     address: z.string().min(2, 'Address is required'),
   }),
 });
+
+export const compareIncidentsSchema = z.object({
+  body: z.object({
+    incidentA: z.union([
+      z.string().min(1),
+      z.object({
+        incidentId: z.string().optional(),
+        title: z.string().optional(),
+        description: z.string().min(1, 'Description or title is required'),
+        location: z
+          .object({
+            latitude: z.number().min(-90).max(90).optional(),
+            longitude: z.number().min(-180).max(180).optional(),
+            address: z.string().optional(),
+          })
+          .optional(),
+        timestamp: z.string().optional(),
+        source: z.string().optional(),
+      }),
+    ]),
+    incidentB: z.union([
+      z.string().min(1),
+      z.object({
+        incidentId: z.string().optional(),
+        title: z.string().optional(),
+        description: z.string().min(1, 'Description or title is required'),
+        location: z
+          .object({
+            latitude: z.number().min(-90).max(90).optional(),
+            longitude: z.number().min(-180).max(180).optional(),
+            address: z.string().optional(),
+          })
+          .optional(),
+        timestamp: z.string().optional(),
+        source: z.string().optional(),
+      }),
+    ]),
+  }),
+});
+
+export const clusterIncidentsSchema = z.object({
+  body: z
+    .object({
+      incidentIds: z.array(z.string()).optional(),
+      timeWindowHours: z.number().min(1).max(720).optional(),
+      threshold: z.enum(['DUPLICATE', 'RELATED']).optional(),
+      status: z.array(z.string()).optional(),
+    })
+    .optional(),
+});
+
+export const mergeIncidentsSchema = z.object({
+  body: z.object({
+    duplicateIncidentIds: z
+      .array(z.string())
+      .min(1, 'At least one duplicate incident ID is required to merge'),
+    reason: z.string().optional(),
+  }),
+});
+

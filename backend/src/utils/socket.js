@@ -98,3 +98,41 @@ export const emitIncidentAiFailed = (incident, error) => {
     });
   }
 };
+
+/**
+ * Broadcast when an incident is analyzed and duplicate/related incidents are detected
+ */
+export const emitIncidentDuplicateDetected = (incident, duplicateData) => {
+  if (ioInstance) {
+    ioInstance.emit('incident:duplicateDetected', {
+      incidentId: incident.incidentId || incident._id?.toString(),
+      duplicateAnalysis: incident.duplicateAnalysis || duplicateData,
+      duplicateOf: incident.duplicateOf,
+      topMatch: duplicateData?.top_match || incident.duplicateAnalysis?.topMatch,
+    });
+  }
+};
+
+/**
+ * Broadcast when a batch clustering operation consolidates incident groups
+ */
+export const emitIncidentsClustered = (clusterData) => {
+  if (ioInstance) {
+    ioInstance.emit('incident:clustered', clusterData);
+  }
+};
+
+/**
+ * Broadcast when duplicate incidents are merged into a canonical incident
+ */
+export const emitIncidentMerged = (canonicalIncident, mergedIncidentIds) => {
+  if (ioInstance) {
+    ioInstance.emit('incident:merged', {
+      canonicalIncidentId: canonicalIncident.incidentId || canonicalIncident._id?.toString(),
+      mergedIncidentIds,
+      reportCount: canonicalIncident.reports?.length || 0,
+      updatedStatus: canonicalIncident.status,
+    });
+  }
+};
+

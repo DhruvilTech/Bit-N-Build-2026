@@ -10,8 +10,12 @@ import {
   getIncidentReports,
   analyzeIncident,
   getIncidentAiAnalysis,
+  detectIncidentDuplicates,
+  compareIncidentsService,
+  clusterActiveIncidentsService,
+  mergeDuplicateIncidentsService,
 } from '../services/incident.service.js';
-import { successResponse } from '../utils/response.js';
+import { successResponse, errorResponse } from '../utils/response.js';
 
 export const getAllIncidents = async (req, res, next) => {
   try {
@@ -188,5 +192,60 @@ export const classifyIncidentDraft = async (req, res, next) => {
     next(error);
   }
 };
+
+export const detectDuplicatesForIncident = async (req, res, next) => {
+  try {
+    const result = await detectIncidentDuplicates(req.params.id, req.user);
+    return successResponse(
+      res,
+      `Duplicate scan completed for incident #${req.params.id}`,
+      result,
+      200
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const compareIncidents = async (req, res, next) => {
+  try {
+    const { incidentA, incidentB } = req.body;
+    const result = await compareIncidentsService(incidentA, incidentB);
+    return successResponse(res, 'Incident similarity comparison completed', result, 200);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const clusterIncidents = async (req, res, next) => {
+  try {
+    const options = req.body || {};
+    const result = await clusterActiveIncidentsService(options);
+    return successResponse(res, 'Incident clustering completed', result, 200);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const mergeIncidents = async (req, res, next) => {
+  try {
+    const { duplicateIncidentIds, reason } = req.body;
+    const result = await mergeDuplicateIncidentsService(
+      req.params.id,
+      duplicateIncidentIds,
+      reason,
+      req.user
+    );
+    return successResponse(
+      res,
+      `Successfully consolidated ${result.mergedCount} duplicate incident(s) into #${req.params.id}`,
+      result,
+      200
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
 
 
