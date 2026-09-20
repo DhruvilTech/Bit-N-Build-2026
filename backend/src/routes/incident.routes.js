@@ -23,7 +23,6 @@ import {
   fetchRelatedIncidents,
 } from '../controllers/incident.controller.js';
 import { getIncidentEscalations } from '../controllers/escalation.controller.js';
-import { getIncidentAssignments } from '../controllers/assignment.controller.js';
 import { validate } from '../middleware/validate.middleware.js';
 import { authenticate, authorize } from '../middleware/auth.middleware.js';
 import {
@@ -113,13 +112,6 @@ router.get(
   getIncident
 );
 
-// 3.1 Incident Assignments API (Phase 11)
-router.get(
-  '/:incidentId/assignments',
-  authenticate,
-  authorize('ADMIN', 'OPERATOR', 'FIELD_COORDINATOR', 'MEDICAL_COORDINATOR', 'RESPONDER', 'VIEWER'),
-  getIncidentAssignments
-);
 
 // 4. Update Incident Parameters
 router.patch(
@@ -265,11 +257,11 @@ router.post(
   createIncidentAssignments
 );
 
-// 17. Get Incident Resource Assignments & Tracking (Phases 8 & 10)
+// 17. Get Incident Resource Assignments & Tracking (Phases 8, 10 & 11)
 router.get(
   '/:id/assignments',
   authenticate,
-  authorize('ADMIN', 'OPERATOR', 'FIELD_COORDINATOR', 'MEDICAL_COORDINATOR'),
+  authorize('ADMIN', 'OPERATOR', 'FIELD_COORDINATOR', 'MEDICAL_COORDINATOR', 'RESPONDER', 'VIEWER'),
   getIncidentAssignments
 );
 
