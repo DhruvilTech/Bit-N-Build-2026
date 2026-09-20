@@ -399,7 +399,6 @@ export const createIncident = async (data, user = null) => {
   // Broadcast real-time WebSocket event
   emitIncidentNew(incident);
 
-<<<<<<< HEAD
   // Phase 34: Record timeline event for incident creation
   recordTimelineEvent({
     incidentId: incident.incidentId,
@@ -411,10 +410,7 @@ export const createIncident = async (data, user = null) => {
     metadata: { type: incident.type, severity: incident.severity, priority: incident.priority },
   }).catch((err) => console.warn('[Timeline Error]', err.message));
 
-  // Dispatch operational notification if Critical or P1
-=======
   // Dispatch operational notification
->>>>>>> 8e46c7c67ab6cc445a7bbe8f26ac54a30e7dbef3
   if (incident.severity === 'CRITICAL' || incident.priority === 'P1') {
     NotificationService.dispatchEventNotification('INCIDENT_CRITICAL', {
       title: `CRITICAL INCIDENT: #${incident.incidentId}`,
