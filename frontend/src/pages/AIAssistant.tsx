@@ -22,6 +22,8 @@ interface Message {
   text: string;
   timestamp: string;
   intent?: string;
+  executedTools?: string[];
+  verifiedData?: boolean;
   data?: Array<{
     id: string;
     title: string;
@@ -99,6 +101,8 @@ export const AIAssistant: React.FC = () => {
         timestamp: new Date().toTimeString().slice(0, 8),
         intent: result.intent,
         data: result.data,
+        verifiedData: result.verifiedData,
+        executedTools: result.executedTools,
       };
       setMessages((prev) => [...prev, aiMsg]);
     } catch (err: any) {
@@ -244,16 +248,33 @@ export const AIAssistant: React.FC = () => {
                       : 'bg-slate-50 dark:bg-white/[0.03] text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-white/10 rounded-tl-none font-sans text-xs'
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-4 mb-1 font-mono text-[10px] text-slate-500 dark:text-slate-400">
-                    <span className="flex items-center gap-1.5 font-bold">
-                      {msg.sender === 'user' ? 'OPERATOR' : 'MISTRAL COPILOT'}
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2 font-mono text-[10px] text-slate-500 dark:text-slate-400 border-b border-slate-200/60 dark:border-white/5 pb-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5 font-bold">
+                      <span>{msg.sender === 'user' ? 'OPERATOR' : 'MISTRAL COMMAND AI'}</span>
                       {msg.intent && (
-                        <span className="px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-700 dark:text-[#A78BFA] text-[9px] font-mono">
+                        <span className="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-700 dark:text-[#A78BFA] text-[9px] font-mono">
                           {msg.intent}
                         </span>
                       )}
-                    </span>
-                    <span>{msg.timestamp}</span>
+                      {msg.verifiedData && (
+                        <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-[9px] font-semibold">
+                          <CheckCircle2 className="w-2.5 h-2.5" />
+                          VERIFIED OPERATIONAL DATA
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {msg.executedTools && msg.executedTools.length > 0 && (
+                        <div className="flex items-center gap-1">
+                          {msg.executedTools.map((t, tidx) => (
+                            <span key={tidx} className="px-1.5 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/25 text-cyan-700 dark:text-cyan-300 text-[8.5px] font-mono">
+                              tool:{t}()
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <span>{msg.timestamp}</span>
+                    </div>
                   </div>
                   <div>{renderFormattedContent(msg.text)}</div>
 
@@ -306,7 +327,7 @@ export const AIAssistant: React.FC = () => {
                 </div>
                 <div className="p-4 rounded-2xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/10 text-purple-700 dark:text-[#A78BFA] font-mono text-xs flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-[#7C5CFC] animate-ping" />
-                  Extracting scoped operational data and synthesizing response...
+                  Selecting controlled operational tools and retrieving verified database state...
                 </div>
               </div>
             )}
