@@ -2,7 +2,7 @@ import Escalation from '../models/escalation.model.js';
 import Incident from '../models/incident.model.js';
 import { ESCALATION_RULES, ESCALATION_LEVELS } from '../config/escalation.config.js';
 import NotificationService from './notification.service.js';
-import { emitEscalationCreated, emitEscalationAcknowledged, emitEscalationResolved } from '../utils/socket.js';
+import { emitEscalationCreated, emitEscalationAcknowledged, emitEscalationResolved, emitIncidentTimeline } from '../utils/socket.js';
 import { recordAuditLog } from './auditLog.service.js';
 import { ForbiddenError, NotFoundError } from '../utils/errors.js';
 
@@ -133,19 +133,23 @@ export class EscalationService {
 
     // 2. Append incident timeline event
     try {
+      const tlEvent = {
+        timelineId: `TL-${Date.now()}-ESC`,
+        event: 'ESCALATION_CREATED',
+        description: `Level ${level} escalation triggered: ${reason}`,
+        changedBy: { userId: 'SYSTEM', name: 'Escalation Engine', role: 'SYSTEM' },
+        timestamp: new Date(),
+        reason,
+      };
       await Incident.updateOne(
         { $or: [{ incidentId }, { _id: incidentMongoId }] },
         {
           $push: {
-            timeline: {
-              event: 'ESCALATED',
-              description: `Level ${level} escalation triggered: ${reason}`,
-              actor: 'SYSTEM',
-              timestamp: new Date(),
-            },
+            timeline: tlEvent,
           },
         }
       );
+      emitIncidentTimeline(incidentId, tlEvent);
     } catch (timelineErr) {
       console.warn('[EscalationService] Incident timeline update failed:', timelineErr.message);
     }

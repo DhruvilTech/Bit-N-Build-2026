@@ -35,7 +35,7 @@ import {
 } from 'lucide-react';
 
 import { soundFx } from '../utils/audio';
-import { aiApi, AiSummaryResult, escalationsApi, EscalationItem } from '../services/api';
+import { aiApi, AiSummaryResult, escalationsApi, EscalationItem, incidentsApi } from '../services/api';
 import { AiOverrideModal } from '../components/operations/AiOverrideModal';
 import { AddReportModal } from '../components/operations/AddReportModal';
 
@@ -92,6 +92,44 @@ export const IncidentDetails: React.FC = () => {
   // Phase 16: Escalation State
   const [incidentEscalations, setIncidentEscalations] = useState<EscalationItem[]>([]);
   const [isActingOnEscalation, setIsActingOnEscalation] = useState<boolean>(false);
+
+  // Phase 37: Real-time Incident Timeline State
+  const [timelineEvents, setTimelineEvents] = useState<any[]>(incident?.timeline || []);
+  const [isLoadingTimeline, setIsLoadingTimeline] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!incident?.id) return;
+    setIsLoadingTimeline(true);
+    incidentsApi
+      .getTimeline(incident.id)
+      .then((tl: any) => {
+        if (Array.isArray(tl) && tl.length > 0) {
+          setTimelineEvents(
+            tl.map((item: any, idx: number) => ({
+              id: item.timelineId || `TL-${idx + 1}`,
+              time: item.timestamp ? new Date(item.timestamp).toLocaleTimeString().slice(0, 8) : 'Just now',
+              title: item.event ? item.event.replace(/_/g, ' ') : item.newStatus || 'Status Milestone',
+              description: item.description || item.reason || 'Event logged in operational timeline.',
+              completed: true,
+              event: item.event,
+              reason: item.reason,
+            }))
+          );
+        } else if (incident.timeline && incident.timeline.length > 0) {
+          setTimelineEvents(incident.timeline);
+        }
+      })
+      .catch(() => {
+        if (incident.timeline) setTimelineEvents(incident.timeline);
+      })
+      .finally(() => setIsLoadingTimeline(false));
+  }, [incident?.id, incident?.timeline]);
+
+  const formatConfidence = (val?: number | null): string => {
+    if (val === undefined || val === null || isNaN(val)) return '85%';
+    if (val > 1) return `${Math.round(val)}%`;
+    return `${Math.round(val * 100)}%`;
+  };
 
   const handleGenerateSummary = async () => {
     if (!incident?.id) return;
@@ -542,34 +580,32 @@ export const IncidentDetails: React.FC = () => {
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/5">
                 <span className="text-slate-500 dark:text-slate-400 text-[10px] block font-semibold">AI CLASSIFICATION</span>
                 <span className="text-slate-900 dark:text-white font-bold text-sm">
-                  {incident.aiAnalysis?.incidentType || incident.rawType || incident.type}
+                  {incident.aiAnalysis?.classification?.value || incident.aiAnalysis?.incidentType || incident.rawType || incident.type}
                 </span>
               </div>
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/5">
                 <span className="text-slate-500 dark:text-slate-400 text-[10px] block font-semibold">SEVERITY RATING</span>
                 <span className={`font-bold text-sm ${
-                  (incident.aiAnalysis?.severity || incident.severity) === 'CRITICAL'
+                  (incident.aiAnalysis?.severityRating?.value || incident.aiAnalysis?.severity || incident.severity) === 'CRITICAL'
                     ? 'text-rose-600 dark:text-[#FB4A4A]'
-                    : (incident.aiAnalysis?.severity || incident.severity) === 'HIGH'
+                    : (incident.aiAnalysis?.severityRating?.value || incident.aiAnalysis?.severity || incident.severity) === 'HIGH'
                     ? 'text-amber-600 dark:text-[#F5A623]'
                     : 'text-teal-600 dark:text-[#2DD4BF]'
                 }`}>
-                  {incident.aiAnalysis?.severity || incident.severity}
+                  {incident.aiAnalysis?.severityRating?.value || incident.aiAnalysis?.severity || incident.severity}
                 </span>
               </div>
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/5">
                 <span className="text-slate-500 dark:text-slate-400 text-[10px] block font-semibold">DISPATCH PRIORITY</span>
                 <span className="text-purple-700 dark:text-[#A78BFA] font-bold text-sm">
-                  {incident.aiAnalysis?.priority || incident.priority} {((incident.aiAnalysis?.priority || incident.priority) === 'P1') ? '(< 8m)' : ''}
+                  {incident.aiAnalysis?.priorityRating?.value || incident.aiAnalysis?.priority || incident.priority} {((incident.aiAnalysis?.priorityRating?.value || incident.aiAnalysis?.priority || incident.priority) === 'P1') ? '(< 8m)' : ''}
                 </span>
               </div>
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-white/[0.03] border border-slate-200 dark:border-white/5">
                 <span className="text-slate-500 dark:text-slate-400 text-[10px] block font-semibold">CALIBRATED CONFIDENCE</span>
                 <div className="flex items-center gap-2 mt-0.5">
                   <span className="text-slate-900 dark:text-white font-bold text-sm">
-                    {incident.aiAnalysis?.confidence !== undefined
-                      ? `${Math.round(incident.aiAnalysis.confidence * 100)}%`
-                      : `${incident.aiConfidence}%`}
+                    {formatConfidence(incident.aiAnalysis?.classification?.confidence ?? incident.aiAnalysis?.confidence ?? incident.aiConfidence)}
                   </span>
                   <div className="flex-1 h-2 bg-slate-200 dark:bg-white/10 rounded-full overflow-hidden">
                     <div
@@ -581,11 +617,7 @@ export const IncidentDetails: React.FC = () => {
                           : 'bg-amber-500'
                       }`}
                       style={{
-                        width: `${
-                          incident.aiAnalysis?.confidence !== undefined
-                            ? Math.round(incident.aiAnalysis.confidence * 100)
-                            : incident.aiConfidence
-                        }%`,
+                        width: formatConfidence(incident.aiAnalysis?.classification?.confidence ?? incident.aiAnalysis?.confidence ?? incident.aiConfidence),
                       }}
                     />
                   </div>
@@ -1221,38 +1253,78 @@ export const IncidentDetails: React.FC = () => {
 
           {/* Response Timeline Ledger */}
           <div className="p-6 rounded-[18px] bg-white dark:bg-[rgba(11,14,19,0.78)] border border-slate-200 dark:border-white/10 backdrop-blur-[18px] shadow-md dark:shadow-[0_10px_40px_rgba(0,0,0,0.4)]">
-            <div className="flex items-center gap-2 pb-3.5 border-b border-slate-200 dark:border-white/10 mb-4">
-              <Clock className="w-4 h-4 text-teal-600 dark:text-[#2DD4BF]" />
-              <h3 className="text-sm font-display font-bold text-slate-900 dark:text-white">
-                PROGRESSIVE RESPONSE TIMELINE
-              </h3>
+            <div className="flex items-center justify-between pb-3.5 border-b border-slate-200 dark:border-white/10 mb-4">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-teal-600 dark:text-[#2DD4BF]" />
+                <h3 className="text-sm font-display font-bold text-slate-900 dark:text-white">
+                  PROGRESSIVE RESPONSE TIMELINE
+                </h3>
+              </div>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-teal-500/10 text-teal-700 dark:text-[#2DD4BF] font-semibold border border-teal-500/20">
+                {timelineEvents.length} EVENTS
+              </span>
             </div>
 
-            <div className="relative pl-6 space-y-4 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-px before:bg-slate-300 dark:before:bg-white/10 font-mono text-xs">
-              {incident.timeline.map((event, idx) => (
-                <div key={event.id || idx} className="relative group">
-                  <div
-                    className={`absolute -left-6 top-1 w-3 h-3 rounded-full border-2 ${
-                      event.completed
-                        ? 'bg-[#2DD4BF] border-[#5EEAD4] shadow-[0_0_8px_#2DD4BF]'
-                        : 'bg-slate-100 dark:bg-[#0B0E13] border-slate-400 dark:border-slate-600'
-                    }`}
-                  />
-                  <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 mb-0.5">
-                    <span className="font-semibold text-slate-900 dark:text-white">{event.title}</span>
-                    <span className="text-teal-700 dark:text-[#2DD4BF] font-bold">{event.time}</span>
-                  </div>
-                  <p className="text-[11px] text-slate-700 dark:text-slate-300 font-sans leading-relaxed">
-                    {event.description}
-                  </p>
-                  {event.reason && (
-                    <span className="text-[10px] text-slate-500 italic block mt-0.5">
-                      Log: {event.reason}
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
+            {isLoadingTimeline && timelineEvents.length === 0 ? (
+              <div className="py-8 flex flex-col items-center justify-center text-center font-mono text-xs text-slate-500">
+                <RefreshCw className="w-4 h-4 animate-spin text-teal-500 mb-2" />
+                <span>Loading operational timeline...</span>
+              </div>
+            ) : timelineEvents.length === 0 ? (
+              <div className="py-6 text-center font-mono text-xs text-slate-500">
+                No timeline events recorded yet.
+              </div>
+            ) : (
+              <div className="relative pl-6 space-y-4 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-px before:bg-slate-300 dark:before:bg-white/10 font-mono text-xs">
+                {timelineEvents.map((event, idx) => {
+                  const evType = (event.event || '').toUpperCase();
+                  const isCreated = evType === 'INCIDENT_CREATED';
+                  const isAi = evType.startsWith('AI_') || evType.includes('CLASSIFIED');
+                  const isResource = evType.startsWith('RESOURCE_') || evType === 'ASSIGNED';
+                  const isDelay = evType.includes('DELAY') || evType.includes('ALERT');
+                  const isResolved = evType.includes('RESOLVED');
+
+                  return (
+                    <div key={event.id || idx} className="relative group">
+                      <div
+                        className={`absolute -left-6 top-1 w-3 h-3 rounded-full border-2 ${
+                          isResolved
+                            ? 'bg-emerald-500 border-emerald-300 shadow-[0_0_8px_#10B981]'
+                            : isDelay
+                            ? 'bg-amber-500 border-amber-300 shadow-[0_0_8px_#F59E0B]'
+                            : isResource
+                            ? 'bg-cyan-500 border-cyan-300 shadow-[0_0_8px_#06B6D4]'
+                            : isAi
+                            ? 'bg-purple-500 border-purple-300 shadow-[0_0_8px_#8B5CF6]'
+                            : isCreated
+                            ? 'bg-blue-500 border-blue-300 shadow-[0_0_8px_#3B82F6]'
+                            : 'bg-teal-500 border-teal-300 shadow-[0_0_8px_#14B8A6]'
+                        }`}
+                      />
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 mb-0.5">
+                        <span className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                          {event.title}
+                          {event.event && (
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-100 dark:bg-white/5 text-slate-500 border border-slate-200 dark:border-white/5 font-mono">
+                              {event.event}
+                            </span>
+                          )}
+                        </span>
+                        <span className="text-teal-700 dark:text-[#2DD4BF] font-bold">{event.time}</span>
+                      </div>
+                      <p className="text-[11px] text-slate-700 dark:text-slate-300 font-sans leading-relaxed">
+                        {event.description}
+                      </p>
+                      {event.reason && (
+                        <span className="text-[10px] text-slate-500 italic block mt-0.5">
+                          Log: {event.reason}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>

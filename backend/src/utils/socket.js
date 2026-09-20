@@ -110,6 +110,16 @@ export const emitIncidentAiAnalyzed = (incident) => {
 };
 
 /**
+ * Broadcast when an incident timeline event occurs
+ */
+export const emitIncidentTimeline = (incidentId, timelineEvent) => {
+  if (ioInstance) {
+    ioInstance.to(`incident:${incidentId}`).emit('incident:timeline', { incidentId, event: timelineEvent });
+    ioInstance.emit('incident:timelineUpdated', { incidentId, event: timelineEvent });
+  }
+};
+
+/**
  * Broadcast when an incident's AI classification fails
  */
 export const emitIncidentAiFailed = (incident, error) => {

@@ -54,10 +54,27 @@ export interface IncidentAiAnalysis {
   reviewReason?: string | null;
   classification?: {
     type: string;
+    value?: string;
     confidence: number;
     subcategory?: string;
     secondaryCategories?: string[];
   };
+  severityRating?: {
+    level?: IncidentSeverity;
+    value?: IncidentSeverity;
+    confidence?: number;
+    score?: number;
+  };
+  priorityRating?: {
+    level?: IncidentPriority;
+    value?: IncidentPriority;
+    score?: number;
+    slaMinutes?: number;
+    reason?: string;
+  };
+  reason?: string;
+  recommendations?: string[];
+  riskFactors?: string[];
   severityAnalysis?: {
     level: IncidentSeverity;
     confidence: number;

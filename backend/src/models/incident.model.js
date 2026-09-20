@@ -33,6 +33,21 @@ const timelineEventSchema = new mongoose.Schema(
         'AI_OVERRIDE',
         'AI_REVIEW',
         'INCIDENTS_MERGED',
+        'AI_ANALYSIS_STARTED',
+        'AI_ANALYSIS_COMPLETED',
+        'INCIDENT_CLASSIFIED',
+        'SEVERITY_UPDATED',
+        'PRIORITY_UPDATED',
+        'DUPLICATE_DETECTED',
+        'INCIDENT_MERGED',
+        'RESOURCE_RECOMMENDED',
+        'RESOURCE_DISPATCHED',
+        'RESOURCE_EN_ROUTE',
+        'RESOURCE_DELAYED',
+        'ALERT_CREATED',
+        'ESCALATION_CREATED',
+        'RESOURCE_ARRIVED',
+        'RESOURCE_RELEASED',
       ],
       required: true,
     },
@@ -208,6 +223,7 @@ const incidentSchema = new mongoose.Schema(
           enum: ['FIRE', 'FLOOD', 'ROAD_ACCIDENT', 'INDUSTRIAL_ACCIDENT', 'MEDICAL_EMERGENCY', 'EARTHQUAKE', 'OTHER'],
           default: null,
         },
+        value: { type: String, default: null },
         confidence: { type: Number, min: 0, max: 1, default: null },
       },
       severityRating: {
@@ -216,6 +232,7 @@ const incidentSchema = new mongoose.Schema(
           enum: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'],
           default: null,
         },
+        value: { type: String, default: null },
         confidence: { type: Number, min: 0, max: 1, default: null },
       },
       priorityRating: {
@@ -224,8 +241,13 @@ const incidentSchema = new mongoose.Schema(
           enum: ['P1', 'P2', 'P3', 'P4'],
           default: null,
         },
+        value: { type: String, default: null },
         reason: { type: String, default: null },
       },
+      priorityReason: { type: String, default: null },
+      reason: { type: String, default: null },
+      recommendations: [{ type: String }],
+      riskFactors: [{ type: String }],
       location: {
         latitude: { type: Number, default: null },
         longitude: { type: Number, default: null },
@@ -385,6 +407,7 @@ incidentSchema.index({ severity: 1, priority: 1, status: 1, type: 1, source: 1 }
 incidentSchema.index({ createdAt: -1 });
 incidentSchema.index({ duplicateOf: 1 });
 incidentSchema.index({ status: 1, createdAt: -1 });
+incidentSchema.index({ status: 1, severity: 1, createdAt: -1 });
 
 export const IncidentModel = mongoose.model('Incident', incidentSchema);
 export default IncidentModel;

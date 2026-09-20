@@ -130,7 +130,7 @@ export const updateLocation = async (req, res, next) => {
 
 export const getTimeline = async (req, res, next) => {
   try {
-    const timeline = await getIncidentTimeline(req.params.id);
+    const timeline = await getIncidentTimeline(req.params.id, req.query);
     return successResponse(res, `Incident #${req.params.id} timeline`, { timeline }, 200);
   } catch (error) {
     next(error);

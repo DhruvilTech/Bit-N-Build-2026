@@ -5,7 +5,7 @@ import { AssignmentModel } from '../models/assignment.model.js';
 import { ResourceModel } from '../models/resource.model.js';
 import { ResponseTeamModel } from '../models/team.model.js';
 import { recordAuditLog } from './auditLog.service.js';
-import { emitAlertNew, emitAlertAcknowledged, emitAlertResolved } from '../utils/socket.js';
+import { emitAlertNew, emitAlertAcknowledged, emitAlertResolved, emitIncidentTimeline } from '../utils/socket.js';
 import { NotFoundError, BadRequestError } from '../utils/errors.js';
 import { env } from '../config/env.js';
 
@@ -82,6 +82,28 @@ export const createAlert = async ({
 
   // 3. Emit real-time Socket.IO alert:new event
   emitAlertNew(alert);
+
+  // 3.1 Append timeline event to incident if incidentId is present
+  if (incidentId && mongoose.connection.readyState === 1) {
+    try {
+      const eventType = (type === 'DELAY' || type === 'RESPONSE_DELAY' || type === 'SLA_BREACH') ? 'RESOURCE_DELAYED' : 'ALERT_CREATED';
+      const tlEvent = {
+        timelineId: `TL-${Date.now()}-ALT`,
+        event: eventType,
+        description: `Alert [${severity}]: ${title} - ${message}`,
+        changedBy: { userId: 'SYSTEM', name: 'Alert Engine', role: 'SYSTEM' },
+        timestamp: new Date(),
+        reason: `${type} detected: ${message}`,
+      };
+      await IncidentModel.updateOne(
+        { $or: [{ incidentId }, { _id: mongoose.isValidObjectId(incidentId) ? incidentId : null }].filter(Boolean) },
+        { $push: { timeline: tlEvent } }
+      );
+      emitIncidentTimeline(incidentId, tlEvent);
+    } catch (tlErr) {
+      console.warn('[AlertService] Failed to append timeline event:', tlErr.message);
+    }
+  }
 
   // 4. Record Audit Log
   await recordAuditLog({

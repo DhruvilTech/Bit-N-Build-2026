@@ -304,6 +304,32 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         ]);
       });
 
+      // Incident Timeline Real-Time Listener (Phase 37)
+      socket.on('incident:timelineUpdated', (payload: any) => {
+        const { incidentId, event } = payload;
+        if (!incidentId || !event) return;
+        setIncidents((prev) =>
+          prev.map((i) => {
+            if (i.id === incidentId) {
+              const newTimeline = [...(i.timeline || []), {
+                id: event.timelineId || `TL-${Date.now()}`,
+                time: event.timestamp ? new Date(event.timestamp).toLocaleTimeString().slice(0, 8) : 'Just now',
+                title: event.event?.replace(/_/g, ' ') || event.title || 'Timeline Event',
+                description: event.description || event.reason || 'Event recorded.',
+                completed: true,
+                event: event.event,
+                reason: event.reason,
+              }];
+              return {
+                ...i,
+                timeline: newTimeline,
+              };
+            }
+            return i;
+          })
+        );
+      });
+
       // GPS Tracking & Route events
       socket.on('resource:locationUpdated', (payload: any) => {
         const { resourceId, currentLocation, status, distanceKm, etaMinutes } = payload;
@@ -951,6 +977,9 @@ export const EmergencyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setAlerts((prev) =>
       prev.map((alt) => (alt.id === alertId ? { ...alt, acknowledged: true } : alt))
     );
+    alertsApi.acknowledge(alertId).catch((err) => {
+      console.warn('Backend alertsApi acknowledge note:', err.message);
+    });
   }, []);
 
   // Escalate Incident

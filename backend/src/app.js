@@ -6,6 +6,7 @@ import { env } from './config/env.js';
 import apiRouter from './routes/index.js';
 import { notFoundHandler } from './middleware/notFound.middleware.js';
 import { errorHandler } from './middleware/error.middleware.js';
+import { sanitizeMiddleware } from './middleware/sanitize.middleware.js';
 
 const app = express();
 
@@ -25,6 +26,9 @@ app.use(
 // Body Parsers
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// NoSQL Query & Body Sanitization (Phase 40)
+app.use(sanitizeMiddleware);
 
 // HTTP Request Logging
 if (env.NODE_ENV !== 'test') {

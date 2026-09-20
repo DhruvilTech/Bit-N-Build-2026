@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/auth.middleware.js';
+import { aiRateLimiter } from '../middleware/rateLimit.middleware.js';
 import {
   getIncidentEmergencySummary,
   processCommandChat,
@@ -7,8 +8,9 @@ import {
 
 const router = Router();
 
-// AI operational services require authentication
+// AI operational services require authentication and rate-limiting
 router.use(authenticate);
+router.use(aiRateLimiter);
 
 router.post('/incident-summary', getIncidentEmergencySummary);
 router.post('/chat', processCommandChat);

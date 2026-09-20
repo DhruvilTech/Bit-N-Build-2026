@@ -32,6 +32,7 @@ import {
   emitIncidentUpdated,
   emitIncidentStatusChanged,
   emitRouteCreated,
+  emitIncidentTimeline,
 } from '../utils/socket.js';
 
 // Legal Assignment Status Transitions (Phase 10 & GPS Return)
@@ -500,19 +501,33 @@ export const updateAssignmentStatus = async (
       );
     }
 
-    incident.timeline.push({
+    const eventType =
+      newStatus === 'DISPATCHED'
+        ? 'RESOURCE_DISPATCHED'
+        : newStatus === 'EN_ROUTE'
+        ? 'RESOURCE_EN_ROUTE'
+        : newStatus === 'ON_SCENE'
+        ? 'RESOURCE_ARRIVED'
+        : newStatus === 'COMPLETED' || newStatus === 'CANCELLED'
+        ? 'RESOURCE_RELEASED'
+        : 'STATUS_CHANGED';
+
+    const timelineEntry = {
       timelineId: `TL-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      event: 'STATUS_CHANGED',
+      event: eventType,
       previousStatus: currentStatus,
       newStatus,
       changedBy: operatorInfo,
       timestamp: transitionTime,
       reason: notes || `Resource #${assignment.resourceId} transitioned to ${newStatus}`,
       description: `Resource #${assignment.resourceId} (${assignment.resourceName}) is now ${newStatus}`,
-    });
+    };
+
+    incident.timeline.push(timelineEntry);
 
     await incident.save();
     emitIncidentUpdated(incident);
+    emitIncidentTimeline(incident.incidentId, timelineEntry);
   }
 
   // Audit Log
