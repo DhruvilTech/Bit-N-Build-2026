@@ -342,7 +342,7 @@ export const Settings: React.FC = () => {
                     <td className="py-2.5 px-3">
                       <select
                         value={cadet.role}
-                        disabled={cadet.id === user.id}
+                        disabled={cadet.id === user?.id}
                         onChange={(e) => handleRoleChange(cadet.id, e.target.value)}
                         aria-label={`Role for ${cadet.name}`}
                         className="px-2 py-1 rounded-lg bg-slate-100 dark:bg-white/5 border border-slate-300 dark:border-white/10 text-slate-900 dark:text-white text-xs font-mono focus:outline-none focus:border-teal-500 dark:focus:border-[#2DD4BF]"
@@ -365,7 +365,7 @@ export const Settings: React.FC = () => {
                       </span>
                     </td>
                     <td className="py-2.5 px-3 text-right">
-                      {cadet.id !== user.id && (
+                      {cadet.id !== user?.id && (
                         <button
                           type="button"
                           onClick={() => handleStatusToggle(cadet.id, cadet.isActive)}

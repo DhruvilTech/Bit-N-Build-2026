@@ -357,6 +357,7 @@ export interface LiveResource {
   capabilities: string[];
   capacity: number;
   currentAssignment?: string | null;
+  assignedIncidentId?: string | null;
   availability: boolean;
   distanceKm?: number;
   etaMinutes?: number;
